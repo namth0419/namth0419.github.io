@@ -1,1 +1,552 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Taehyun Nam — Curriculum Vitae</title>
+<meta name="description" content="Taehyun Nam — Ph.D. student, Chemical and Biomolecular Engineering, KAIST. iCVD, organic/inorganic semiconductors, neuromorphic devices.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12161a;
+    --wafer:#E8EAE6;
+    --card:#F4F5F2;
+    --rule:#CDD1CA;
+    --muted:#6E7671;
+    --deep:#1E2A78;
+    --film-1:#1E2A78;
+    --film-2:#6E2E8F;
+    --film-3:#B98B22;
+    --film-4:#2A7F6F;
+    --film: linear-gradient(90deg,var(--film-1) 0%,var(--film-2) 34%,var(--film-3) 67%,var(--film-4) 100%);
+    --display:"Archivo",system-ui,sans-serif;
+    --body:"Source Serif 4",Georgia,serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--wafer);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--deep);text-decoration:none;border-bottom:1px solid rgba(30,42,120,.28)}
+  a:hover{border-bottom-color:var(--deep)}
+  :focus-visible{outline:2px solid var(--deep);outline-offset:3px}
+
+  /* thin-film interference bar: the one loud element */
+  .film-top{position:fixed;top:0;left:0;right:0;height:3px;background:var(--film);z-index:20}
+  .progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--ink);opacity:.55;z-index:21;transition:width .08s linear}
+
+  .shell{max-width:1140px;margin:0 auto;padding:52px 28px 96px;display:grid;grid-template-columns:274px 1fr;gap:60px;align-items:start}
+
+  /* ---- left rail: the substrate ---- */
+  .rail{position:sticky;top:44px}
+  .portrait{
+    width:132px;height:170px;object-fit:cover;display:block;
+    border:1px solid var(--rule);
+    filter:grayscale(1) contrast(1.04);
+    background:var(--card);
+  }
+  .portrait-wrap{position:relative;width:132px;margin-bottom:22px}
+  .portrait-wrap::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:3px;background:var(--film)}
+  .name{
+    font-family:var(--display);font-weight:700;font-size:31px;line-height:1.06;
+    letter-spacing:-.022em;margin:0 0 6px;
+  }
+  .role{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 20px;line-height:1.7}
+  .meta{list-style:none;margin:0 0 26px;padding:0;font-family:var(--mono);font-size:12px;line-height:2}
+  .meta li{display:flex;gap:9px}
+  .meta .k{color:var(--muted);min-width:52px;flex:none}
+  .meta a{border:none;color:var(--ink)}
+  .meta a:hover{color:var(--deep)}
+  /* profile links */
+  .social{list-style:none;margin:0 0 24px;padding:0;border-top:1px solid var(--rule)}
+  .social li{border-bottom:1px solid var(--rule)}
+  .social a{
+    display:flex;align-items:center;gap:9px;padding:8px 0;border:none;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.02em;color:var(--ink);
+  }
+  .social a .ico{width:13px;height:13px;flex:none;color:var(--muted);transition:color .15s}
+  .social a .arw{margin-left:auto;font-size:10px;color:var(--muted);transition:transform .15s}
+  .social a:hover{color:var(--deep)}
+  .social a:hover .ico{color:var(--film-2)}
+  .social a:hover .arw{transform:translate(2px,-2px)}
+
+  nav{border-top:1px solid var(--rule);padding-top:14px}
+  nav ol{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:12px}
+  nav li{margin:0 0 2px}
+  nav a{
+    display:flex;gap:10px;align-items:baseline;color:var(--muted);border:none;padding:3px 0;
+  }
+  nav a .n{font-size:10px;opacity:.6;min-width:16px}
+  nav a:hover,nav a.on{color:var(--ink)}
+  nav a.on .n{color:var(--film-2);opacity:1}
+
+  /* ---- right column: the stack ---- */
+  main{min-width:0;border-left:1px solid var(--rule);padding-left:44px}
+  section{padding:0 0 46px;scroll-margin-top:40px}
+  section + section{border-top:1px solid var(--rule);padding-top:34px}
+  h2{
+    font-family:var(--mono);font-weight:500;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 20px;
+    display:flex;align-items:center;gap:12px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:var(--rule)}
+  .lede{font-size:19.5px;line-height:1.6;margin:0;max-width:62ch}
+  .lede em{font-style:italic;color:var(--deep)}
+
+  /* entries */
+  .entry{display:grid;grid-template-columns:148px 1fr;gap:22px;padding:14px 0}
+  .entry + .entry{border-top:1px dotted var(--rule)}
+  .when{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;padding-top:3px}
+  .what{margin:0}
+  .what h3{font-family:var(--display);font-weight:600;font-size:16.5px;letter-spacing:-.01em;margin:0 0 3px;line-height:1.35}
+  .what p{margin:0;color:#3d444a;font-size:14.5px;line-height:1.6}
+  .what .tag{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+  /* research areas */
+  .area{padding:18px 0}
+  .area + .area{border-top:1px dotted var(--rule)}
+  .area > h3{
+    font-family:var(--display);font-weight:600;font-size:17px;margin:0 0 4px;letter-spacing:-.01em;
+    display:flex;gap:12px;
+  }
+  .area > h3 .idx{font-family:var(--mono);font-size:12px;color:var(--film-2);padding-top:3px}
+  .sub{margin:12px 0 0 0;padding-left:24px;border-left:2px solid var(--rule)}
+  .sub h4{font-family:var(--body);font-style:italic;font-weight:600;font-size:15px;margin:0 0 6px;color:var(--ink)}
+  .sub ul{margin:0 0 16px;padding-left:17px;font-size:14.3px;color:#3d444a}
+  .sub li{margin:0 0 4px}
+  .sub > div:last-child ul{margin-bottom:0}
+
+  /* skills */
+  .skill{display:grid;grid-template-columns:196px 1fr;gap:22px;padding:12px 0}
+  .skill + .skill{border-top:1px dotted var(--rule)}
+  .skill h3{font-family:var(--mono);font-weight:500;font-size:11.5px;letter-spacing:.05em;color:var(--muted);margin:3px 0 0;text-transform:uppercase;line-height:1.6}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    font-family:var(--mono);font-size:11.5px;line-height:1;padding:6px 9px;
+    background:var(--card);border:1px solid var(--rule);color:#333b41;border-radius:2px;
+  }
+
+  /* publications / patents */
+  ol.list{list-style:none;counter-reset:it;margin:0;padding:0}
+  ol.list li{
+    counter-increment:it;position:relative;padding:13px 0 13px 40px;font-size:14.6px;line-height:1.58;
+  }
+  ol.list li + li{border-top:1px dotted var(--rule)}
+  ol.list li::before{
+    content:counter(it,decimal-leading-zero);position:absolute;left:0;top:16px;
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+  }
+  .me{font-weight:600;border-bottom:2px solid var(--film-3);}
+  .venue{font-style:italic}
+  .st{
+    font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 6px;border:1px solid var(--rule);border-radius:2px;color:var(--muted);
+    white-space:nowrap;margin-left:4px;position:relative;top:-1px;
+  }
+  .st.pub{color:var(--film-1);border-color:rgba(30,42,120,.4)}
+  .st.acc{color:var(--film-4);border-color:rgba(42,127,111,.5)}
+  .note{font-family:var(--mono);font-size:11px;color:var(--muted);margin:16px 0 0}
+
+  /* per-entry links: DOI / PDF / code */
+  .links{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .lnk{
+    font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+    padding:3px 8px;border:1px solid var(--rule);border-radius:2px;
+    color:var(--muted);background:transparent;line-height:1.6;
+    transition:color .15s,border-color .15s,background .15s;
+  }
+  .lnk:hover{color:#fff;background:var(--deep);border-color:var(--deep)}
+  .lnk.pdf:hover{background:var(--film-2);border-color:var(--film-2)}
+
+  /* figures — drop an image anywhere in a section */
+  figure{margin:20px 0;padding:0}
+  figure img{width:100%;display:block;border:1px solid var(--rule);background:var(--card)}
+  figure figcaption{
+    font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--muted);
+    margin-top:8px;padding-left:11px;border-left:2px solid var(--film-3);
+  }
+  figure figcaption b{color:var(--ink);font-weight:500}
+  .fig-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0}
+  .fig-row figure{margin:0}
+  .fig-narrow{max-width:460px}
+  @media (max-width:640px){ .fig-row{grid-template-columns:1fr} }
+
+  footer{
+    max-width:1140px;margin:0 auto;padding:0 28px 60px;
+    font-family:var(--mono);font-size:11px;color:var(--muted);
+    display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  }
+
+  @media (max-width:900px){
+    .shell{grid-template-columns:1fr;gap:34px;padding:40px 20px 70px}
+    .rail{position:static}
+    main{border-left:none;padding-left:0}
+    nav{display:none}
+    .entry,.skill{grid-template-columns:1fr;gap:6px}
+    .when{padding-top:0}
+    .name{font-size:34px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{transition:none!important;animation:none!important}
+  }
+  @media print{
+    .film-top,.progress,nav{display:none}
+    body{background:#fff}
+    .shell{display:block;max-width:none;padding:0}
+    main{border:none;padding:0}
+    section{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="film-top"></div>
+<div class="progress" id="pg"></div>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="portrait-wrap">
+      <img class="portrait" src="data:image/jpeg;base64,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" alt="Portrait of Taehyun Nam">
+    </div>
+    <h1 class="name">Taehyun<br>Nam</h1>
+    <p class="role">Ph.D. Student · KAIST<br>Chemical &amp; Biomolecular Eng.<br>Visiting Scholar · Penn State</p>
+    <ul class="meta">
+      <li><span class="k">Email</span><a href="mailto:taehyun.nam@kaist.ac.kr">taehyun.nam@kaist.ac.kr</a></li>
+      <li><span class="k">Phone</span><span>+82 42 350 3976</span></li>
+      <li><span class="k">Lab</span><span>Functional Thin Film Lab</span></li>
+      <li><span class="k">Based</span><span>Daejeon, Republic of Korea</span></li>
+    </ul>
+    <ul class="social">
+      <li>
+        <a href="https://scholar.google.com/citations?user=gRV3-qYAAAAJ&amp;hl=en" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 1 8l11 6 9-4.9V17h2V8L12 2z"/><path d="M5 12.4V16c0 2.2 3.1 4 7 4s7-1.8 7-4v-3.6l-7 3.8-7-3.8z"/></svg>
+          Google Scholar<span class="arw">↗</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://orcid.org/0009-0005-3489-1133" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0a12 12 0 100 24 12 12 0 000-24zM7.1 6.3a1.1 1.1 0 110 2.2 1.1 1.1 0 010-2.2zM6.4 9.6h1.5v8.3H6.4V9.6zm3.5 0h3.3c3.2 0 4.6 2.3 4.6 4.2 0 2-1.6 4.1-4.6 4.1H9.9V9.6zm1.5 1.4v5.5h1.6c2.3 0 3.2-1.4 3.2-2.7 0-1.4-1-2.8-3.2-2.8h-1.6z"/></svg>
+          ORCID<span class="arw">↗</span>
+        </a>
+      </li>
+      <li>
+        <a href="https://www.linkedin.com/in/nth0419/" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 11-.01 5.01A2.5 2.5 0 014.98 3.5zM3 9h4v12H3V9zm7 0h3.8v1.7h.05c.53-.95 1.83-1.95 3.76-1.95C21.6 8.75 23 11 23 14.4V21h-4v-5.9c0-1.4-.03-3.2-2-3.2-2 0-2.3 1.5-2.3 3.1V21h-4V9z"/></svg>
+          LinkedIn<span class="arw">↗</span>
+        </a>
+      </li>
+    </ul>
+    <nav aria-label="Sections">
+      <ol>
+        <li><a href="#statement"><span class="n">01</span>Statement</a></li>
+        <li><a href="#education"><span class="n">02</span>Education</a></li>
+        <li><a href="#experience"><span class="n">03</span>Experience</a></li>
+        <li><a href="#research"><span class="n">04</span>Research</a></li>
+        <li><a href="#skills"><span class="n">05</span>Skills</a></li>
+        <li><a href="#publications"><span class="n">06</span>Publications</a></li>
+        <li><a href="#talks"><span class="n">07</span>Talks</a></li>
+        <li><a href="#patents"><span class="n">08</span>Patents</a></li>
+        <li><a href="#honors"><span class="n">09</span>Honors</a></li>
+      </ol>
+    </nav>
+  </aside>
+
+  <main>
+    <section id="statement">
+      <h2>Statement</h2>
+      <p class="lede">I work on <em>material- and process-level engineering</em> of organic and inorganic semiconductors, and on the devices they make possible — from p-type tellurium transistors to synaptic transistors for neuromorphic systems. Most of it starts in a vacuum chamber, with <em>initiated chemical vapor deposition</em>.</p>
+    </section>
+
+    <section id="education">
+      <h2>Education</h2>
+      <div class="entry">
+        <div class="when">Mar 2025 — Current</div>
+        <div class="what">
+          <h3>Ph.D., Chemical and Biomolecular Engineering</h3>
+          <p>KAIST · GPA 4.03 / 4.3 · Advisor: Prof. Sung Gap Im</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Mar 2023 — Feb 2025</div>
+        <div class="what">
+          <h3>M.S., Chemical and Biomolecular Engineering</h3>
+          <p>KAIST · GPA 4.03 / 4.3 · Advisor: Prof. Sung Gap Im</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Mar 2019 — Feb 2023</div>
+        <div class="what">
+          <h3>B.S., Chemical Engineering</h3>
+          <p>POSTECH · GPA 4.06 / 4.3 · Summa Cum Laude</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="experience">
+      <h2>Experience</h2>
+      <div class="entry">
+        <div class="when">May 2026 — Nov 2026</div>
+        <div class="what">
+          <h3>Visiting Scholar</h3>
+          <p>Materials Science and Engineering, Pennsylvania State University (University Park) · Supervisor: Prof. Saptarshi Das</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Jul 2022 — Aug 2022</div>
+        <div class="what">
+          <h3>Intern, Intellectual Properties Strategy Team</h3>
+          <p>LOTTE Chemical</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Jan 2022 — Feb 2022</div>
+        <div class="what">
+          <h3>Intern, Functional Thin Film Laboratory</h3>
+          <p>KAIST · Supervisor: Prof. Sung Gap Im</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Sep 2021 — Dec 2021</div>
+        <div class="what">
+          <h3>Intern, Chemical Engineering Lab</h3>
+          <p>POSTECH · Supervisor: Prof. Won Bae Kim</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Jun 2021 — Aug 2021</div>
+        <div class="what">
+          <h3>Intern, NAND Etch Team</h3>
+          <p>SK Hynix, Future Technology R&amp;D Center</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="research">
+      <h2>Research</h2>
+
+      <!-- ── 사진/그림 넣는 법 ────────────────────────────────────────────────
+           이미지 파일을 assets/ 폴더에 올린 뒤, 아래 주석을 풀어서 쓰세요.
+           어느 섹션 안에서든 그대로 쓸 수 있습니다.
+
+      <figure>
+        <img src="assets/te-tft.jpg" alt="Cross-sectional schematic of the Te TFT stack">
+        <figcaption><b>Fig 1.</b> iCVD 고분자 패시베이션 층을 적용한 p-type Te TFT의 단면 구조.</figcaption>
+      </figure>
+
+           좁게 넣고 싶으면:  <figure class="fig-narrow"> ... </figure>
+           두 장을 나란히:
+
+      <div class="fig-row">
+        <figure><img src="assets/a.jpg" alt=""><figcaption><b>a</b> 전달 특성 곡선.</figcaption></figure>
+        <figure><img src="assets/b.jpg" alt=""><figcaption><b>b</b> 링 오실레이터 출력 파형.</figcaption></figure>
+      </div>
+      ─────────────────────────────────────────────────────────────────────── -->
+
+      <div class="area">
+        <h3><span class="idx">01</span>Development of p-type tellurium-based electronic devices</h3>
+        <div class="sub">
+          <div>
+            <h4>a) High-hole-mobility p-type Te thin-film transistors enabled by iCVD-based polymeric passivation layers</h4>
+            <ul>
+              <li>Exploration and optimization of polymeric passivation layers to enhance switching characteristics — on/off ratio, carrier mobility, threshold voltage</li>
+              <li>Analysis of carrier transport mechanisms through spectroscopy (UPS, Raman) and electrical characterization (TLM, Schottky barrier analysis)</li>
+              <li>Development of vertically integrated CMOS logic circuits and flexible TFTs</li>
+            </ul>
+          </div>
+          <div>
+            <h4>b) Contact engineering in Te TFTs with thermally decomposable polymeric interlayers for an ash-out strategy</h4>
+            <ul>
+              <li>Optimization of polymeric buffer layers to reduce contact resistance and enable higher current levels</li>
+              <li>Investigation of the ash-out process using in-situ heating-cell ellipsometry</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="area">
+        <h3><span class="idx">02</span>High-performance vertical organic thin-film transistors</h3>
+        <div class="sub">
+          <div>
+            <h4>a) Vertically aligned carrier transport for high-current, high-frequency operation</h4>
+            <ul>
+              <li>Design of unconventional vertical OTFT architectures and circuit layouts for complex logic (ring oscillators, half adders)</li>
+              <li>Analysis of high-frequency operation using a WGFMU module integrated into the Keysight B1500A</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="area">
+        <h3><span class="idx">03</span>Next-generation neuromorphic devices and their applications</h3>
+        <div class="sub">
+          <div>
+            <h4>a) Gate-injection-type organic synaptic transistors with tunable decay times for reservoir networks</h4>
+            <ul>
+              <li>Selection and optimization of charge-storage-layer semiconductors to modulate gate-induced charge transfer and control EPSC decay</li>
+              <li>Implementation in AI and neuromorphic applications (NeuroSim, machine learning), focused on human activity recognition with the UCI-HAR dataset</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="skills">
+      <h2>Skills</h2>
+      <div class="skill">
+        <h3>Characterization</h3>
+        <div class="chips">
+          <span class="chip">SEM</span><span class="chip">AFM</span><span class="chip">FT-IR</span><span class="chip">XPS · depth profiling</span><span class="chip">XPS · high-res</span><span class="chip">UPS · depth profiling</span><span class="chip">Contact angle</span><span class="chip">Ellipsometry</span><span class="chip">XRD</span><span class="chip">Hall effect</span>
+        </div>
+      </div>
+      <div class="skill">
+        <h3>Polymer &amp; surface engineering</h3>
+        <div class="chips">
+          <span class="chip">iCVD homopolymer / copolymer synthesis</span><span class="chip">Composition &amp; structure optimization</span>
+        </div>
+      </div>
+      <div class="skill">
+        <h3>Device fabrication</h3>
+        <div class="chips">
+          <span class="chip">2-terminal: MIM, RRAM</span><span class="chip">3-terminal: TFT, flash memory, synaptic</span><span class="chip">Circuits: inverter, logic gates, ring oscillator</span><span class="chip">2D materials: sourcing, exfoliation, wet transfer</span><span class="chip">Device layout design</span><span class="chip">Optoelectronic measurement</span>
+        </div>
+      </div>
+      <div class="skill">
+        <h3>Instruments</h3>
+        <div class="chips">
+          <span class="chip">iCVD system</span><span class="chip">ALD</span><span class="chip">Thermal evaporator</span><span class="chip">E-beam evaporator</span><span class="chip">E-beam lithography</span><span class="chip">Photolithography mask aligner</span><span class="chip">RIE</span><span class="chip">Plasma treatment</span><span class="chip">Optical microscope</span><span class="chip">Keysight B1500A</span><span class="chip">Glovebox probe station</span><span class="chip">Oscilloscope &amp; function generator</span>
+        </div>
+      </div>
+      <div class="skill">
+        <h3>Software &amp; computation</h3>
+        <div class="chips">
+          <span class="chip">Python · TensorFlow · Scikit-learn</span><span class="chip">C / C++ / Java</span><span class="chip">MATLAB</span><span class="chip">Quantum Espresso</span><span class="chip">RASPA</span><span class="chip">ORCA</span><span class="chip">LAMMPS</span><span class="chip">OriginLab</span><span class="chip">ChemDraw</span><span class="chip">ImageJ</span><span class="chip">Raith lithography</span>
+        </div>
+      </div>
+      <div class="skill">
+        <h3>Making &amp; other</h3>
+        <div class="chips">
+          <span class="chip">Fusion 360</span><span class="chip">Cura</span><span class="chip">Homebrew 3D printer</span><span class="chip">WordPress</span><span class="chip">Apache server</span><span class="chip">Linux</span><span class="chip">Photoshop</span><span class="chip">Illustrator</span><span class="chip">Blender</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="publications">
+      <h2>Publications · SCIE &amp; ESCI</h2>
+      <ol class="list">
+        <li><span class="me">Taehyun Nam</span><sup>†</sup>, Seung Min Lee<sup>†</sup>, Chungryeol Lee, Changhyeon Lee, Sunwoo Jeong, Seunghwan Seo, Youson Kim, Jeong-ik Park, Seokhyun Hong, Hyung Joong Yun, Kibum Kang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*. A High-Hole Mobility Tellurium Transistor with Electron Donating Channel Passivation Layer for Scalable, High-Throughput Electronics. <span class="venue">Advanced Functional Materials</span>, <b>36</b>, e27125 (2026).<span class="st pub">Published</span>
+          <div class="links">
+            <a class="lnk" href="https://doi.org/10.1002/adfm.202527125" target="_blank" rel="noopener">DOI</a>
+            <a class="lnk pdf" href="papers/2026_AFM_Te-transistor.pdf" target="_blank" rel="noopener">PDF</a>
+          </div>
+        </li>
+        <li>Youson Kim<sup>†</sup>, <span class="me">Taehyun Nam</span><sup>†</sup>, Junyeong Yang, Changsoon Choi, Seun-Bae Jeon*, and Sung Gap Im*. Electrolyte–channel interface engineering for STM/LTM differentiation in OECTs for physical reservoir computing. <span class="venue">Nature Communications</span>.<span class="st">In submission</span></li>
+        <li>Junyeong Yang<sup>†</sup>, Sanghyun Kim<sup>†</sup>, Jeong-Ik Park<sup>†</sup>, Minjeong Kang, Gyuwon Lee, Changmin Lee, <span class="me">Taehyun Nam</span>, and Sung Gap Im*. Sub-0.3 V Ultra-Low-Voltage Operation of Bilayer RRAM via High-Sulfur Polymer/Inorganic Hybrid Layers for Hardware Synaptic Devices. <span class="venue">Advanced Functional Materials</span>.<span class="st">In submission</span></li>
+        <li>Chungryeol Lee<sup>†</sup>, Dongho Choi<sup>†</sup>, Sanghoon Park, Jeong-ik Park, <span class="me">Taehyun Nam</span>, Minjae Jang, Seunghyup Yoo*, and Sung Gap Im*. A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits. <span class="venue">Nature Communications</span> (2026).<span class="st acc">Accepted</span>
+          <!-- 게재되면 아래 주석을 풀고 DOI를 채워 넣으세요.
+          <div class="links">
+            <a class="lnk" href="https://doi.org/10.1038/s41467-XXX" target="_blank" rel="noopener">DOI</a>
+            <a class="lnk pdf" href="papers/2026_NatCommun_ternary.pdf" target="_blank" rel="noopener">PDF</a>
+          </div>
+          -->
+        </li>
+        <li>Sukwon Jang<sup>†</sup>, Keunho Soh<sup>†</sup>, Chungryeol Lee<sup>†</sup>, <span class="me">Taehyun Nam</span>, Minjae Jang, Jeong-ik Park, Changhyeon Lee, Junhwan Choi, Jung Ho Yoon*, and Sung Gap Im*. A Unipolar-Driven Synaptic Transistor for Environment-Adaptable Vision System. <span class="venue">Nature Communications</span>, <b>16</b>, 7636 (2025).<span class="st pub">Published</span>
+          <div class="links">
+            <a class="lnk" href="https://doi.org/10.1038/s41467-025-63073-2" target="_blank" rel="noopener">DOI</a>
+            <a class="lnk pdf" href="papers/2025_NatCommun_UDST.pdf" target="_blank" rel="noopener">PDF</a>
+          </div>
+        </li>
+        <li>Sukwon Jang<sup>†</sup>, Youson Kim<sup>†</sup>, Chungryeol Lee<sup>†</sup>, <span class="me">Taehyun Nam</span>, Jeong-ik Park, Junyeong Yang, Juchan Kim, Bohyun Lee, and Sung Gap Im*. Vapor-Phase Deposited Polymer Dielectric Layers for Organic Electronics: Design, Characteristics, and Applications. <span class="venue">Korean Journal of Chemical Engineering</span>, <b>42</b>, 1931–1949 (2025).<span class="st pub">Published</span>
+          <div class="links">
+            <a class="lnk" href="https://doi.org/10.1007/s11814-024-00210-5" target="_blank" rel="noopener">DOI</a>
+            <a class="lnk pdf" href="papers/2025_KJChE_review.pdf" target="_blank" rel="noopener">PDF</a>
+          </div>
+        </li>
+        <li>Jeong-ik Park<sup>†</sup>, Changhyeon Lee<sup>†</sup>, Chungryeol Lee, <span class="me">Taehyun Nam</span>, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*. Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors. <span class="venue">Advanced Functional Materials</span>.<span class="st">In revision</span></li>
+        <li><span class="me">Taehyun Nam</span><sup>†</sup>, Chungryeol Lee<sup>†</sup>, Seokhyun Hong, Jeong-ik Park, Youson Kim, and Sung Gap Im*. Gate-Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing.<span class="st">In preparation</span></li>
+        <li>Seokhyun Hong<sup>†</sup>, <span class="me">Taehyun Nam</span><sup>†</sup>, Chungryeol Lee<sup>†</sup>, Jeong-ik Park, Youson Kim, Junhwan Choi*, and Sung Gap Im*. High-current Organic Vertical Transistor with Bottom-up Grain Boundary Selective Deposition of Functional Polymeric Layer.<span class="st">In preparation</span></li>
+      </ol>
+      <p class="note">† These authors contributed equally to this work. * Corresponding author.</p>
+    </section>
+
+    <section id="talks">
+      <h2>Conferences &amp; Presentations</h2>
+      <ol class="list">
+        <li><span class="me">Taehyun Nam</span>, Seung Min Lee, Junhwan Choi*, Sung Gap Im*. “High-Performance p-Type Tellurium Transistor Arrays and Circuits via Vapor Phase Deposited Polymer Passivation.” <span class="venue">The 24th International Meeting on Information Display (IMID 2024)</span>, August 21, 2024, Jeju, South Korea.</li>
+        <li><span class="me">Taehyun Nam</span>, Seung Min Lee, Junhwan Choi*, Sung Gap Im*. “A High-Hole Mobility Tellurium Transistor with Electron Donating Channel Passivation Layer for Scalable, High-Throughput Electronics.” <span class="venue">The 100th Annual Spring Meeting of the Polymer Society of Korea</span>, April 9, 2026, Daejeon, South Korea.</li>
+      </ol>
+    </section>
+
+    <section id="patents">
+      <h2>Patents</h2>
+      <ol class="list">
+        <li>Sung Gap Im, <span class="me">Taehyun Nam</span>, Chungryeol Lee, Sukwon Jang, Sanghoon Ahn, Youngsang Cho. “Method for film deposition.” <span class="venue">KR 10-2024-0117056</span> (priority) · <span class="venue">US 18/921,365</span>.</li>
+        <li>Youngsang Cho, Sung Gap Im, Yongjin Kim, <span class="me">Taehyun Nam</span>, Woojin Lee, Chungryeol Lee, Sukwon Jang. “Method for polymeric layer fabrication.” <span class="venue">KR 10-2024-0117056</span>.</li>
+        <li>Sung Gap Im, Sukwon Jang, Chungryeol Lee, <span class="me">Taehyun Nam</span>. “Dipole polarization-charge capture synergetic single-polarity driven synapse transistor and artificial sensory system comprising the same.” <span class="venue">KR 10-2024-0193239</span> · <span class="venue">US 19/421,173</span>.</li>
+        <li>Sung Gap Im, Juchan Kim, Jeong-ik Park, <span class="me">Taehyun Nam</span>, Bohyun Lee. “Polymer thin films for semiconductor devices, semiconductor devices comprising the same, and methods for manufacturing semiconductor devices.” <span class="venue">KR 10-2026-0005661</span>.</li>
+        <li>Sung Gap Im, <span class="me">Taehyun Nam</span>, Chungryeol Lee, Minjae Jang, Junyeong Yang. “Radical initiators for chemical vapor deposition and method for producing polymer thin film using the same.” <span class="venue">KR 10-2025-0084923</span>.</li>
+        <li>Sung Gap Im, Wooyoung Chung, <span class="me">Taehyun Nam</span>, Changmin Lee. “Sn-based Organic/Inorganic Hybrid UV-sensitive Polymer Thin Film Formed by iCVD Process.” KR (priority) &amp; US.<span class="st">In submission</span></li>
+        <li>Sung Gap Im, <span class="me">Taehyun Nam</span>, Chungryeol Lee, Seokhyun Hong. “Gate Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing.” KR.<span class="st">In submission</span></li>
+      </ol>
+    </section>
+
+    <section id="honors">
+      <h2>Honors &amp; Awards</h2>
+      <div class="entry">
+        <div class="when">Mar 2023 — Current</div>
+        <div class="what">
+          <h3>KAIST Government Scholarship</h3>
+          <p>Full tuition</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Mar 2021 — Feb 2023</div>
+        <div class="what">
+          <h3>National Science &amp; Technology Scholarship</h3>
+          <p>Korea Student Aid Foundation · Full tuition, merit-based</p>
+        </div>
+      </div>
+      <div class="entry">
+        <div class="when">Mar 2019 — Feb 2021</div>
+        <div class="what">
+          <h3>Jigok Scholarship</h3>
+          <p>POSTECH · Full tuition for 4 semesters</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <span>Taehyun Nam · Curriculum Vitae · Last updated April 2026</span>
+  <span><a href="mailto:taehyun.nam@kaist.ac.kr">taehyun.nam@kaist.ac.kr</a></span>
+</footer>
+
+<script>
+  (function(){
+    var pg = document.getElementById('pg');
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
+    var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    function onScroll(){
+      var h = document.documentElement.scrollHeight - window.innerHeight;
+      pg.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
+      var i = 0;
+      for (var j = 0; j < secs.length; j++){
+        if (secs[j] && secs[j].getBoundingClientRect().top <= 120) i = j;
+      }
+      links.forEach(function(a, k){ a.classList.toggle('on', k === i); });
+    }
+    window.addEventListener('scroll', onScroll, {passive:true});
+    onScroll();
+  })();
+</script>
+</body>
+</html>
