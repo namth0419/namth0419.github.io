@@ -182,8 +182,27 @@ def cite_html(p, cv):
         links.append(f'<a class="lnk pdf" href="{esc_html(p["pdf"])}" target="_blank" rel="noopener">PDF</a>')
     body = "".join(bits)
     if links:
-        body += '\n          <div class="links">' + "".join(links) + "</div>\n        "
-    return f'        <li>{body}</li>'
+        body += '\n            <div class="links">' + "".join(links) + "</div>\n          "
+
+    # graphical abstract → 2-column entry (웹 전용, PDF에는 안 들어감)
+    img = p.get("image")
+    if not img:
+        return f'        <li>{body}</li>'
+
+    alt = esc_html(p.get("image_alt") or "Graphical abstract for: " + p["title"])
+    cap = p.get("image_caption", "")
+    cap_html = f'\n            <span class="cap">{esc_html(cap)}</span>' if cap else ""
+    return (
+        '        <li class="has-fig">\n'
+        '          <figure class="pub-fig">\n'
+        f'            <a href="{esc_html(img)}" target="_blank" rel="noopener" '
+        f'aria-label="Open full-size figure">\n'
+        f'              <img src="{esc_html(img)}" alt="{alt}" loading="lazy">\n'
+        f'            </a>{cap_html}\n'
+        '          </figure>\n'
+        f'          <div class="pub-body">{body}</div>\n'
+        '        </li>'
+    )
 
 
 def h_publications(cv):
