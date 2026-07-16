@@ -162,6 +162,28 @@
     content:counter(it,decimal-leading-zero);position:absolute;left:0;top:16px;
     font-family:var(--mono);font-size:11px;color:var(--muted);
   }
+
+  /* two-column entries: graphical abstract + citation */
+  ol.list li.has-fig{
+    display:grid;grid-template-columns:168px 1fr;gap:20px;align-items:start;
+    padding-top:16px;padding-bottom:16px;
+  }
+  .pub-fig{margin:0}
+  .pub-fig a{display:block;border:none;line-height:0}
+  .pub-fig img{
+    width:100%;height:auto;max-height:190px;object-fit:contain;
+    background:var(--card);border:1px solid var(--rule);padding:5px;
+    display:block;transition:border-color .16s;
+  }
+  .pub-fig a:hover img{border-color:var(--film-2)}
+  .pub-fig .cap{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted);margin-top:5px;display:block;line-height:1.5;
+  }
+  @media (max-width:640px){
+    ol.list li.has-fig{grid-template-columns:1fr;gap:12px}
+    .pub-fig{max-width:230px}
+  }
   .me{font-weight:600;border-bottom:2px solid var(--film-3);}
   .venue{font-style:italic}
   .pdetail{color:var(--muted);font-size:13.4px}
