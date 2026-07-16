@@ -26,6 +26,7 @@ cv.tex                      ← 자동 생성물. 직접 고치지 마세요.
 cv.pdf                      ← 자동 생성물.
 
 assets/photo.jpg            ← 프로필 사진
+assets/abstracts/           ← 논문 graphical abstract 이미지
 papers/                     ← 논문 PDF를 여기에
 .github/workflows/          ← push 시 자동 빌드 + 배포
 ```
@@ -93,6 +94,37 @@ git add -A && git commit -m "Add paper" && git push    # 나머지는 Actions가
 - `doi`, `pdf`: 없으면 `""` 로 두거나 아예 빼면 버튼이 안 생깁니다
 - `pdf` 는 `papers/` 에 실제 파일을 올려야 404가 안 납니다
 - 번호는 자동. 순서는 배열 순서 그대로.
+
+### 논문에 graphical abstract 넣기
+
+이미지를 `assets/abstracts/` 에 넣고 논문 항목에 세 필드를 추가하면, **그 논문만** 2열
+(왼쪽 이미지 · 오른쪽 서지정보)로 바뀝니다:
+
+```json
+{
+  "authors": "{me}†, ...",
+  "title": "...",
+  "image": "assets/abstracts/2026_AFM_Te.jpg",
+  "image_alt": "Graphical abstract: iCVD passivation layer on a Te thin-film transistor",
+  "image_caption": "Adv. Funct. Mater. 2026"
+}
+```
+
+- `image` 가 비어 있으면(`""`) 지금처럼 한 열로 나옵니다. **섞여 있어도 됩니다** — 이미지 있는
+  논문만 2열이 되고 나머지는 그대로입니다.
+- 이미지는 잘리지 않습니다 (`object-fit: contain`). 가로형이든 세로형이든 비율 그대로 들어갑니다.
+- 클릭하면 원본이 새 탭에서 열립니다.
+- `image_caption` 은 이미지 밑 작은 대문자 라벨. 없어도 됩니다.
+- `image_alt` 는 스크린리더용 설명. 비워두면 논문 제목이 자동으로 들어갑니다.
+- 모바일에선 이미지가 위, 서지정보가 아래로 자동 재배치됩니다.
+- 권장: **가로 1000px 내외, 200KB 이하.**
+
+> **PDF에는 안 들어갑니다.** graphical abstract는 웹페이지 전용입니다. 원본 Word CV의 논문 목록이
+> 텍스트만으로 되어 있었기 때문에 그 레이아웃을 유지했습니다. PDF에도 넣고 싶으시면 말씀해 주세요.
+>
+> 출판사 이미지 저작권도 한 번 확인해 보세요. 오픈액세스(CC BY) 논문은 출처를 밝히면 자유롭게
+> 쓸 수 있지만, 구독형 저널은 보통 저자 본인의 개인 웹페이지 사용을 허용하되 조건이 붙습니다.
+> 직접 만든 abstract 그림(제출용 원본)을 쓰는 게 가장 안전합니다.
 
 ### 본문에 사진 넣기
 
