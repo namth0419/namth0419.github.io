@@ -8,7 +8,15 @@
     "  †             → 공동 1저자 표시로 자동 변환",
     "  _기울임_       → 강조 (밑줄 문자 두 개 사이)",
     "  [보이는 글](주소) → 링크",
-    "주의: URL 안에 & 를 넣지 마세요 (LaTeX에서 깨집니다). Scholar 주소는 user= 부분만으로 충분합니다."
+    "주의: URL 안에 & 를 넣지 마세요 (LaTeX에서 깨집니다). Scholar 주소는 user= 부분만으로 충분합니다.",
+    "",
+    "논문에 graphical abstract 넣기 (웹페이지 전용, PDF에는 안 들어감):",
+    "  이미지를 assets/abstracts/ 에 넣고 아래 세 필드를 채우세요.",
+    "    \"image\":         \"assets/abstracts/2026_AFM_Te.jpg\"",
+    "    \"image_alt\":     \"Graphical abstract: 스크린리더용 설명\"",
+    "    \"image_caption\": \"Adv. Funct. Mater. 2026\"   (이미지 아래 작은 글씨, 없어도 됨)",
+    "  image 이 비어 있으면 그 논문은 지금처럼 한 열로 표시됩니다. 섞여 있어도 괜찮습니다.",
+    "  권장: 가로 1000px 내외, 200KB 이하. 클릭하면 원본이 새 탭에서 열립니다."
   ],
   "me": "Taehyun Nam",
   "photo": "assets/photo.jpg",
@@ -274,7 +282,10 @@
       "year": "2026",
       "status": "published",
       "doi": "10.1002/adfm.202527125",
-      "pdf": "papers/2026_AFM_Te-transistor.pdf"
+      "pdf": "papers/2026_AFM_Te-transistor.pdf",
+      "image": "",
+      "image_alt": "",
+      "image_caption": "Adv. Funct. Mater. 2026"
     },
     {
       "authors": "Youson Kim†, {me}†, Junyeong Yang, Changsoon Choi, Seun-Bae Jeon* and Sung Gap Im*",
@@ -306,7 +317,10 @@
       "year": "2025",
       "status": "published",
       "doi": "10.1038/s41467-025-63073-2",
-      "pdf": "papers/2025_NatCommun_UDST.pdf"
+      "pdf": "papers/2025_NatCommun_UDST.pdf",
+      "image": "",
+      "image_alt": "",
+      "image_caption": "Nat. Commun. 2025"
     },
     {
       "authors": "Sukwon Jang†, Youson Kim†, Chungryeol Lee†, {me}, Jeong-ik Park, Junyeong Yang, Juchan Kim, Bohyun Lee, Sung Gap Im*",
@@ -317,7 +331,10 @@
       "year": "2025",
       "status": "published",
       "doi": "10.1007/s11814-024-00210-5",
-      "pdf": "papers/2025_KJChE_review.pdf"
+      "pdf": "papers/2025_KJChE_review.pdf",
+      "image": "",
+      "image_alt": "",
+      "image_caption": "Korean J. Chem. Eng. 2025"
     },
     {
       "authors": "Jeong-ik Park†, Changhyeon Lee†, Chungryeol Lee, {me}, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*",
