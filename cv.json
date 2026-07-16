@@ -1,0 +1,397 @@
+{
+  "_readme": [
+    "이 파일 하나만 고치면 index.html 과 cv.tex 가 자동으로 다시 만들어집니다.",
+    "고친 뒤 로컬에서 `python3 build.py` 를 돌리거나, 그냥 push 하면 GitHub Actions가 알아서 합니다.",
+    "",
+    "글 안에서 쓸 수 있는 표기:",
+    "  {me}          → 본인 이름 (굵게+밑줄)로 자동 변환",
+    "  †             → 공동 1저자 표시로 자동 변환",
+    "  _기울임_       → 강조 (밑줄 문자 두 개 사이)",
+    "  [보이는 글](주소) → 링크",
+    "주의: URL 안에 & 를 넣지 마세요 (LaTeX에서 깨집니다). Scholar 주소는 user= 부분만으로 충분합니다."
+  ],
+  "me": "Taehyun Nam",
+  "photo": "assets/photo.jpg",
+  "updated": "April 2026",
+  "role_lines": [
+    "Ph.D. Student · KAIST",
+    "Chemical & Biomolecular Eng.",
+    "Visiting Scholar · Penn State"
+  ],
+  "personal": {
+    "mobile": "+82-42-350-3976",
+    "email": "taehyun.nam@kaist.ac.kr",
+    "dob": "2001.04.19.",
+    "address": "291 Daehak-ro, Yuseong-gu, Daejeon, Republic of Korea",
+    "lab": "Functional Thin Film Lab",
+    "based": "Daejeon, Republic of Korea"
+  },
+  "links": [
+    {
+      "icon": "scholar",
+      "label": "Google Scholar",
+      "url": "https://scholar.google.com/citations?user=gRV3-qYAAAAJ"
+    },
+    {
+      "icon": "orcid",
+      "label": "ORCID",
+      "url": "https://orcid.org/0009-0005-3489-1133",
+      "tex_label": "ORCID 0009-0005-3489-1133"
+    },
+    {
+      "icon": "linkedin",
+      "label": "LinkedIn",
+      "url": "https://www.linkedin.com/in/nth0419/"
+    }
+  ],
+  "statement": "I am a Ph.D. student in Chemical and Biomolecular Engineering at KAIST, pursuing _material- and process-level engineering_ of organic and inorganic semiconductors, and their device-level applications in neuromorphic systems, with a particular focus on _initiated Chemical Vapor Deposition (iCVD)_.",
+  "education": [
+    {
+      "when": "Mar 2025 – Current",
+      "what": "Ph.D., Dept. of Chemical and Biomolecular Engineering at KAIST",
+      "detail": [
+        "GPA: 4.03/4.3",
+        "Advisor: Prof. Sung Gap Im"
+      ]
+    },
+    {
+      "when": "Mar 2023 – Feb 2025",
+      "what": "M.S., Dept. of Chemical and Biomolecular Engineering at KAIST",
+      "detail": [
+        "GPA: 4.03/4.3",
+        "Advisor: Prof. Sung Gap Im"
+      ]
+    },
+    {
+      "when": "Mar 2019 – Feb 2023",
+      "what": "B.S., Dept. of Chemical Engineering at Pohang University of Science and Technology (POSTECH)",
+      "detail": [
+        "GPA: 4.06/4.3 (Summa Cum Laude)"
+      ]
+    }
+  ],
+  "experience": [
+    {
+      "when": "May 2026 – Nov 2026",
+      "what": "Visiting Scholar, Dept. of Materials Science and Engineering at Pennsylvania State University",
+      "detail": [
+        "University Park, Supervisor: Prof. Saptarshi Das"
+      ],
+      "inline_detail": true
+    },
+    {
+      "when": "Jul 2022 – Aug 2022",
+      "what": "Intern, LOTTE Chemical Intellectual Properties Strategy Team",
+      "detail": []
+    },
+    {
+      "when": "Jan 2022 – Feb 2022",
+      "what": "Intern, Korea Advanced Institute of Science and Technology (KAIST), Functional Thin Film Laboratory",
+      "detail": [
+        "Supervisor: Prof. Sung Gap Im"
+      ],
+      "inline_detail": true
+    },
+    {
+      "when": "Sep 2021 – Dec 2021",
+      "what": "Intern, Pohang University of Science and Technology (POSTECH), Chemical Engineering Lab",
+      "detail": [
+        "Supervisor: Prof. Won Bae Kim"
+      ],
+      "inline_detail": true
+    },
+    {
+      "when": "Jun 2021 – Aug 2021",
+      "what": "Intern, SK Hynix Future Technology R&D Center NAND Etch Team",
+      "detail": []
+    }
+  ],
+  "honors": [
+    {
+      "when": "Mar 2023 – Current",
+      "what": "KAIST Government Scholarship",
+      "detail": [
+        "Full tuition"
+      ],
+      "inline_detail": true
+    },
+    {
+      "when": "Mar 2021 – Feb 2023",
+      "what": "National Science & Technology Scholarship, Korea Student Aid Foundation",
+      "detail": [
+        "Full tuition, merit-based scholarship"
+      ],
+      "inline_detail": true
+    },
+    {
+      "when": "Mar 2019 – Feb 2021",
+      "what": "Jigok Scholarship, POSTECH",
+      "detail": [
+        "Full tuition for 4 semesters"
+      ],
+      "inline_detail": true
+    }
+  ],
+  "research": [
+    {
+      "title": "Development of p-type tellurium-based electronic devices",
+      "subs": [
+        {
+          "title": "High-hole-mobility p-type tellurium thin-film transistors enabled by iCVD-based polymeric passivation layers",
+          "bullets": [
+            "Exploration and optimization of polymeric passivation layers to enhance switching characteristics of p-type transistor devices, including on/off ratio, carrier mobility, and threshold voltage",
+            "Analysis of carrier transport mechanisms through spectroscopic techniques (e.g., UPS, Raman) and electrical characterization (e.g., TLM, Schottky barrier analysis)",
+            "Development of vertically integrated CMOS logic circuits and flexible TFTs"
+          ]
+        },
+        {
+          "title": "Enhancement of contact properties in Te TFTs using thermally decomposable polymeric contact interlayers for an ash-out strategy",
+          "bullets": [
+            "Exploration and optimization of polymeric buffer layers to reduce contact resistance and enable higher current levels",
+            "Investigation of the ash-out process using in-situ heating-cell ellipsometry"
+          ]
+        }
+      ],
+      "figures": []
+    },
+    {
+      "title": "High-performance vertical organic thin-film transistor devices",
+      "subs": [
+        {
+          "title": "Vertical organic thin-film transistors with vertically aligned carrier transport for high-current and high-frequency operation",
+          "bullets": [
+            "Design of unconventional vertical organic thin-film transistor architectures and circuit layouts for complex logic circuits (e.g., ring oscillators, half adders)",
+            "Analysis of high-frequency device operation using a fast waveform generator and analyzer module (WGFMU) integrated into the B1500A"
+          ]
+        }
+      ],
+      "figures": []
+    },
+    {
+      "title": "Next-generation neuromorphic devices and their applications",
+      "subs": [
+        {
+          "title": "Gate-injection-type organic synaptic transistors with tunable decay times for reservoir networks targeting human activity recognition",
+          "bullets": [
+            "Rational selection and optimization of charge-storage-layer semiconductor materials to modulate gate-induced charge transfer and control EPSC decay characteristics",
+            "Implementation of synaptic transistors in various AI and neuromorphic applications (e.g., NeuroSim, machine learning), with a particular focus on human activity recognition tasks using the UCI-HAR dataset"
+          ]
+        }
+      ],
+      "figures": []
+    }
+  ],
+  "skills": [
+    {
+      "label": "Characterization Techniques",
+      "items": [
+        "SEM",
+        "AFM",
+        "FT-IR",
+        "XPS · depth profiling",
+        "XPS · high-resolution",
+        "UPS · depth profiling",
+        "Contact angle analyzer",
+        "Ellipsometer (optical analysis)",
+        "XRD",
+        "Hall effect measurement"
+      ]
+    },
+    {
+      "label": "Polymer Fabrication & Surface Engineering",
+      "items": [
+        "iCVD-based functional homopolymer and copolymer synthesis",
+        "Composition and structure optimization"
+      ]
+    },
+    {
+      "label": "Fabrication and Characterization of Electronic Devices",
+      "items": [
+        "2-terminal devices: MIM, RRAM",
+        "3-terminal devices: TFT, flash memory, synaptic devices",
+        "Multi-terminal devices/circuits: inverter, logic gates, ring oscillator",
+        "2D material-based transistor fabrication: sourcing, exfoliation, wet transfer",
+        "Device layout designing",
+        "Optoelectronic measurement"
+      ]
+    },
+    {
+      "label": "Devices & Instruments",
+      "items": [
+        "iCVD system",
+        "Atomic layer deposition (ALD) system",
+        "Metal/organic thermal evaporator",
+        "E-beam evaporator",
+        "E-beam lithography",
+        "Photo-lithography mask aligner",
+        "Reactive ion etching (RIE) system",
+        "Plasma treatment system",
+        "Optical microscope",
+        "Keysight B1500A semiconductor analyzer",
+        "Probe station in glove box with temperature-controlled chuck",
+        "Oscilloscope and function generator"
+      ]
+    },
+    {
+      "label": "Software & Computation",
+      "items": [
+        "Python (TensorFlow, Scikit-learn)",
+        "C, C++, Java",
+        "MATLAB",
+        "Quantum Espresso",
+        "RASPA",
+        "ORCA",
+        "LAMMPS",
+        "OriginLab",
+        "ChemDraw",
+        "ImageJ",
+        "Raith lithography"
+      ]
+    },
+    {
+      "label": "Making & General",
+      "items": [
+        "Fusion360",
+        "Cura slicer",
+        "Homebrew 3D printer",
+        "WordPress",
+        "Apache server",
+        "MS Office",
+        "Linux",
+        "Photoshop",
+        "Illustrator",
+        "Blender"
+      ]
+    }
+  ],
+  "publications": [
+    {
+      "authors": "{me}†, Seung Min Lee†, Chungryeol Lee, Changhyeon Lee, Sunwoo Jeong, Seunghwan Seo, Youson Kim, Jeong-ik Park, Seokhyun Hong, Hyung Joong Yun, Kibum Kang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*",
+      "title": "A High-Hole Mobility Tellurium Transistor with Electron Donating Channel Passivation Layer for Scalable, High-Throughput Electronics",
+      "venue": "Advanced Functional Materials",
+      "volume": "36",
+      "pages": "e27125",
+      "year": "2026",
+      "status": "published",
+      "doi": "10.1002/adfm.202527125",
+      "pdf": "papers/2026_AFM_Te-transistor.pdf"
+    },
+    {
+      "authors": "Youson Kim†, {me}†, Junyeong Yang, Changsoon Choi, Seun-Bae Jeon* and Sung Gap Im*",
+      "title": "Electrolyte–channel interface engineering for STM/LTM differentiation in OECTs for physical reservoir computing",
+      "venue": "Nature Communications",
+      "status": "in_submission"
+    },
+    {
+      "authors": "Junyeong Yang†, Sanghyun Kim†, Jeong-Ik Park†, Minjeong Kang, Gyuwon Lee, Changmin Lee, {me}, and Sung Gap Im*",
+      "title": "Sub-0.3 V Ultra-Low-Voltage Operation of Bilayer RRAM via High-Sulfur Polymer/Inorganic Hybrid Layers for Hardware Synaptic Devices",
+      "venue": "Advanced Functional Materials",
+      "status": "in_submission"
+    },
+    {
+      "authors": "Chungryeol Lee†, Dongho Choi†, Sanghoon Park, Jeong-ik Park, {me}, Minjae Jang, Seunghyup Yoo*, and Sung Gap Im*",
+      "title": "A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits",
+      "venue": "Nature Communications",
+      "year": "2026",
+      "status": "accepted",
+      "doi": "",
+      "pdf": ""
+    },
+    {
+      "authors": "Sukwon Jang†, Keunho Soh†, Chungryeol Lee†, {me}, Minjae Jang, Jeong-ik Park, Changhyeon Lee, Junhwan Choi, Jung Ho Yoon*, and Sung Gap Im*",
+      "title": "A Unipolar-Driven Synaptic Transistor for Environment-Adaptable Vision System",
+      "venue": "Nature Communications",
+      "volume": "16",
+      "pages": "7636",
+      "year": "2025",
+      "status": "published",
+      "doi": "10.1038/s41467-025-63073-2",
+      "pdf": "papers/2025_NatCommun_UDST.pdf"
+    },
+    {
+      "authors": "Sukwon Jang†, Youson Kim†, Chungryeol Lee†, {me}, Jeong-ik Park, Junyeong Yang, Juchan Kim, Bohyun Lee, Sung Gap Im*",
+      "title": "Vapor-Phase Deposited Polymer Dielectric Layers for Organic Electronics: Design, Characteristics, and Applications",
+      "venue": "Korean Journal of Chemical Engineering",
+      "volume": "42",
+      "pages": "1931–1949",
+      "year": "2025",
+      "status": "published",
+      "doi": "10.1007/s11814-024-00210-5",
+      "pdf": "papers/2025_KJChE_review.pdf"
+    },
+    {
+      "authors": "Jeong-ik Park†, Changhyeon Lee†, Chungryeol Lee, {me}, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*",
+      "title": "Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors",
+      "venue": "Advanced Functional Materials",
+      "status": "in_revision"
+    },
+    {
+      "authors": "{me}†, Chungryeol Lee†, Seokhyun Hong, Jeong-ik Park, Youson Kim, and Sung Gap Im*",
+      "title": "Gate-Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing",
+      "venue": "",
+      "status": "in_preparation"
+    },
+    {
+      "authors": "Seokhyun Hong†, {me}†, Chungryeol Lee†, Jeong-ik Park, Youson Kim, Junhwan Choi* and Sung Gap Im*",
+      "title": "High-current Organic Vertical Transistor with Bottom-up Grain Boundary Selective Deposition of Functional Polymeric Layer",
+      "venue": "",
+      "status": "in_preparation"
+    }
+  ],
+  "publications_note": "† These authors contributed equally to this work.  * Corresponding author.",
+  "talks": [
+    {
+      "authors": "{me}, Seung Min Lee, Junhwan Choi*, Sung Gap Im*",
+      "title": "High-Performance p-Type Tellurium Transistor Arrays and Circuits via Vapor Phase Deposited Polymer Passivation",
+      "venue": "The 24th International Meeting on Information Display (IMID 2024)",
+      "date": "August 21, 2024",
+      "location": "Jeju, South Korea"
+    },
+    {
+      "authors": "{me}, Seung Min Lee, Junhwan Choi*, Sung Gap Im*",
+      "title": "A High-Hole Mobility Tellurium Transistor with Electron Donating Channel Passivation Layer for Scalable, High-Throughput Electronics",
+      "venue": "The 100th Annual Spring Meeting of the Polymer Society of Korea",
+      "date": "April 9, 2026",
+      "location": "Daejeon, South Korea"
+    }
+  ],
+  "patents": [
+    {
+      "authors": "Sung Gap Im, {me}, Chungryeol Lee, Sukwon Jang, Sanghoon Ahn, Youngsang Cho",
+      "title": "Method for film deposition",
+      "detail": "Korea Patent (Priority Claim Country); Application Number: 10-2024-0117056, United States of America Patent; Application Number: 18/921,365"
+    },
+    {
+      "authors": "Youngsang Cho, Sung Gap Im, Yongjin Kim, {me}, Woojin Lee, Chungryeol Lee, Sukwon Jang",
+      "title": "Method for polymeric layer fabrication",
+      "detail": "Korea Patent; Application Number: 10-2024-0117056"
+    },
+    {
+      "authors": "Sung Gap Im, Sukwon Jang, Chungryeol Lee, {me}",
+      "title": "Dipole polarization-charge capture synergetic single-polarity driven synapse transistor and artificial sensory system comprising the same",
+      "detail": "Korea Patent; Application Number: 10-2024-0193239, United States of America Patent; Application Number: 19/421,173"
+    },
+    {
+      "authors": "Sung Gap Im, Juchan Kim, Jeong-ik Park, {me}, Bohyun Lee",
+      "title": "Polymer thin films for semiconductor devices, semiconductor devices comprising the same, and methods for manufacturing semiconductor devices",
+      "detail": "Korean Patent; Application Number: 10-2026-0005661"
+    },
+    {
+      "authors": "Sung Gap Im, {me}, Chungryeol Lee, Minjae Jang, Junyeong Yang",
+      "title": "Radical initiators for chemical vapor deposition and method for producing polymer thin film using the same",
+      "detail": "Korean Patent; Application Number: 10-2025-0084923"
+    },
+    {
+      "authors": "Sung Gap Im, Wooyoung Chung, {me}, Changmin Lee",
+      "title": "Sn-based Organic/Inorganic Hybrid UV-sensitive Polymer Thin Film Formed by iCVD Process",
+      "detail": "Korean Patent (Priority Claim Country); In submission, United States of America Patent; In submission",
+      "status": "in_submission"
+    },
+    {
+      "authors": "Sung Gap Im, {me}, Chungryeol Lee, Seokhyun Hong",
+      "title": "Gate Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing",
+      "detail": "Korean Patent; In submission",
+      "status": "in_submission"
+    }
+  ]
+}

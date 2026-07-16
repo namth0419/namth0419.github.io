@@ -1,0 +1,57 @@
+name: Build CV and deploy site
+
+# cv.json 을 고쳐서 push 하면:
+#   build.py → index.html + cv.tex 생성 → LaTeX 컴파일 → cv.pdf → Pages 배포
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # Actions 탭에서 수동 실행도 가능
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate index.html and cv.tex from cv.json
+        run: python3 build.py
+
+      - name: Compile cv.tex with LaTeX
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: cv.tex
+          # latexmk가 pdflatex를 필요한 횟수만큼 자동 반복 실행합니다.
+
+      - name: Verify build output
+        run: ls -lh index.html cv.tex cv.pdf
+
+      - name: Upload site (with freshly generated index.html and cv.pdf)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
