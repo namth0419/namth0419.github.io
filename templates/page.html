@@ -3,13 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Taehyun Nam — Curriculum Vitae</title>
-<meta name="description" content="Taehyun Nam — Ph.D. student, Chemical and Biomolecular Engineering, KAIST. iCVD, organic/inorganic semiconductors, neuromorphic devices.">
+<title>{{NAME}} — Curriculum Vitae</title>
+<meta name="description" content="{{DESC}}">
+<meta name="author" content="{{NAME}}">
+
+<!-- 링크를 공유했을 때 뜨는 미리보기 -->
+<meta property="og:type" content="profile">
+<meta property="og:title" content="{{NAME}} — Curriculum Vitae">
+<meta property="og:description" content="{{DESC}}">
+<meta property="og:image" content="{{SITE_URL}}/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="{{SITE_URL}}/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="{{SITE_URL}}/">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<!-- 테마를 그리기 전에 결정 (새로고침 시 깜빡임 방지) -->
+<script>
+  (function(){
+    var t = "light";
+    try{
+      t = localStorage.getItem("theme")
+          || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    }catch(e){}
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
 <style>
   :root{
+    color-scheme:light;
     --ink:#12161a;
     --wafer:#E8EAE6;
     --card:#F4F5F2;
@@ -24,6 +53,24 @@
     --display:"Archivo",system-ui,sans-serif;
     --body:"Source Serif 4",Georgia,serif;
     --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --shot:.5;          /* 로고 기본 불투명도 */
+    --port:grayscale(1) contrast(1.04);
+  }
+  /* 어두운 실험실: 같은 웨이퍼를 조명 아래에서 본 상태 */
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --ink:#E4E8E3;
+    --wafer:#0F1216;
+    --card:#171B21;
+    --rule:#282E35;
+    --muted:#868E88;
+    --deep:#93A7FF;
+    --film-1:#5C6CE8;
+    --film-2:#A867D8;
+    --film-3:#E3B754;
+    --film-4:#4CC6AC;
+    --shot:.62;
+    --port:grayscale(1) contrast(1.02) brightness(.88);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -36,7 +83,7 @@
     line-height:1.62;
     -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--deep);text-decoration:none;border-bottom:1px solid rgba(30,42,120,.28)}
+  a{color:var(--deep);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--deep) 30%,transparent)}
   a:hover{border-bottom-color:var(--deep)}
   :focus-visible{outline:2px solid var(--deep);outline-offset:3px}
 
@@ -58,11 +105,11 @@
   .rail::-webkit-scrollbar{width:6px}
   .rail::-webkit-scrollbar-track{background:transparent}
   .rail::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px}
-  .rail:hover::-webkit-scrollbar-thumb{background:#b3b8b1}
+  .rail:hover::-webkit-scrollbar-thumb{background:var(--muted)}
   .portrait{
     width:116px;height:150px;object-fit:cover;display:block;
     border:1px solid var(--rule);
-    filter:grayscale(1) contrast(1.04);
+    filter:var(--port);
     background:var(--card);
   }
   .portrait-wrap{position:relative;width:116px;margin-bottom:18px}
@@ -136,7 +183,7 @@
   .when{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;padding-top:3px}
   .what{margin:0}
   .what h3{font-family:var(--display);font-weight:600;font-size:16.5px;letter-spacing:-.01em;margin:0 0 3px;line-height:1.35}
-  .what p{margin:0;color:#3d444a;font-size:14.5px;line-height:1.6}
+  .what p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.6}
   .what .tag{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
 
   /* research areas */
@@ -149,7 +196,7 @@
   .area > h3 .idx{font-family:var(--mono);font-size:12px;color:var(--film-2);padding-top:3px}
   .sub{margin:12px 0 0 0;padding-left:24px;border-left:2px solid var(--rule)}
   .sub h4{font-family:var(--body);font-style:italic;font-weight:600;font-size:15px;margin:0 0 6px;color:var(--ink)}
-  .sub ul{margin:0 0 16px;padding-left:17px;font-size:14.3px;color:#3d444a}
+  .sub ul{margin:0 0 16px;padding-left:17px;font-size:14.3px;color:var(--muted)}
   .sub li{margin:0 0 4px}
   .sub > div:last-child ul{margin-bottom:0}
 
@@ -160,7 +207,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chip{
     font-family:var(--mono);font-size:11.5px;line-height:1;padding:6px 9px;
-    background:var(--card);border:1px solid var(--rule);color:#333b41;border-radius:2px;
+    background:var(--card);border:1px solid var(--rule);color:var(--muted);border-radius:2px;
   }
 
   /* publications / patents */
@@ -203,8 +250,8 @@
     padding:2px 6px;border:1px solid var(--rule);border-radius:2px;color:var(--muted);
     white-space:nowrap;margin-left:4px;position:relative;top:-1px;
   }
-  .st.pub{color:var(--film-1);border-color:rgba(30,42,120,.4)}
-  .st.acc{color:var(--film-4);border-color:rgba(42,127,111,.5)}
+  .st.pub{color:var(--film-1);border-color:color-mix(in srgb,var(--film-1) 42%,transparent)}
+  .st.acc{color:var(--film-4);border-color:color-mix(in srgb,var(--film-4) 50%,transparent)}
   .note{font-family:var(--mono);font-size:11px;color:var(--muted);margin:16px 0 0}
 
   /* per-entry links: DOI / PDF / code */
@@ -215,7 +262,7 @@
     color:var(--muted);background:transparent;line-height:1.6;
     transition:color .15s,border-color .15s,background .15s;
   }
-  .lnk:hover{color:#fff;background:var(--deep);border-color:var(--deep)}
+  .lnk:hover{color:var(--wafer);background:var(--deep);border-color:var(--deep)}
   .lnk.pdf:hover{background:var(--film-2);border-color:var(--film-2)}
 
   /* figures — drop an image anywhere in a section */
@@ -251,12 +298,37 @@
     *{transition:none!important;animation:none!important}
   }
   @media print{
-    .film-top,.progress,nav{display:none}
+    .film-top,.progress,nav,.theme-toggle{display:none}
+    :root{color-scheme:light}
     body{background:#fff}
     .shell{display:block;max-width:none;padding:0}
     main{border:none;padding:0}
     section{break-inside:avoid}
   }
+  /* theme toggle */
+  .theme-toggle{
+    position:fixed;top:14px;right:16px;z-index:30;
+    width:34px;height:34px;display:grid;place-items:center;
+    border:1px solid var(--rule);background:var(--wafer);color:var(--muted);
+    border-radius:2px;cursor:pointer;padding:0;
+    transition:color .16s,border-color .16s,background .16s;
+  }
+  .theme-toggle:hover{color:var(--ink);border-color:var(--muted)}
+  .theme-toggle svg{width:15px;height:15px;display:none}
+  .theme-toggle .moon{display:block}
+  :root[data-theme="dark"] .theme-toggle .moon{display:none}
+  :root[data-theme="dark"] .theme-toggle .sun{display:block}
+
+  /* news */
+  .news-item{display:grid;grid-template-columns:104px 1fr;gap:18px;padding:9px 0}
+  .news-item + .news-item{border-top:1px dotted var(--rule)}
+  .news-item .d{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:3px;letter-spacing:.03em}
+  .news-item .t{margin:0;font-size:14.6px;line-height:1.55}
+  @media (max-width:640px){
+    .news-item{grid-template-columns:1fr;gap:3px}
+    .news-item .d{padding-top:0}
+  }
+
   /* affiliations coda */
   .affil{max-width:1140px;margin:0 auto;padding:0 28px}
   .affil-inner{border-top:1px solid var(--rule);padding:30px 0 30px}
@@ -272,9 +344,12 @@
   .affil-item img{
     height:38px;width:auto;max-width:190px;
     object-fit:contain;object-position:left bottom;display:block;
-    filter:grayscale(1);opacity:.5;transition:filter .18s,opacity .18s;
+    filter:grayscale(1);opacity:var(--shot);transition:filter .18s,opacity .18s;
   }
   .affil-item:hover img{filter:none;opacity:1}
+  .affil-item .lg-dark{display:none}
+  :root[data-theme="dark"] .affil-item .lg-light.has-alt{display:none}
+  :root[data-theme="dark"] .affil-item .lg-dark{display:block}
   .affil-item .wm{
     font-family:var(--display);font-weight:600;font-size:17.5px;letter-spacing:-.005em;
     color:var(--ink);opacity:.68;transition:opacity .18s,color .18s;line-height:1;
@@ -296,6 +371,18 @@
 <body>
 <div class="film-top"></div>
 <div class="progress" id="pg"></div>
+
+<button class="theme-toggle" id="tt" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+  <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+  </svg>
+  <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/>
+  </svg>
+</button>
 
 <div class="shell">
   <aside class="rail">
@@ -342,7 +429,48 @@
   <span>{{FOOTER_RIGHT}}</span>
 </footer>
 
+{{JSONLD}}
 <script>
+  // 테마 토글
+  (function(){
+    var btn = document.getElementById('tt');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      var root = document.documentElement;
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try{ localStorage.setItem('theme', next); }catch(e){}   // 저장 불가여도 동작은 함
+    });
+  })();
+
+  // BibTeX 복사 (실패하면 cite.bib 파일을 여는 것으로 자연스럽게 후퇴)
+  (function(){
+    function legacyCopy(txt){
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.setAttribute('readonly','');
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try{ ok = document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta);
+      return ok;
+    }
+    document.querySelectorAll('.lnk.bib').forEach(function(b){
+      b.addEventListener('click', function(e){
+        e.preventDefault();
+        var txt = b.getAttribute('data-bib');
+        var done = function(){
+          var old = b.textContent; b.textContent = 'Copied';
+          setTimeout(function(){ b.textContent = old; }, 1400);
+        };
+        var fail = function(){ if(legacyCopy(txt)) done(); else window.location.href = b.href; };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(txt).then(done, fail);
+        }else{ fail(); }
+      });
+    });
+  })();
+
   (function(){
     var pg = document.getElementById('pg');
     var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
