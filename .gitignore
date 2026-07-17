@@ -1,0 +1,10 @@
+# LaTeX 중간 산출물
+*.aux
+*.log
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+# 카드 생성 임시파일
+_card.html
+_fav.html
