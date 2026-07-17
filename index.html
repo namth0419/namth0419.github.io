@@ -5,12 +5,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Taehyun Nam — Curriculum Vitae</title>
-<meta name="description" content="Taehyun Nam — Ph.D. student, Chemical and Biomolecular Engineering, KAIST. iCVD, organic/inorganic semiconductors, neuromorphic devices.">
+<meta name="description" content="Taehyun Nam — Ph.D. student in Chemical and Biomolecular Engineering at KAIST. iCVD, p-type tellurium transistors, organic semiconductors, neuromorphic devices.">
+<meta name="author" content="Taehyun Nam">
+<meta name="google-site-verification" content="kcdpD7COaoqES8_pB5mRuwUdK7pLPrm53Q3RLe_ngR0">
+
+<!-- 링크를 공유했을 때 뜨는 미리보기 -->
+<meta property="og:type" content="profile">
+<meta property="og:title" content="Taehyun Nam — Curriculum Vitae">
+<meta property="og:description" content="Taehyun Nam — Ph.D. student in Chemical and Biomolecular Engineering at KAIST. iCVD, p-type tellurium transistors, organic semiconductors, neuromorphic devices.">
+<meta property="og:image" content="https://namth0419.github.io/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://namth0419.github.io/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://namth0419.github.io/">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<!-- 테마를 그리기 전에 결정 (새로고침 시 깜빡임 방지) -->
+<script>
+  (function(){
+    var t = "light";
+    try{
+      t = localStorage.getItem("theme")
+          || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    }catch(e){}
+    document.documentElement.setAttribute("data-theme", t);
+    document.documentElement.classList.add("js");   // JS 없으면 News 접기를 아예 안 함
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
 <style>
   :root{
+    color-scheme:light;
     --ink:#12161a;
     --wafer:#E8EAE6;
     --card:#F4F5F2;
@@ -25,6 +56,24 @@
     --display:"Archivo",system-ui,sans-serif;
     --body:"Source Serif 4",Georgia,serif;
     --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --shot:.5;          /* 로고 기본 불투명도 */
+    --port:grayscale(1) contrast(1.04);
+  }
+  /* 어두운 실험실: 같은 웨이퍼를 조명 아래에서 본 상태 */
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --ink:#E4E8E3;
+    --wafer:#0F1216;
+    --card:#171B21;
+    --rule:#282E35;
+    --muted:#868E88;
+    --deep:#93A7FF;
+    --film-1:#5C6CE8;
+    --film-2:#A867D8;
+    --film-3:#E3B754;
+    --film-4:#4CC6AC;
+    --shot:.62;
+    --port:grayscale(1) contrast(1.02) brightness(.88);
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -37,7 +86,7 @@
     line-height:1.62;
     -webkit-font-smoothing:antialiased;
   }
-  a{color:var(--deep);text-decoration:none;border-bottom:1px solid rgba(30,42,120,.28)}
+  a{color:var(--deep);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--deep) 30%,transparent)}
   a:hover{border-bottom-color:var(--deep)}
   :focus-visible{outline:2px solid var(--deep);outline-offset:3px}
 
@@ -48,31 +97,42 @@
   .shell{max-width:1140px;margin:0 auto;padding:52px 28px 96px;display:grid;grid-template-columns:274px 1fr;gap:60px;align-items:start}
 
   /* ---- left rail: the substrate ---- */
-  .rail{position:sticky;top:44px}
+  .rail{
+    position:sticky;top:44px;
+    /* 레일이 뷰포트보다 길면 레일 안에서 스크롤 (짧은 화면에서 하단 항목이 잘리는 것 방지) */
+    max-height:calc(100vh - 68px);
+    overflow-y:auto;
+    padding-right:12px;margin-right:-12px;   /* 스크롤바를 콘텐츠 밖으로 */
+    scrollbar-width:thin;scrollbar-color:var(--rule) transparent;
+  }
+  .rail::-webkit-scrollbar{width:6px}
+  .rail::-webkit-scrollbar-track{background:transparent}
+  .rail::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px}
+  .rail:hover::-webkit-scrollbar-thumb{background:var(--muted)}
   .portrait{
-    width:132px;height:170px;object-fit:cover;display:block;
+    width:116px;height:150px;object-fit:cover;display:block;
     border:1px solid var(--rule);
-    filter:grayscale(1) contrast(1.04);
+    filter:var(--port);
     background:var(--card);
   }
-  .portrait-wrap{position:relative;width:132px;margin-bottom:22px}
+  .portrait-wrap{position:relative;width:116px;margin-bottom:18px}
   .portrait-wrap::after{content:"";position:absolute;left:0;right:0;bottom:-5px;height:3px;background:var(--film)}
   .name{
-    font-family:var(--display);font-weight:700;font-size:31px;line-height:1.06;
+    font-family:var(--display);font-weight:700;font-size:29px;line-height:1.06;
     letter-spacing:-.022em;margin:0 0 6px;
   }
-  .role{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 20px;line-height:1.7}
-  .meta{list-style:none;margin:0 0 26px;padding:0;font-family:var(--mono);font-size:12px;line-height:2}
+  .role{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 16px;line-height:1.65}
+  .meta{list-style:none;margin:0 0 20px;padding:0;font-family:var(--mono);font-size:11.5px;line-height:1.9}
   .meta li{display:flex;gap:9px}
   .meta .k{color:var(--muted);min-width:52px;flex:none}
   .meta a{border:none;color:var(--ink)}
   .meta a:hover{color:var(--deep)}
   /* download actions */
-  .actions{margin:0 0 22px}
+  .actions{margin:0 0 18px}
   .btn{
     display:flex;align-items:center;justify-content:space-between;gap:8px;
     font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
-    padding:9px 11px;border:1px solid var(--ink);color:var(--ink);
+    padding:8px 11px;border:1px solid var(--ink);color:var(--ink);
     background:transparent;border-radius:2px;width:100%;
     transition:background .16s,color .16s,border-color .16s;
   }
@@ -85,10 +145,10 @@
   .btn.ghost:hover{background:transparent;color:var(--deep);border-color:var(--deep)}
 
   /* profile links */
-  .social{list-style:none;margin:0 0 24px;padding:0;border-top:1px solid var(--rule)}
+  .social{list-style:none;margin:0 0 18px;padding:0;border-top:1px solid var(--rule)}
   .social li{border-bottom:1px solid var(--rule)}
   .social a{
-    display:flex;align-items:center;gap:9px;padding:8px 0;border:none;
+    display:flex;align-items:center;gap:9px;padding:7px 0;border:none;
     font-family:var(--mono);font-size:11.5px;letter-spacing:.02em;color:var(--ink);
   }
   .social a .ico{width:13px;height:13px;flex:none;color:var(--muted);transition:color .15s}
@@ -97,11 +157,11 @@
   .social a:hover .ico{color:var(--film-2)}
   .social a:hover .arw{transform:translate(2px,-2px)}
 
-  nav{border-top:1px solid var(--rule);padding-top:14px}
+  nav{border-top:1px solid var(--rule);padding-top:12px}
   nav ol{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:12px}
-  nav li{margin:0 0 2px}
+  nav li{margin:0}
   nav a{
-    display:flex;gap:10px;align-items:baseline;color:var(--muted);border:none;padding:3px 0;
+    display:flex;gap:10px;align-items:baseline;color:var(--muted);border:none;padding:2.5px 0;
   }
   nav a .n{font-size:10px;opacity:.6;min-width:16px}
   nav a:hover,nav a.on{color:var(--ink)}
@@ -126,7 +186,7 @@
   .when{font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7;padding-top:3px}
   .what{margin:0}
   .what h3{font-family:var(--display);font-weight:600;font-size:16.5px;letter-spacing:-.01em;margin:0 0 3px;line-height:1.35}
-  .what p{margin:0;color:#3d444a;font-size:14.5px;line-height:1.6}
+  .what p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.6}
   .what .tag{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
 
   /* research areas */
@@ -139,7 +199,7 @@
   .area > h3 .idx{font-family:var(--mono);font-size:12px;color:var(--film-2);padding-top:3px}
   .sub{margin:12px 0 0 0;padding-left:24px;border-left:2px solid var(--rule)}
   .sub h4{font-family:var(--body);font-style:italic;font-weight:600;font-size:15px;margin:0 0 6px;color:var(--ink)}
-  .sub ul{margin:0 0 16px;padding-left:17px;font-size:14.3px;color:#3d444a}
+  .sub ul{margin:0 0 16px;padding-left:17px;font-size:14.3px;color:var(--muted)}
   .sub li{margin:0 0 4px}
   .sub > div:last-child ul{margin-bottom:0}
 
@@ -150,7 +210,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:6px}
   .chip{
     font-family:var(--mono);font-size:11.5px;line-height:1;padding:6px 9px;
-    background:var(--card);border:1px solid var(--rule);color:#333b41;border-radius:2px;
+    background:var(--card);border:1px solid var(--rule);color:var(--muted);border-radius:2px;
   }
 
   /* publications / patents */
@@ -163,6 +223,28 @@
     content:counter(it,decimal-leading-zero);position:absolute;left:0;top:16px;
     font-family:var(--mono);font-size:11px;color:var(--muted);
   }
+
+  /* two-column entries: graphical abstract + citation */
+  ol.list li.has-fig{
+    display:grid;grid-template-columns:168px 1fr;gap:20px;align-items:start;
+    padding-top:16px;padding-bottom:16px;
+  }
+  .pub-fig{margin:0}
+  .pub-fig a{display:block;border:none;line-height:0}
+  .pub-fig img{
+    width:100%;height:auto;max-height:190px;object-fit:contain;
+    background:var(--card);border:1px solid var(--rule);padding:5px;
+    display:block;transition:border-color .16s;
+  }
+  .pub-fig a:hover img{border-color:var(--film-2)}
+  .pub-fig .cap{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--muted);margin-top:5px;display:block;line-height:1.5;
+  }
+  @media (max-width:640px){
+    ol.list li.has-fig{grid-template-columns:1fr;gap:12px}
+    .pub-fig{max-width:230px}
+  }
   .me{font-weight:600;border-bottom:2px solid var(--film-3);}
   .venue{font-style:italic}
   .pdetail{color:var(--muted);font-size:13.4px}
@@ -171,8 +253,8 @@
     padding:2px 6px;border:1px solid var(--rule);border-radius:2px;color:var(--muted);
     white-space:nowrap;margin-left:4px;position:relative;top:-1px;
   }
-  .st.pub{color:var(--film-1);border-color:rgba(30,42,120,.4)}
-  .st.acc{color:var(--film-4);border-color:rgba(42,127,111,.5)}
+  .st.pub{color:var(--film-1);border-color:color-mix(in srgb,var(--film-1) 42%,transparent)}
+  .st.acc{color:var(--film-4);border-color:color-mix(in srgb,var(--film-4) 50%,transparent)}
   .note{font-family:var(--mono);font-size:11px;color:var(--muted);margin:16px 0 0}
 
   /* per-entry links: DOI / PDF / code */
@@ -183,7 +265,7 @@
     color:var(--muted);background:transparent;line-height:1.6;
     transition:color .15s,border-color .15s,background .15s;
   }
-  .lnk:hover{color:#fff;background:var(--deep);border-color:var(--deep)}
+  .lnk:hover{color:var(--wafer);background:var(--deep);border-color:var(--deep)}
   .lnk.pdf:hover{background:var(--film-2);border-color:var(--film-2)}
 
   /* figures — drop an image anywhere in a section */
@@ -207,7 +289,7 @@
 
   @media (max-width:900px){
     .shell{grid-template-columns:1fr;gap:34px;padding:40px 20px 70px}
-    .rail{position:static}
+    .rail{position:static;max-height:none;overflow:visible;padding-right:0;margin-right:0}
     main{border-left:none;padding-left:0}
     nav{display:none}
     .entry,.skill{grid-template-columns:1fr;gap:6px}
@@ -219,17 +301,112 @@
     *{transition:none!important;animation:none!important}
   }
   @media print{
-    .film-top,.progress,nav{display:none}
+    .film-top,.progress,nav,.theme-toggle{display:none}
+    :root{color-scheme:light}
     body{background:#fff}
     .shell{display:block;max-width:none;padding:0}
     main{border:none;padding:0}
     section{break-inside:avoid}
   }
+  /* theme toggle */
+  .theme-toggle{
+    position:fixed;top:14px;right:16px;z-index:30;
+    width:34px;height:34px;display:grid;place-items:center;
+    border:1px solid var(--rule);background:var(--wafer);color:var(--muted);
+    border-radius:2px;cursor:pointer;padding:0;
+    transition:color .16s,border-color .16s,background .16s;
+  }
+  .theme-toggle:hover{color:var(--ink);border-color:var(--muted)}
+  .theme-toggle svg{width:15px;height:15px;display:none}
+  .theme-toggle .moon{display:block}
+  :root[data-theme="dark"] .theme-toggle .moon{display:none}
+  :root[data-theme="dark"] .theme-toggle .sun{display:block}
+
+  /* news */
+  .js .news-item.extra{display:none}
+  .js .news-list.open .news-item.extra{display:grid}
+  .news-more{
+    display:inline-flex;align-items:center;gap:7px;margin-top:12px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+    padding:5px 10px;border:1px solid var(--rule);border-radius:2px;
+    background:transparent;color:var(--muted);cursor:pointer;
+    transition:color .16s,border-color .16s;
+  }
+  .news-more:hover{color:var(--deep);border-color:var(--deep)}
+  .news-more .chev{transition:transform .2s;font-size:9px;line-height:1}
+  .news-more[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  html:not(.js) .news-more{display:none}
+  .news-item{display:grid;grid-template-columns:104px 1fr;gap:18px;padding:9px 0}
+  .news-item + .news-item{border-top:1px dotted var(--rule)}
+  .news-item .d{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:3px;letter-spacing:.03em}
+  .news-item .t{margin:0;font-size:14.6px;line-height:1.55}
+  @media (max-width:640px){
+    .news-item{grid-template-columns:1fr;gap:3px}
+    .news-item .d{padding-top:0}
+  }
+
+  /* affiliations coda */
+  .affil{max-width:1140px;margin:0 auto;padding:0 28px}
+  .affil-inner{border-top:1px solid var(--rule);padding:30px 0 30px}
+  .affil h2{
+    font-family:var(--mono);font-weight:500;font-size:10px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 18px;
+  }
+  .affil-row{display:flex;flex-wrap:wrap;gap:16px 44px;align-items:flex-end;margin:0}
+  .affil-item{
+    display:flex;flex-direction:column;gap:8px;border:none;
+    text-decoration:none;align-items:flex-start;
+  }
+  .affil-item img{
+    height:38px;width:auto;max-width:190px;
+    object-fit:contain;object-position:left bottom;display:block;
+    filter:grayscale(1);opacity:var(--shot);transition:filter .18s,opacity .18s;
+  }
+  .affil-item:hover img{filter:none;opacity:1}
+  .affil-item .lg-dark{display:none}
+  :root[data-theme="dark"] .affil-item .lg-light.has-alt{display:none}
+  :root[data-theme="dark"] .affil-item .lg-dark{display:block}
+  /* logo_dark 를 안 준 어두운 로고는 다크 모드에서 반전시켜 살립니다.
+     (cv.json 에서 "logo_invert_dark": false 로 끌 수 있음) */
+  :root[data-theme="dark"] .affil-item .lg-light.auto-invert{
+    filter:grayscale(1) invert(1);opacity:.72;
+  }
+  :root[data-theme="dark"] .affil-item:hover .lg-light.auto-invert{
+    filter:grayscale(1) invert(1);opacity:1;
+  }
+  .affil-item .wm{
+    font-family:var(--display);font-weight:600;font-size:17.5px;letter-spacing:-.005em;
+    color:var(--ink);opacity:.68;transition:opacity .18s,color .18s;line-height:1;
+  }
+  .affil-item:hover .wm{opacity:1;color:var(--deep)}
+  .affil-item .yr{
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--muted);
+    text-transform:uppercase;line-height:1;
+  }
+  @media (max-width:640px){
+    .affil-row{gap:18px 28px}
+    .affil-item img{height:30px}
+    .affil-item .wm{font-size:15px}
+  }
+  @media print{ .affil{display:none} }
 </style>
+
 </head>
 <body>
 <div class="film-top"></div>
 <div class="progress" id="pg"></div>
+
+<button class="theme-toggle" id="tt" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+  <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
+  </svg>
+  <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+       stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/>
+  </svg>
+</button>
 
 <div class="shell">
   <aside class="rail">
@@ -248,7 +425,7 @@
       <a class="btn" href="cv.pdf" target="_blank" rel="noopener">
         <span>Download CV — PDF</span><span class="sub">LaTeX ↓</span>
       </a>
-        <!--<a class="btn ghost" href="cv.tex" download>LaTeX source (.tex)</a>-->
+      <a class="btn ghost" href="cv.tex" download>LaTeX source (.tex)</a>
     </div>
     <ul class="social">
       <li>
@@ -273,14 +450,15 @@
     <nav aria-label="Sections">
       <ol>
         <li><a href="#statement"><span class="n">01</span>Statement</a></li>
-        <li><a href="#education"><span class="n">02</span>Education</a></li>
-        <li><a href="#experience"><span class="n">03</span>Experience</a></li>
-        <li><a href="#research"><span class="n">04</span>Research</a></li>
-        <li><a href="#skills"><span class="n">05</span>Skills</a></li>
-        <li><a href="#publications"><span class="n">06</span>Publications</a></li>
-        <li><a href="#talks"><span class="n">07</span>Talks</a></li>
-        <li><a href="#patents"><span class="n">08</span>Patents</a></li>
-        <li><a href="#honors"><span class="n">09</span>Honors</a></li>
+        <li><a href="#news"><span class="n">02</span>News</a></li>
+        <li><a href="#education"><span class="n">03</span>Education</a></li>
+        <li><a href="#experience"><span class="n">04</span>Experience</a></li>
+        <li><a href="#research"><span class="n">05</span>Research</a></li>
+        <li><a href="#skills"><span class="n">06</span>Skills</a></li>
+        <li><a href="#publications"><span class="n">07</span>Publications</a></li>
+        <li><a href="#talks"><span class="n">08</span>Talks</a></li>
+        <li><a href="#patents"><span class="n">09</span>Patents</a></li>
+        <li><a href="#honors"><span class="n">10</span>Honors</a></li>
       </ol>
     </nav>
   </aside>
@@ -289,6 +467,20 @@
     <section id="statement">
       <h2>Statement</h2>
       <p class="lede">I am a Ph.D. student in Chemical and Biomolecular Engineering at KAIST, pursuing <em>material- and process-level engineering</em> of organic and inorganic semiconductors, and their device-level applications in neuromorphic systems, with a particular focus on <em>initiated Chemical Vapor Deposition (iCVD)</em>.</p>
+    </section>
+
+    <section id="news">
+      <h2>News</h2>
+      <div class="news-list" id="newslist">
+        <div class="news-item"><div class="d">2026.07</div><p class="t">Visiting <a href="https://sdas-research.group/" target="_blank" rel="noopener">Prof. Saptarshi Das' group</a> at Penn State until November.</p></div>
+        <div class="news-item"><div class="d">2026.04</div><p class="t">Presented the Te transistor work at the 100th Spring Meeting of the Polymer Society of Korea.</p></div>
+        <div class="news-item"><div class="d">2026.02</div><p class="t">Our p-type tellurium transistor paper is out in <em>Advanced Functional Materials</em>.</p></div>
+        <div class="news-item"><div class="d">2025.08</div><p class="t">Unipolar-driven synaptic transistor paper published in <em>Nature Communications</em>.</p></div>
+        <div class="news-item"><div class="d">2025.03</div><p class="t">Started the Ph.D. program at KAIST with <a href="https://ftfl.kaist.ac.kr" target="_blank" rel="noopener">Prof. Sung Gap Im</a>.</p></div>
+        <div class="news-item extra"><div class="d">2025.02</div><p class="t">Completed the M.S. program at KAIST, Congratulations!🎉🥳</p></div>
+        <div class="news-item extra"><div class="d">2023.03</div><p class="t">Started the M.S. program at KAIST with <a href="https://ftfl.kaist.ac.kr" target="_blank" rel="noopener">Prof. Sung Gap Im</a>.</p></div>
+      </div>
+      <button class="news-more" id="newsmore" type="button" aria-expanded="false" aria-controls="newslist" data-more="Show all 7" data-less="Show less">Show all 7<span class="chev">↓</span></button>
     </section>
 
     <section id="education">
@@ -433,22 +625,34 @@
       <h2>Publications · SCIE &amp; ESCI</h2>
       <ol class="list">
         <li><span class="me">Taehyun Nam</span><sup>†</sup>, Seung Min Lee<sup>†</sup>, Chungryeol Lee, Changhyeon Lee, Sunwoo Jeong, Seunghwan Seo, Youson Kim, Jeong-ik Park, Seokhyun Hong, Hyung Joong Yun, Kibum Kang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*. A High-Hole Mobility Tellurium Transistor with Electron Donating Channel Passivation Layer for Scalable, High-Throughput Electronics. <span class="venue">Advanced Functional Materials</span>, <b>36</b>, e27125 (2026).<span class="st pub">Published</span>
-          <div class="links"><a class="lnk" href="https://doi.org/10.1002/adfm.202527125" target="_blank" rel="noopener">DOI</a><a class="lnk pdf" href="papers/2026_AFM_Te-transistor.pdf" target="_blank" rel="noopener">PDF</a></div>
-        </li>
-        <li>Youson Kim<sup>†</sup>, <span class="me">Taehyun Nam</span><sup>†</sup>, Junyeong Yang, Changsoon Choi, Seun-Bae Jeon* and Sung Gap Im*. Electrolyte–channel interface engineering for STM/LTM differentiation in OECTs for physical reservoir computing. <span class="venue">Nature Communications</span>.<span class="st">In submission</span></li>
-        <li>Junyeong Yang<sup>†</sup>, Sanghyun Kim<sup>†</sup>, Jeong-Ik Park<sup>†</sup>, Minjeong Kang, Gyuwon Lee, Changmin Lee, <span class="me">Taehyun Nam</span>, and Sung Gap Im*. Sub-0.3 V Ultra-Low-Voltage Operation of Bilayer RRAM via High-Sulfur Polymer/Inorganic Hybrid Layers for Hardware Synaptic Devices. <span class="venue">Advanced Functional Materials</span>.<span class="st">In submission</span></li>
-        <li>Chungryeol Lee<sup>†</sup>, Dongho Choi<sup>†</sup>, Sanghoon Park, Jeong-ik Park, <span class="me">Taehyun Nam</span>, Minjae Jang, Seunghyup Yoo*, and Sung Gap Im*. A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits. <span class="venue">Nature Communications</span> (2026).<span class="st acc">Accepted</span></li>
+            <div class="links"><a class="lnk" href="https://doi.org/10.1002/adfm.202527125" target="_blank" rel="noopener">DOI</a><a class="lnk pdf" href="papers/2026_AFM_Te-transistor.pdf" target="_blank" rel="noopener">PDF</a><a class="lnk bib" href="cite.bib" data-bib="@article{nam2026hole,&#10;  author   = {Nam, Taehyun and Lee, Seung Min and Lee, Chungryeol and Lee, Changhyeon and Jeong, Sunwoo and Seo, Seunghwan and Kim, Youson and Park, Jeong-ik and Hong, Seokhyun and Yun, Hyung Joong and Kang, Kibum and Yoo, Hocheon and Choi, Junhwan and Im, Sung Gap},&#10;  title    = {{A High-Hole Mobility Tellurium Transistor with Electron Donating Channel Passivation Layer for Scalable, High-Throughput Electronics}},&#10;  journal  = {Advanced Functional Materials},&#10;  volume   = {36},&#10;  year     = {2026},&#10;  pages    = {e27125},&#10;  doi      = {10.1002/adfm.202527125},&#10;}">BIB</a></div>
+          </li>
+        <li>Youson Kim<sup>†</sup>, <span class="me">Taehyun Nam</span><sup>†</sup>, Junyeong Yang, Changsoon Choi, Seun-Bae Jeon* and Sung Gap Im*. Electrolyte–channel interface engineering for STM/LTM differentiation in OECTs for physical reservoir computing. <span class="venue">Nature Communications</span>.<span class="st">In submission</span>
+            <div class="links"><a class="lnk bib" href="cite.bib" data-bib="@unpublished{kimelectrolyte,&#10;  author   = {Kim, Youson and Nam, Taehyun and Yang, Junyeong and Choi, Changsoon and Jeon, Seun-Bae and Im, Sung Gap},&#10;  title    = {{Electrolyte–channel interface engineering for STM/LTM differentiation in OECTs for physical reservoir computing}},&#10;  note     = {Submitted to Nature Communications},&#10;}">BIB</a></div>
+          </li>
+        <li>Junyeong Yang<sup>†</sup>, Sanghyun Kim<sup>†</sup>, Jeong-Ik Park<sup>†</sup>, Minjeong Kang, Gyuwon Lee, Changmin Lee, <span class="me">Taehyun Nam</span>, and Sung Gap Im*. Sub-0.3 V Ultra-Low-Voltage Operation of Bilayer RRAM via High-Sulfur Polymer/Inorganic Hybrid Layers for Hardware Synaptic Devices. <span class="venue">Advanced Functional Materials</span>.<span class="st">In submission</span>
+            <div class="links"><a class="lnk bib" href="cite.bib" data-bib="@unpublished{yangultra,&#10;  author   = {Yang, Junyeong and Kim, Sanghyun and Park, Jeong-Ik and Kang, Minjeong and Lee, Gyuwon and Lee, Changmin and Nam, Taehyun and Im, Sung Gap},&#10;  title    = {{Sub-0.3 V Ultra-Low-Voltage Operation of Bilayer RRAM via High-Sulfur Polymer/Inorganic Hybrid Layers for Hardware Synaptic Devices}},&#10;  note     = {Submitted to Advanced Functional Materials},&#10;}">BIB</a></div>
+          </li>
+        <li>Chungryeol Lee<sup>†</sup>, Dongho Choi<sup>†</sup>, Sanghoon Park, Jeong-ik Park, <span class="me">Taehyun Nam</span>, Minjae Jang, Seunghyup Yoo*, and Sung Gap Im*. A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits. <span class="venue">Nature Communications</span> (2026).<span class="st acc">Accepted</span>
+            <div class="links"><a class="lnk bib" href="cite.bib" data-bib="@article{lee2026light,&#10;  author   = {Lee, Chungryeol and Choi, Dongho and Park, Sanghoon and Park, Jeong-ik and Nam, Taehyun and Jang, Minjae and Yoo, Seunghyup and Im, Sung Gap},&#10;  title    = {{A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits}},&#10;  journal  = {Nature Communications},&#10;  year     = {2026},&#10;  note     = {Accepted for publication},&#10;}">BIB</a></div>
+          </li>
         <li>Sukwon Jang<sup>†</sup>, Keunho Soh<sup>†</sup>, Chungryeol Lee<sup>†</sup>, <span class="me">Taehyun Nam</span>, Minjae Jang, Jeong-ik Park, Changhyeon Lee, Junhwan Choi, Jung Ho Yoon*, and Sung Gap Im*. A Unipolar-Driven Synaptic Transistor for Environment-Adaptable Vision System. <span class="venue">Nature Communications</span>, <b>16</b>, 7636 (2025).<span class="st pub">Published</span>
-          <div class="links"><a class="lnk" href="https://doi.org/10.1038/s41467-025-63073-2" target="_blank" rel="noopener">DOI</a><a class="lnk pdf" href="papers/2025_NatCommun_UDST.pdf" target="_blank" rel="noopener">PDF</a></div>
-        </li>
+            <div class="links"><a class="lnk" href="https://doi.org/10.1038/s41467-025-63073-2" target="_blank" rel="noopener">DOI</a><a class="lnk pdf" href="papers/s41467-025-63073-2.pdf" target="_blank" rel="noopener">PDF</a><a class="lnk bib" href="cite.bib" data-bib="@article{jang2025unipolar,&#10;  author   = {Jang, Sukwon and Soh, Keunho and Lee, Chungryeol and Nam, Taehyun and Jang, Minjae and Park, Jeong-ik and Lee, Changhyeon and Choi, Junhwan and Yoon, Jung Ho and Im, Sung Gap},&#10;  title    = {{A Unipolar-Driven Synaptic Transistor for Environment-Adaptable Vision System}},&#10;  journal  = {Nature Communications},&#10;  volume   = {16},&#10;  year     = {2025},&#10;  pages    = {7636},&#10;  doi      = {10.1038/s41467-025-63073-2},&#10;}">BIB</a></div>
+          </li>
         <li>Sukwon Jang<sup>†</sup>, Youson Kim<sup>†</sup>, Chungryeol Lee<sup>†</sup>, <span class="me">Taehyun Nam</span>, Jeong-ik Park, Junyeong Yang, Juchan Kim, Bohyun Lee, Sung Gap Im*. Vapor-Phase Deposited Polymer Dielectric Layers for Organic Electronics: Design, Characteristics, and Applications. <span class="venue">Korean Journal of Chemical Engineering</span>, <b>42</b>, 1931–1949 (2025).<span class="st pub">Published</span>
-          <div class="links"><a class="lnk" href="https://doi.org/10.1007/s11814-024-00210-5" target="_blank" rel="noopener">DOI</a><a class="lnk pdf" href="papers/2025_KJChE_review.pdf" target="_blank" rel="noopener">PDF</a></div>
-        </li>
-        <li>Jeong-ik Park<sup>†</sup>, Changhyeon Lee<sup>†</sup>, Chungryeol Lee, <span class="me">Taehyun Nam</span>, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*. Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors. <span class="venue">Advanced Functional Materials</span>.<span class="st">In revision</span></li>
-        <li><span class="me">Taehyun Nam</span><sup>†</sup>, Chungryeol Lee<sup>†</sup>, Seokhyun Hong, Jeong-ik Park, Youson Kim, and Sung Gap Im*. Gate-Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing.<span class="st">In preparation</span></li>
-        <li>Seokhyun Hong<sup>†</sup>, <span class="me">Taehyun Nam</span><sup>†</sup>, Chungryeol Lee<sup>†</sup>, Jeong-ik Park, Youson Kim, Junhwan Choi* and Sung Gap Im*. High-current Organic Vertical Transistor with Bottom-up Grain Boundary Selective Deposition of Functional Polymeric Layer.<span class="st">In preparation</span></li>
+            <div class="links"><a class="lnk" href="https://doi.org/10.1007/s11814-024-00210-5" target="_blank" rel="noopener">DOI</a><a class="lnk pdf" href="papers/2025_KJChE_review.pdf" target="_blank" rel="noopener">PDF</a><a class="lnk bib" href="cite.bib" data-bib="@article{jang2025vapor,&#10;  author   = {Jang, Sukwon and Kim, Youson and Lee, Chungryeol and Nam, Taehyun and Park, Jeong-ik and Yang, Junyeong and Kim, Juchan and Lee, Bohyun and Im, Sung Gap},&#10;  title    = {{Vapor-Phase Deposited Polymer Dielectric Layers for Organic Electronics: Design, Characteristics, and Applications}},&#10;  journal  = {Korean Journal of Chemical Engineering},&#10;  volume   = {42},&#10;  year     = {2025},&#10;  pages    = {1931--1949},&#10;  doi      = {10.1007/s11814-024-00210-5},&#10;}">BIB</a></div>
+          </li>
+        <li>Jeong-ik Park<sup>†</sup>, Changhyeon Lee<sup>†</sup>, Chungryeol Lee, <span class="me">Taehyun Nam</span>, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*. Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors. <span class="venue">Advanced Functional Materials</span>.<span class="st">In revision</span>
+            <div class="links"><a class="lnk bib" href="cite.bib" data-bib="@unpublished{parkdynamically,&#10;  author   = {Park, Jeong-ik and Lee, Changhyeon and Lee, Chungryeol and Nam, Taehyun and Bak, Yebin and Jang, Sukwon and Yoo, Hocheon and Choi, Junhwan and Im, Sung Gap},&#10;  title    = {{Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors}},&#10;  note     = {Under revision at Advanced Functional Materials},&#10;}">BIB</a></div>
+          </li>
+        <li><span class="me">Taehyun Nam</span><sup>†</sup>, Chungryeol Lee<sup>†</sup>, Seokhyun Hong, Jeong-ik Park, Youson Kim, and Sung Gap Im*. Gate-Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing.<span class="st">In preparation</span>
+            <div class="links"><a class="lnk bib" href="cite.bib" data-bib="@unpublished{namgate,&#10;  author   = {Nam, Taehyun and Lee, Chungryeol and Hong, Seokhyun and Park, Jeong-ik and Kim, Youson and Im, Sung Gap},&#10;  title    = {{Gate-Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing}},&#10;  note     = {Manuscript in preparation},&#10;}">BIB</a></div>
+          </li>
+        <li>Seokhyun Hong<sup>†</sup>, <span class="me">Taehyun Nam</span><sup>†</sup>, Chungryeol Lee<sup>†</sup>, Jeong-ik Park, Youson Kim, Junhwan Choi* and Sung Gap Im*. High-current Organic Vertical Transistor with Bottom-up Grain Boundary Selective Deposition of Functional Polymeric Layer.<span class="st">In preparation</span>
+            <div class="links"><a class="lnk bib" href="cite.bib" data-bib="@unpublished{hongcurrent,&#10;  author   = {Hong, Seokhyun and Nam, Taehyun and Lee, Chungryeol and Park, Jeong-ik and Kim, Youson and Choi, Junhwan and Im, Sung Gap},&#10;  title    = {{High-current Organic Vertical Transistor with Bottom-up Grain Boundary Selective Deposition of Functional Polymeric Layer}},&#10;  note     = {Manuscript in preparation},&#10;}">BIB</a></div>
+          </li>
       </ol>
-      <p class="note">† These authors contributed equally to this work.  * Corresponding author.</p>
+      <p class="note">† These authors contributed equally to this work.  * Corresponding author.&nbsp; &nbsp;<a href="cite.bib" download>All entries as BibTeX ↓</a></p>
     </section>
 
     <section id="talks">
@@ -499,16 +703,122 @@
   </main>
 </div>
 
+<section class="affil" aria-label="Affiliations">
+  <div class="affil-inner">
+    <h2>Affiliations</h2>
+    <div class="affil-row">
+      <a class="affil-item" href="https://www.postech.ac.kr/eng/" target="_blank" rel="noopener" title="Pohang University of Science and Technology">
+        <img class="lg-light auto-invert" src="assets/logos/POSTECH.png" alt="POSTECH" loading="lazy">
+        <span class="yr">2019 – 2023</span>
+      </a>
+      <a class="affil-item" href="https://www.kaist.ac.kr/en/" target="_blank" rel="noopener" title="Korea Advanced Institute of Science and Technology">
+        <img class="lg-light auto-invert" src="assets/logos/kaist_logo_trans.png" alt="KAIST" loading="lazy">
+        <span class="yr">2023 – Current</span>
+      </a>
+      <a class="affil-item" href="https://www.psu.edu/" target="_blank" rel="noopener" title="The Pennsylvania State University">
+        <img class="lg-light auto-invert" src="assets/logos/psu.png" alt="Penn State" loading="lazy">
+        <span class="yr">2026</span>
+      </a>
+    </div>
+  </div>
+</section>
+
 <footer>
-  <span>Taehyun Nam · Curriculum Vitae · Last updated April 2026</span>
+  <span>Taehyun Nam · Curriculum Vitae · Last updated July 2026</span>
   <span><a href="mailto:taehyun.nam@kaist.ac.kr">taehyun.nam@kaist.ac.kr</a></span>
 </footer>
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Taehyun Nam",
+  "jobTitle": "Ph.D. Student · KAIST",
+  "email": "mailto:taehyun.nam@kaist.ac.kr",
+  "sameAs": [
+    "https://scholar.google.com/citations?user=gRV3-qYAAAAJ",
+    "https://orcid.org/0009-0005-3489-1133",
+    "https://www.linkedin.com/in/nth0419/"
+  ],
+  "url": "https://namth0419.github.io/",
+  "image": "https://namth0419.github.io/assets/og.png",
+  "affiliation": {
+    "@type": "Organization",
+    "name": "Korea Advanced Institute of Science and Technology"
+  }
+}
+</script>
 <script>
+  // 테마 토글
+  (function(){
+    var btn = document.getElementById('tt');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      var root = document.documentElement;
+      var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try{ localStorage.setItem('theme', next); }catch(e){}   // 저장 불가여도 동작은 함
+    });
+  })();
+
+  // BibTeX 복사 (실패하면 cite.bib 파일을 여는 것으로 자연스럽게 후퇴)
+  (function(){
+    function legacyCopy(txt){
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.setAttribute('readonly','');
+      ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try{ ok = document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta);
+      return ok;
+    }
+    document.querySelectorAll('.lnk.bib').forEach(function(b){
+      b.addEventListener('click', function(e){
+        e.preventDefault();
+        var txt = b.getAttribute('data-bib');
+        var done = function(){
+          var old = b.textContent; b.textContent = 'Copied';
+          setTimeout(function(){ b.textContent = old; }, 1400);
+        };
+        var fail = function(){ if(legacyCopy(txt)) done(); else window.location.href = b.href; };
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(txt).then(done, fail);
+        }else{ fail(); }
+      });
+    });
+  })();
+
+  // News 펼치기 / 접기
+  (function(){
+    var btn = document.getElementById('newsmore');
+    var list = document.getElementById('newslist');
+    if(!btn || !list) return;
+    btn.addEventListener('click', function(){
+      var open = list.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.firstChild.nodeValue = open ? btn.dataset.less : btn.dataset.more;
+      if(!open) list.scrollIntoView({block:'nearest', behavior:'smooth'});
+    });
+  })();
+
   (function(){
     var pg = document.getElementById('pg');
+    var rail = document.querySelector('.rail');
     var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
     var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    var cur = -1;
+
+    // 활성 항목이 레일 밖으로 나가면 레일만 살짝 스크롤 (페이지 스크롤은 절대 건드리지 않음)
+    function keepVisible(a){
+      if(!rail || rail.scrollHeight <= rail.clientHeight + 1) return;   // 스크롤이 필요 없으면 무시
+      var r = rail.getBoundingClientRect(), t = a.getBoundingClientRect(), pad = 14;
+      var d = 0;
+      if(t.top < r.top + pad)          d = t.top - (r.top + pad);
+      else if(t.bottom > r.bottom - pad) d = t.bottom - (r.bottom - pad);
+      if(d) rail.scrollTop += d;
+    }
+
     function onScroll(){
       var h = document.documentElement.scrollHeight - window.innerHeight;
       pg.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
@@ -516,9 +826,13 @@
       for (var j = 0; j < secs.length; j++){
         if (secs[j] && secs[j].getBoundingClientRect().top <= 120) i = j;
       }
+      // 문서 끝에 닿으면 마지막 섹션을 활성화 (마지막 항목은 화면 상단까지 올라올 수 없음)
+      if (h > 0 && window.scrollY >= h - 2) i = secs.length - 1;
       links.forEach(function(a, k){ a.classList.toggle('on', k === i); });
+      if (i !== cur){ cur = i; if (links[i]) keepVisible(links[i]); }
     }
     window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll, {passive:true});
     onScroll();
   })();
 </script>

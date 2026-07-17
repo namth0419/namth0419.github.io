@@ -49,7 +49,11 @@
     "",
     "google_verification: Google Search Console 의 'HTML 태그' 방식 인증값.",
     "  content=\"...\" 안의 문자열만 넣으세요 (태그 전체 말고). 비우면 태그가 안 들어갑니다.",
-    "  ※ index.html 에 직접 붙여넣으면 다음 빌드에 지워집니다. 반드시 여기에 넣으세요."
+    "  ※ index.html 에 직접 붙여넣으면 다음 빌드에 지워집니다. 반드시 여기에 넣으세요.",
+    "",
+    "news_visible: News 를 처음에 몇 개까지 보여줄지 (기본 5).",
+    "  나머지는 'Show all N' 버튼을 눌러야 펼쳐집니다. 항목이 이 수 이하면 버튼이 안 생깁니다.",
+    "  0 이나 음수를 넣으면 접지 않고 전부 표시합니다."
   ],
   "me": "Taehyun Nam",
   "site_url": "https://namth0419.github.io",
@@ -507,5 +511,6 @@
       "date": "2023.03",
       "text": "Started the M.S. program at KAIST with [Prof. Sung Gap Im](https://ftfl.kaist.ac.kr)."
     }
-  ]
+  ],
+  "news_visible": 5
 }
