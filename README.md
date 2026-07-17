@@ -360,13 +360,39 @@ python3 make_assets.py        # assets/og.png, favicon.svg, favicon-32.png, appl
 **`site_url` 이 비어 있으면 sitemap 생성을 건너뜁니다** (경고가 뜹니다). 주소가 틀리면 오히려 해가 되므로
 반드시 실제 배포 주소와 맞추세요.
 
-### 구글에 등록하기
+### Google Search Console 등록
 
-sitemap 만으로도 결국 색인되지만, 직접 등록하면 훨씬 빠릅니다:
+sitemap 만으로도 결국 색인되지만, 직접 등록하면 훨씬 빠릅니다.
 
-1. [Google Search Console](https://search.google.com/search-console) → 속성 추가 → URL 접두어에 주소 입력
-2. 소유권 확인: HTML 파일 업로드 방식이 가장 쉽습니다 (받은 파일을 저장소 루트에 두고 push)
-3. Sitemaps 메뉴 → `sitemap.xml` 제출
+**1. 속성 추가** — [Search Console](https://search.google.com/search-console) → Add property →
+**URL 접두어(URL prefix)** 쪽에 `https://namth0419.github.io` 입력.
+
+> 왼쪽의 **도메인(Domain)** 은 쓸 수 없습니다. DNS TXT 레코드가 필요한데 `github.io` 는 내 도메인이
+> 아니니까요. 반드시 오른쪽 URL 접두어를 쓰세요.
+
+**2. 소유권 확인 — HTML 태그 방식**
+
+Google이 주는 태그에서 `content="..."` **안의 문자열만** 복사해서 `cv.json` 에 넣으세요:
+
+```json
+"google_verification": "AbCdEf1234..."
+```
+
+그리고 `python3 build.py` → commit → push → 배포 완료 후 Search Console에서 **확인** 클릭.
+
+> ⚠️ **`index.html` 에 직접 붙여넣지 마세요.** 자동 생성물이라 다음 빌드에 지워지고, 그러면
+> 어느 날 소유권 확인이 풀립니다. Google은 태그를 주기적으로 다시 확인합니다.
+>
+> HTML 파일 업로드 방식(`googleXXXX.html` 을 저장소 루트에 두기)도 됩니다. 그 파일은 자동 생성물이
+> 아니라서 안전합니다. 편한 쪽을 고르세요.
+
+**3. sitemap 제출** — 왼쪽 메뉴 **Sitemaps** → 빈칸에 `sitemap.xml` 만 입력 → **제출**.
+상태가 초록색 '성공' 이면 끝입니다.
+
+**4. (선택) 색인 요청** — 상단 검색창에 홈페이지 주소를 넣고 **URL 검사** → **색인 생성 요청**.
+새 사이트는 이게 가장 빠릅니다.
+
+데이터가 쌓이는 데 며칠, 검색에 뜨는 데 길게는 몇 주 걸립니다. 조급해하지 마세요.
 
 "Taehyun Nam KAIST" 로 검색했을 때 이 페이지가 뜨는 게 목표입니다. JSON-LD(schema.org Person)도
 이미 들어가 있어서 구글이 이름·소속·프로필 링크를 구조적으로 인식합니다.
