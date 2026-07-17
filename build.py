@@ -40,8 +40,9 @@ ICONS = {
 
 # ── inline markup ────────────────────────────────────────────────────────────
 # {me}  → own name        †  → dagger
-# _x_   → emphasis        [text](url) → link
-TOKEN = re.compile(r"\{me\}|†|\[([^\]]+)\]\(([^)]+)\)|(?<!\w)_([^_]+)_(?!\w)")
+# _x_   → emphasis        **x** → bold        [text](url) → link
+# 주의: 교신저자 표시(*)와 충돌하지 않도록 굵게는 별표 두 개(**)만 인식합니다.
+TOKEN = re.compile(r"\{me\}|†|\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)]+)\)|(?<!\w)_([^_]+)_(?!\w)")
 
 
 def esc_html(t):
@@ -84,14 +85,17 @@ def inline(text, mode, me="Taehyun Nam"):
                        else "\\me{%s}" % esc_tex(me))
         elif tok == "†":
             out.append("<sup>†</sup>" if mode == "html" else "\\dg")
-        elif m.group(1):                                  # [text](url)
-            txt, url = m.group(1), m.group(2)
+        elif m.group(1):                                  # **bold**
+            out.append(f"<b>{esc_html(m.group(1))}</b>" if mode == "html"
+                       else "\\textbf{%s}" % esc_tex(m.group(1)))
+        elif m.group(2):                                  # [text](url)
+            txt, url = m.group(2), m.group(3)
             out.append(f'<a href="{esc_html(url)}" target="_blank" rel="noopener">{esc_html(txt)}</a>'
                        if mode == "html"
                        else "\\href{%s}{%s}" % (esc_tex_url(url), esc_tex(txt)))
-        elif m.group(3):                                  # _emphasis_
-            out.append(f"<em>{esc_html(m.group(3))}</em>" if mode == "html"
-                       else "\\textit{%s}" % esc_tex(m.group(3)))
+        elif m.group(4):                                  # _emphasis_
+            out.append(f"<em>{esc_html(m.group(4))}</em>" if mode == "html"
+                       else "\\textit{%s}" % esc_tex(m.group(4)))
         pos = m.end()
     out.append(esc(text[pos:]))
     return "".join(out)
@@ -113,16 +117,30 @@ def h_entries(items, cv):
     return "\n".join(rows)
 
 
-def h_figures(figs):
-    out = []
-    for f in figs:
-        cls = ' class="fig-narrow"' if f.get("narrow") else ""
-        out.append(
-            f'        <figure{cls}>\n'
-            f'          <img src="{esc_html(f["src"])}" alt="{esc_html(f.get("alt", ""))}">\n'
-            f'          <figcaption>{inline(f.get("caption", ""), "html")}</figcaption>\n'
-            f'        </figure>'
-        )
+def _one_figure(f, indent):
+    """figure 하나. size: full(기본) / narrow / half"""
+    size = (f.get("size") or "full").lower()
+    cls = {"narrow": ' class="fig-narrow"', "half": "", "full": ""}.get(size, "")
+    cap = f.get("caption", "")
+    cap_html = (f'\n{indent}  <figcaption>{inline(cap, "html")}</figcaption>') if cap else ""
+    return (f'{indent}<figure{cls}>\n'
+            f'{indent}  <img src="{esc_html(f["src"])}" alt="{esc_html(f.get("alt", ""))}" loading="lazy">'
+            f'{cap_html}\n'
+            f'{indent}</figure>')
+
+
+def h_figures(figs, indent="        "):
+    """size:'half' 인 그림이 연달아 나오면 2열로 묶습니다."""
+    out, i = [], 0
+    while i < len(figs):
+        if (figs[i].get("size") or "").lower() == "half" and i + 1 < len(figs) \
+                and (figs[i + 1].get("size") or "").lower() == "half":
+            pair = "\n".join(_one_figure(f, indent + "  ") for f in figs[i:i + 2])
+            out.append(f'{indent}<div class="fig-row">\n{pair}\n{indent}</div>')
+            i += 2
+        else:
+            out.append(_one_figure(figs[i], indent))
+            i += 1
     return "\n".join(out)
 
 
@@ -132,11 +150,13 @@ def h_research(cv):
         subs = []
         for j, s in enumerate(area["subs"]):
             bl = "\n".join(f'              <li>{inline(b, "html", cv["me"])}</li>' for b in s["bullets"])
+            sub_figs = h_figures(s.get("figures", []), "            ")
             subs.append(
                 f'          <div>\n'
                 f'            <h4>{chr(96+j+1)}) {inline(s["title"], "html", cv["me"])}</h4>\n'
                 f'            <ul>\n{bl}\n            </ul>\n'
-                f'          </div>'
+                + (sub_figs + "\n" if sub_figs else "")
+                + f'          </div>'
             )
         figs = h_figures(area.get("figures", []))
         out.append(
@@ -261,12 +281,32 @@ def build_bib(cv):
 
 # ── news ─────────────────────────────────────────────────────────────────────
 def h_news(cv):
-    out = []
-    for n in cv.get("news", []):
-        out.append('      <div class="news-item">'
-                   f'<div class="d">{esc_html(n["date"])}</div>'
-                   f'<p class="t">{inline(n["text"], "html", cv["me"])}</p></div>')
-    return "\n".join(out)
+    items = cv.get("news", [])
+    if not items:
+        return ""
+    limit = cv.get("news_visible", 5)
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 5
+    if limit < 1:
+        limit = len(items)
+
+    rows = []
+    for k, n in enumerate(items):
+        extra = " extra" if k >= limit else ""
+        rows.append(f'        <div class="news-item{extra}">'
+                    f'<div class="d">{esc_html(n["date"])}</div>'
+                    f'<p class="t">{inline(n["text"], "html", cv["me"])}</p></div>')
+    body = '      <div class="news-list" id="newslist">\n' + "\n".join(rows) + "\n      </div>"
+
+    if len(items) > limit:
+        # JS 가 없으면 .js 클래스가 안 붙어 전부 그대로 보입니다 (버튼만 숨김)
+        body += (f'\n      <button class="news-more" id="newsmore" type="button"'
+                 f' aria-expanded="false" aria-controls="newslist"'
+                 f' data-more="Show all {len(items)}" data-less="Show less">'
+                 f'Show all {len(items)}<span class="chev">↓</span></button>')
+    return body
 
 
 def jsonld(cv, site):
@@ -438,7 +478,13 @@ def h_institutions(cv):
             style = f' style="height:{int(h)}px"' if h else ""
             alt = esc_html(inst["name"])
             dark = inst.get("logo_dark")
-            cls = "lg-light has-alt" if dark else "lg-light"
+            if dark:
+                cls = "lg-light has-alt"
+            elif inst.get("logo_invert_dark", True):
+                # 밝은 버전이 없으면 다크 모드에서 반전시켜 보이게 함
+                cls = "lg-light auto-invert"
+            else:
+                cls = "lg-light"
             mark = (f'<img class="{cls}" src="{esc_html(inst["logo"])}" alt="{alt}"'
                     f'{style} loading="lazy">')
             if dark:
@@ -585,6 +631,9 @@ def t_research(cv):
             out.append("\\begin{itemize}")
             out += ["  \\item %s" % inline(b, "tex", cv["me"]) for b in s["bullets"]]
             out.append("\\end{itemize}")
+            sub_figs = t_figures(s.get("figures", []), cv)
+            if sub_figs:
+                out.append(sub_figs)
             if j < len(area["subs"]) - 1:
                 out.append("\\vspace{4pt}")
         figs = t_figures(area.get("figures", []), cv)

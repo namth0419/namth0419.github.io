@@ -117,46 +117,75 @@ git add -A && git commit -m "Add paper" && git push    # 나머지는 Actions가
 }
 ```
 
-- `image` 가 비어 있으면(`""`) 지금처럼 한 열로 나옵니다. **섞여 있어도 됩니다** — 이미지 있는
-  논문만 2열이 되고 나머지는 그대로입니다.
-- 이미지는 잘리지 않습니다 (`object-fit: contain`). 가로형이든 세로형이든 비율 그대로 들어갑니다.
-- 클릭하면 원본이 새 탭에서 열립니다.
-- `image_caption` 은 이미지 밑 작은 대문자 라벨. 없어도 됩니다.
-- `image_alt` 는 스크린리더용 설명. 비워두면 논문 제목이 자동으로 들어갑니다.
-- 모바일에선 이미지가 위, 서지정보가 아래로 자동 재배치됩니다.
-- 권장: **가로 1000px 내외, 200KB 이하.**
+- `image` 가 비어 있으면(`""`) 지금처럼 한 열로 나옵니다. **섞여 있어도 됩니다.**
+- 이미지는 잘리지 않습니다 (`object-fit: contain`).
+- 클릭하면 원본이 새 탭에서 열립니다. PDF에는 안 들어갑니다.
 
-> **PDF에는 안 들어갑니다.** graphical abstract는 웹페이지 전용입니다. 원본 Word CV의 논문 목록이
-> 텍스트만으로 되어 있었기 때문에 그 레이아웃을 유지했습니다. PDF에도 넣고 싶으시면 말씀해 주세요.
->
-> 출판사 이미지 저작권도 한 번 확인해 보세요. 오픈액세스(CC BY) 논문은 출처를 밝히면 자유롭게
-> 쓸 수 있지만, 구독형 저널은 보통 저자 본인의 개인 웹페이지 사용을 허용하되 조건이 붙습니다.
-> 직접 만든 abstract 그림(제출용 원본)을 쓰는 게 가장 안전합니다.
+---
 
-### 본문에 사진 넣기
+## Research 에 그림 넣기
 
-`research` 항목의 `figures` 배열에 넣으세요:
+이미지를 `assets/figures/` 에 넣고 `figures` 배열을 채웁니다. **두 위치**를 고를 수 있습니다:
 
 ```json
-"figures": [
+"research": [
   {
-    "src": "assets/te-tft.jpg",
-    "alt": "Cross-sectional schematic of the Te TFT stack",
-    "caption": "**Fig 1.** iCVD 패시베이션을 적용한 p-type Te TFT 단면 구조.",
-    "narrow": false,
-    "in_pdf": false
+    "title": "Development of p-type tellurium-based electronic devices",
+    "subs": [
+      {
+        "title": "High-hole-mobility p-type tellurium thin-film transistors ...",
+        "bullets": [ "..." ],
+        "figures": [                                   ← 이 세부 항목 바로 아래
+          { "src": "assets/figures/transfer.png", "alt": "Transfer characteristics",
+            "caption": "**a** Transfer curves before and after passivation.", "size": "half" },
+          { "src": "assets/figures/output.png", "alt": "Output characteristics",
+            "caption": "**b** Output curves at varying gate bias.", "size": "half" }
+        ]
+      }
+    ],
+    "figures": [                                       ← 이 연구 분야 전체 아래
+      { "src": "assets/figures/stack.png",
+        "alt": "Cross-sectional schematic of the Te TFT stack",
+        "caption": "**Fig 1.** iCVD 패시베이션을 적용한 p-type Te TFT 단면 구조.",
+        "size": "full", "in_pdf": false }
+    ]
   }
 ]
 ```
 
-- `in_pdf: true` 로 하면 PDF에도 들어갑니다. 기본값은 웹에만 표시.
-- `narrow: true` 는 웹에서 폭을 좁게.
-- 이미지는 가로 1200px 내외 / 200KB 이하 권장. `alt` 는 꼭 채우세요.
-
-### 그 밖에
-
-| 고칠 것 | 위치 |
+| 필드 | 설명 |
 |---|---|
+| `src` | `assets/figures/` 아래 경로 |
+| `alt` | 스크린리더·이미지 실패 시 표시. **꼭 채우세요** |
+| `caption` | 비우면 캡션 줄이 아예 안 생깁니다 |
+| `size` | `full`(기본, 단 폭 전체) · `narrow`(460px) · `half`(2열) |
+| `in_pdf` | `true` 면 PDF에도. 기본은 웹 전용 |
+
+- **`half` 를 연달아 두 개** 두면 자동으로 나란히 놓입니다. 모바일에선 세로로 쌓입니다.
+- 캡션에서 `**굵게**`, `_기울임_`, `[링크](주소)` 를 쓸 수 있습니다.
+- SVG도 됩니다 (모식도는 SVG가 가장 선명합니다).
+
+### 그림 파일 준비
+
+| | |
+|---|---|
+| 가로 | **1200px 내외**. 본문 단이 최대 760px이라 그 이상은 낭비입니다 |
+| 용량 | **200KB 이하**. 여러 장이면 페이지가 금방 무거워집니다 |
+| 형식 | 모식도·그래프 → **PNG** 또는 **SVG** / 사진 → **JPEG** |
+| 여백 | **미리 잘라내세요.** 논문 figure를 캡처하면 흰 여백이 딸려옵니다 |
+
+```bash
+magick fig.png -trim +repage -resize 1200x fig_web.png
+```
+
+> **몇 장이 적당한가:** 연구 분야당 **1~2장**입니다. CV는 논문이 아니라서, 그림이 많아지면
+> 텍스트를 읽지 않고 넘겨버립니다. "이 사람이 무슨 소자를 만드는가"를 한눈에 보여주는
+> 모식도 한 장이 데이터 그래프 여섯 장보다 낫습니다.
+>
+> **출판사 저작권**도 확인하세요. 논문에 실린 figure를 그대로 쓰는 것보다 **본인이 그린 원본**을
+> 쓰는 게 안전하고 화질도 좋습니다.
+
+---|---|
 | 학력·경력·수상 | `education` / `experience` / `honors` 배열의 `when`, `what`, `detail` |
 | `detail` 표시 방식 | `"inline_detail": true` → PDF에서 `제목 (부연)` 한 줄. 없으면 줄바꿈. |
 | 연구 분야 | `research` → `subs` → `bullets` |
@@ -287,6 +316,18 @@ GitHub Pages는 정적 호스팅이라 **서버 로그를 볼 수 없습니다.*
 
 - 최신이 위로 오게 **직접 정렬**하세요 (자동 정렬 안 함).
 - 배열을 비우면 섹션이 통째로 사라지고 네비 번호도 자동으로 다시 매겨집니다.
+
+**처음엔 최근 5개만 보이고**, 나머지는 `Show all N` 버튼을 눌러야 펼쳐집니다. 개수는 `cv.json` 에서:
+
+```json
+"news_visible": 5
+```
+
+- 항목이 이 수 이하면 버튼이 안 생깁니다.
+- `0` 을 넣으면 접지 않고 전부 표시합니다.
+- 항목을 계속 쌓아도 페이지가 길어지지 않으니, **오래된 것을 지우지 말고 그냥 아래에 쌓으세요.**
+  나중에 보면 본인 기록으로도 쓸모가 있습니다.
+- JS가 꺼진 브라우저에서는 접기 없이 전부 표시됩니다 (버튼만 숨겨짐).
 - `_기울임_`, `[링크](주소)` 사용 가능.
 - 학계 페이지에서 사람들이 제일 먼저 보는 곳입니다. **3개월에 한 번은 손보세요.**
 
