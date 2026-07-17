@@ -32,6 +32,7 @@
           || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     }catch(e){}
     document.documentElement.setAttribute("data-theme", t);
+    document.documentElement.classList.add("js");   // JS 없으면 News 접기를 아예 안 함
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -321,6 +322,19 @@
   :root[data-theme="dark"] .theme-toggle .sun{display:block}
 
   /* news */
+  .js .news-item.extra{display:none}
+  .js .news-list.open .news-item.extra{display:grid}
+  .news-more{
+    display:inline-flex;align-items:center;gap:7px;margin-top:12px;
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+    padding:5px 10px;border:1px solid var(--rule);border-radius:2px;
+    background:transparent;color:var(--muted);cursor:pointer;
+    transition:color .16s,border-color .16s;
+  }
+  .news-more:hover{color:var(--deep);border-color:var(--deep)}
+  .news-more .chev{transition:transform .2s;font-size:9px;line-height:1}
+  .news-more[aria-expanded="true"] .chev{transform:rotate(180deg)}
+  html:not(.js) .news-more{display:none}
   .news-item{display:grid;grid-template-columns:104px 1fr;gap:18px;padding:9px 0}
   .news-item + .news-item{border-top:1px dotted var(--rule)}
   .news-item .d{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:3px;letter-spacing:.03em}
@@ -351,6 +365,14 @@
   .affil-item .lg-dark{display:none}
   :root[data-theme="dark"] .affil-item .lg-light.has-alt{display:none}
   :root[data-theme="dark"] .affil-item .lg-dark{display:block}
+  /* logo_dark 를 안 준 어두운 로고는 다크 모드에서 반전시켜 살립니다.
+     (cv.json 에서 "logo_invert_dark": false 로 끌 수 있음) */
+  :root[data-theme="dark"] .affil-item .lg-light.auto-invert{
+    filter:grayscale(1) invert(1);opacity:.72;
+  }
+  :root[data-theme="dark"] .affil-item:hover .lg-light.auto-invert{
+    filter:grayscale(1) invert(1);opacity:1;
+  }
   .affil-item .wm{
     font-family:var(--display);font-weight:600;font-size:17.5px;letter-spacing:-.005em;
     color:var(--ink);opacity:.68;transition:opacity .18s,color .18s;line-height:1;
@@ -472,10 +494,36 @@
     });
   })();
 
+  // News 펼치기 / 접기
+  (function(){
+    var btn = document.getElementById('newsmore');
+    var list = document.getElementById('newslist');
+    if(!btn || !list) return;
+    btn.addEventListener('click', function(){
+      var open = list.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.firstChild.nodeValue = open ? btn.dataset.less : btn.dataset.more;
+      if(!open) list.scrollIntoView({block:'nearest', behavior:'smooth'});
+    });
+  })();
+
   (function(){
     var pg = document.getElementById('pg');
+    var rail = document.querySelector('.rail');
     var links = Array.prototype.slice.call(document.querySelectorAll('nav a'));
     var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    var cur = -1;
+
+    // 활성 항목이 레일 밖으로 나가면 레일만 살짝 스크롤 (페이지 스크롤은 절대 건드리지 않음)
+    function keepVisible(a){
+      if(!rail || rail.scrollHeight <= rail.clientHeight + 1) return;   // 스크롤이 필요 없으면 무시
+      var r = rail.getBoundingClientRect(), t = a.getBoundingClientRect(), pad = 14;
+      var d = 0;
+      if(t.top < r.top + pad)          d = t.top - (r.top + pad);
+      else if(t.bottom > r.bottom - pad) d = t.bottom - (r.bottom - pad);
+      if(d) rail.scrollTop += d;
+    }
+
     function onScroll(){
       var h = document.documentElement.scrollHeight - window.innerHeight;
       pg.style.width = (h > 0 ? (window.scrollY / h) * 100 : 0) + '%';
@@ -483,9 +531,13 @@
       for (var j = 0; j < secs.length; j++){
         if (secs[j] && secs[j].getBoundingClientRect().top <= 120) i = j;
       }
+      // 문서 끝에 닿으면 마지막 섹션을 활성화 (마지막 항목은 화면 상단까지 올라올 수 없음)
+      if (h > 0 && window.scrollY >= h - 2) i = secs.length - 1;
       links.forEach(function(a, k){ a.classList.toggle('on', k === i); });
+      if (i !== cur){ cur = i; if (links[i]) keepVisible(links[i]); }
     }
     window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll, {passive:true});
     onScroll();
   })();
 </script>
