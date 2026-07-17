@@ -17,16 +17,20 @@
 
 ```
 cv.json                     ← ★ 유일한 원본. 내용은 전부 여기에.
-build.py                    ← cv.json → index.html + cv.tex 생성기 (표준 라이브러리만 사용)
+build.py                    ← cv.json → index.html + cv.tex + cite.bib (표준 라이브러리만 사용)
+make_assets.py              ← 공유 카드/파비콘 생성 (이름·사진 바뀔 때만 수동 실행)
 templates/page.html         ← 웹페이지 껍데기 + CSS (디자인 고칠 때만)
 templates/doc.tex           ← LaTeX 프리앰블 (조판 규칙 고칠 때만)
 
 index.html                  ← 자동 생성물. 직접 고치지 마세요.
 cv.tex                      ← 자동 생성물. 직접 고치지 마세요.
-cv.pdf                      ← 자동 생성물.
+cv.pdf  cite.bib            ← 자동 생성물.
 
 assets/photo.jpg            ← 프로필 사진
+assets/og.png               ← 링크 공유 미리보기 카드 (1200x630)
+assets/favicon.svg 등       ← 파비콘
 assets/abstracts/           ← 논문 graphical abstract 이미지
+assets/logos/               ← 소속 기관 로고 (선택)
 papers/                     ← 논문 PDF를 여기에
 .github/workflows/          ← push 시 자동 빌드 + 배포
 ```
@@ -157,6 +161,188 @@ git add -A && git commit -m "Add paper" && git push    # 나머지는 Actions가
 | 프로필 링크 | `links` 배열 (`icon`: `scholar`/`orcid`/`linkedin`/`link`) |
 | 색상·폰트·레이아웃 | `templates/page.html` 상단 `:root` |
 | PDF 여백·조판 | `templates/doc.tex` |
+
+---
+
+## 방문자 통계
+
+GitHub Pages는 정적 호스팅이라 **서버 로그를 볼 수 없습니다.** 접속 국가·시간 같은 통계를 보려면
+외부 서비스 스크립트를 한 줄 넣어야 합니다. `cv.json` 의 `analytics` 블록으로 제어됩니다:
+
+```json
+"analytics": {
+  "provider": "goatcounter",
+  "code": "namth0419",
+  "public_url": ""
+}
+```
+
+`provider` 가 `none` 이면 스크립트가 **아예 안 들어갑니다** (현재 기본값).
+
+### 추천: GoatCounter
+
+개인 사이트에는 이게 가장 잘 맞습니다. 무료, 오픈소스, **쿠키를 안 쓰고 개인정보를 수집하지 않습니다.**
+
+1. https://www.goatcounter.com 에서 가입 → 원하는 코드를 정합니다 (예: `namth0419`)
+   → 대시보드가 `https://namth0419.goatcounter.com` 이 됩니다.
+2. `cv.json` 에 `"provider": "goatcounter"`, `"code": "namth0419"` 입력.
+3. push. 끝.
+
+보이는 것: **국가별 접속 수**, 시간대별 그래프, 유입 경로(referrer), 브라우저/OS, 페이지별 조회수.
+개별 방문자를 식별하거나 추적하지는 않습니다.
+
+`public_url` 에 대시보드 주소를 넣으면 푸터에 `Site stats ↗` 링크가 생깁니다.
+(GoatCounter 설정에서 대시보드를 공개로 바꿔야 남들이 볼 수 있습니다. 비워두면 링크가 안 생깁니다.)
+
+### 다른 선택지
+
+| provider | code 에 넣을 것 | 비고 |
+|---|---|---|
+| `goatcounter` | 가입 시 정한 코드 | 무료 · 쿠키 없음 · 오픈소스 |
+| `cloudflare` | beacon token | 무료 · 쿠키 없음 · Cloudflare 계정 필요 |
+| `plausible` | 도메인 (`namth0419.github.io`) | 유료 · 자체 호스팅 가능 |
+| `umami` | website-id | 자체 호스팅 시 `"src"` 도 지정 |
+| `none` | — | 통계 없음 |
+
+> Google Analytics는 일부러 넣지 않았습니다. 쿠키를 쓰기 때문에 EU 방문자에게 동의 배너가
+> 필요해지고, 학술용 개인 페이지에 비해 과합니다. 위 서비스들은 쿠키를 쓰지 않아 일반적으로
+> 배너 없이 쓸 수 있다고 여겨지지만, 법적 조언은 아닙니다. 소속 기관 웹 정책이 있다면 확인해 보세요.
+
+---
+
+## 소속 기관 로고 (페이지 맨 아래)
+
+`institutions` 블록으로 제어됩니다. **지금은 로고 없이 활자 워드마크**로 나옵니다
+(POSTECH · KAIST · Penn State + 재학 연도).
+
+로고 이미지를 쓰려면 파일을 `assets/logos/` 에 넣고 경로를 채우세요:
+
+```json
+{
+  "name": "KAIST",
+  "full": "Korea Advanced Institute of Science and Technology",
+  "years": "2023 – Current",
+  "url": "https://www.kaist.ac.kr/en/",
+  "logo": "assets/logos/kaist.png"
+}
+```
+
+- `logo` 가 비어 있으면 워드마크, 채우면 이미지. **섞어 써도 됩니다.**
+- 로고는 평소 흑백(회색조)으로 차분하게 있다가 **마우스를 올리면 원래 색으로** 돌아옵니다.
+- `url` 을 지우면 링크 없이 표시만 됩니다.
+- PDF에는 안 들어갑니다 (웹 전용).
+
+### 로고 파일 크기
+
+**가로는 신경 쓸 필요 없습니다.** 높이만 맞추면 가로는 비율대로 자동입니다.
+
+| 항목 | 값 |
+|---|---|
+| 표시 높이 | **38px** (모바일 30px) |
+| 준비할 파일 | **세로 114px 이상** (고해상도 화면 대비 3배수) |
+| 형식 | **SVG 최선** · 아니면 **투명배경 PNG** |
+| 가로 상한 | 190px |
+
+- **여백을 미리 잘라내세요.** 로고 파일에 딸린 여백 때문에 로고만 작아 보이는 게 가장 흔한 문제입니다.
+  ```bash
+  magick logo.png -trim +repage logo_trim.png     # ImageMagick
+  ```
+- **비율 5:1이 한계입니다.** 그보다 옆으로 길면 가로 190px 제한에 걸려 높이가 38px보다 줄어듭니다
+  (예: 9:1 로고 → 190×21px). 학교 로고가 아주 긴 가로형이면 심볼만 있는 버전을 쓰거나
+  `logo_height` 로 다른 로고를 맞춰 내리세요.
+- SVG는 원본 크기와 무관하게 항상 선명합니다. 학교 brand 페이지에 SVG가 있으면 그게 최선입니다.
+
+### 로고별 높이 미세조정
+
+높이를 똑같이 38px로 맞춰도 **시각적 크기는 안 맞습니다.** 세로로 긴 방패형과 옆으로 넓은
+워드마크는 같은 높이여도 덩치가 달라 보입니다. 눈으로 보고 조정하세요:
+
+```json
+{ "name": "Penn State", "logo": "assets/logos/pennstate.svg", "logo_height": 32 }
+```
+
+`logo_height` 를 빼면 기본 38px입니다. 정답은 없고, 셋을 나란히 놓고 비슷해 보이면 됩니다.
+
+> **로고를 쓰기 전에:** 대학 로고는 등록상표입니다. 세 학교 모두 브랜드 가이드라인이 있고, 보통
+> 개인의 로고 사용을 "소속·후원을 암시하지 않는 범위"로 제한합니다. 재학·재직 사실을 나타내는
+> 용도는 대체로 문제되지 않지만, 각 학교 brand/identity 페이지를 한 번 확인해 보세요.
+> 확실히 안전한 쪽은 **지금의 활자 워드마크 그대로 두는 것**이고, 디자인상으로도 사이트와 더
+> 잘 어울립니다.
+
+---
+
+## News 섹션
+
+`cv.json` 의 `news` 배열. 페이지 상단(Statement 다음)에 나옵니다. **웹 전용** — 정식 CV가 아니므로 PDF엔 없습니다.
+
+```json
+"news": [
+  { "date": "2026.07", "text": "Visiting [Prof. Das' group](https://...) at Penn State until November." },
+  { "date": "2026.02", "text": "Our paper is out in _Advanced Functional Materials_." }
+]
+```
+
+- 최신이 위로 오게 **직접 정렬**하세요 (자동 정렬 안 함).
+- 배열을 비우면 섹션이 통째로 사라지고 네비 번호도 자동으로 다시 매겨집니다.
+- `_기울임_`, `[링크](주소)` 사용 가능.
+- 학계 페이지에서 사람들이 제일 먼저 보는 곳입니다. **3개월에 한 번은 손보세요.**
+
+---
+
+## BibTeX
+
+`build.py` 가 `cv.json` 에서 `cite.bib` 를 자동 생성합니다.
+
+- 논문마다 **BIB 버튼** → 그 논문의 BibTeX 항목이 클립보드에 복사됩니다.
+- 논문 목록 아래 **All entries as BibTeX ↓** → `cite.bib` 전체 다운로드.
+- 게재된 논문은 `@article`, 나머지는 `@unpublished` + `note = {Submitted to ...}` 로 나갑니다.
+- 키는 `성 + 연도 + 제목첫단어` (예: `jang2025unipolar`). 중복되면 빌드 시 경고가 뜹니다.
+- 실제 `bibtex` 로 컴파일 검증했습니다 (경고 0).
+
+---
+
+## 날짜 자동 갱신
+
+`cv.json` 의 `"updated": "auto"` → **마지막 git 커밋 날짜**가 웹 푸터와 PDF 푸터에 자동으로 들어갑니다.
+날짜를 고정하고 싶으면 `"April 2026"` 처럼 직접 적으세요.
+
+---
+
+## 링크 공유 미리보기
+
+카톡·슬랙·트위터에 링크를 붙이면 `assets/og.png` 카드가 뜹니다. 이름·사진·소속이 들어간 1200×630 이미지입니다.
+
+**중요: `cv.json` 의 `site_url` 이 실제 배포 주소와 정확히 같아야 합니다.** OG 이미지는 절대 주소로만
+동작하기 때문에, 다르면 미리보기가 깨집니다.
+
+이름·사진·소속이 바뀌었을 때만 카드를 다시 만드세요:
+
+```bash
+pip install playwright pillow && playwright install chromium
+python3 make_assets.py        # assets/og.png, favicon.svg, favicon-32.png, apple-touch-icon.png
+```
+
+평소 빌드(`build.py`)에는 필요 없습니다. 생성된 이미지는 저장소에 커밋하세요.
+
+미리보기 확인: [opengraph.xyz](https://www.opengraph.xyz) 에 주소를 넣어보면 됩니다.
+(카톡·슬랙은 미리보기를 캐시하므로, 바꾼 게 바로 반영 안 될 수 있습니다.)
+
+---
+
+## 다크 모드
+
+우상단 아이콘으로 전환합니다.
+
+- 첫 방문 시 **OS 설정을 따라갑니다** (`prefers-color-scheme`).
+- 한 번 누르면 그 선택이 기억됩니다 (localStorage). 저장이 막힌 브라우저에서도 전환 자체는 됩니다.
+- 그리기 전에 테마를 정하므로 새로고침해도 **깜빡임이 없습니다.**
+- 인쇄할 때는 항상 라이트로 나옵니다.
+- 색은 `templates/page.html` 상단 `:root[data-theme="dark"]` 블록에서 바꿉니다.
+
+> **로고 넣을 때 주의:** 어두운 색 로고는 다크 배경에서 묻힙니다. 흰색/밝은 버전이 있으면
+> `"logo_dark": "assets/logos/kaist-white.png"` 로 지정하세요. 비워두면 양쪽 모두 같은 파일을 씁니다.
+
+---
 
 ## PDF는 왜 클릭 즉시 컴파일이 아닌가
 
