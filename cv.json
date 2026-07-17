@@ -16,11 +16,24 @@
     "    \"image_alt\":     \"Graphical abstract: 스크린리더용 설명\"",
     "    \"image_caption\": \"Adv. Funct. Mater. 2026\"   (이미지 아래 작은 글씨, 없어도 됨)",
     "  image 이 비어 있으면 그 논문은 지금처럼 한 열로 표시됩니다. 섞여 있어도 괜찮습니다.",
-    "  권장: 가로 1000px 내외, 200KB 이하. 클릭하면 원본이 새 탭에서 열립니다."
+    "  권장: 가로 1000px 내외, 200KB 이하. 클릭하면 원본이 새 탭에서 열립니다.",
+    "",
+    "방문자 통계 (analytics 블록):",
+    "  provider: goatcounter / cloudflare / plausible / umami / none",
+    "  code:     goatcounter → 가입 시 정한 코드 (MYCODE.goatcounter.com 의 MYCODE 부분)",
+    "            cloudflare  → beacon token / plausible → 도메인 / umami → website-id",
+    "  public_url: 공개 대시보드 주소 (넣으면 푸터에 'Site stats' 링크가 생김. 없으면 빈 문자열)",
+    "  provider 가 none 이면 스크립트가 아예 안 들어갑니다.",
+    "",
+    "소속 기관 로고 (institutions 블록, 페이지 맨 아래):",
+    "  logo 가 비어 있으면 기관명이 활자 워드마크로 표시됩니다 (기본값).",
+    "  로고 파일을 assets/logos/ 에 넣고 \"logo\": \"assets/logos/kaist.png\" 처럼 채우면 이미지로 바뀝니다.",
+    "  PNG(투명배경) 또는 SVG 권장. 높이 38px로 표시되니 세로 80px 이상 파일을 쓰세요.",
+    "  로고는 상표입니다 — 각 기관 브랜드 가이드라인을 확인하세요. 자세한 내용은 README 참고."
   ],
   "me": "Taehyun Nam",
   "photo": "assets/photo.jpg",
-  "updated": "July 2026",
+  "updated": "April 2026",
   "role_lines": [
     "Ph.D. Student · KAIST",
     "Chemical & Biomolecular Eng.",
@@ -409,6 +422,34 @@
       "title": "Gate Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing",
       "detail": "Korean Patent; In submission",
       "status": "in_submission"
+    }
+  ],
+  "analytics": {
+    "provider": "none",
+    "code": "",
+    "public_url": ""
+  },
+  "institutions": [
+    {
+      "name": "POSTECH",
+      "full": "Pohang University of Science and Technology",
+      "years": "2019 – 2023",
+      "url": "https://www.postech.ac.kr/eng/",
+      "logo": ""
+    },
+    {
+      "name": "KAIST",
+      "full": "Korea Advanced Institute of Science and Technology",
+      "years": "2023 – Current",
+      "url": "https://www.kaist.ac.kr/en/",
+      "logo": ""
+    },
+    {
+      "name": "Penn State",
+      "full": "The Pennsylvania State University",
+      "years": "2026",
+      "url": "https://www.psu.edu/",
+      "logo": ""
     }
   ]
 }
