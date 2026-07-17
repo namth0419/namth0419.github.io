@@ -231,6 +231,53 @@ def h_patents(cv):
     return "\n".join(out)
 
 
+def analytics_snippet(a):
+    """방문자 통계 스크립트. cv.json 의 analytics 블록으로 제어."""
+    if not a:
+        return ""
+    prov = (a.get("provider") or "none").lower()
+    code = (a.get("code") or "").strip()
+    if prov in ("", "none"):
+        return ""
+    if not code:
+        print("  ! analytics.provider 는 '%s' 인데 code 가 비어 있습니다 — 통계 스크립트를 건너뜁니다." % prov)
+        return ""
+
+    if prov == "goatcounter":
+        return ('<script data-goatcounter="https://%s.goatcounter.com/count"\n'
+                '        async src="//gc.zgo.at/count.js"></script>' % esc_html(code))
+    if prov == "cloudflare":
+        return ('<script defer src="https://static.cloudflareinsights.com/beacon.min.js"\n'
+                '        data-cf-beacon=\'{"token": "%s"}\'></script>' % esc_html(code))
+    if prov == "plausible":
+        return ('<script defer data-domain="%s"\n'
+                '        src="https://plausible.io/js/script.js"></script>' % esc_html(code))
+    if prov == "umami":
+        src = a.get("src") or "https://cloud.umami.is/script.js"
+        return '<script defer src="%s" data-website-id="%s"></script>' % (esc_html(src), esc_html(code))
+
+    raise ValueError("알 수 없는 analytics.provider: %r "
+                     "(goatcounter / cloudflare / plausible / umami / none 중 하나)" % prov)
+
+
+def h_institutions(cv):
+    """푸터 위 소속 기관 스트립. logo 가 있으면 이미지, 없으면 활자 워드마크."""
+    out = []
+    for inst in cv.get("institutions", []):
+        title = esc_html(inst.get("full") or inst["name"])
+        if inst.get("logo"):
+            mark = f'<img src="{esc_html(inst["logo"])}" alt="{esc_html(inst["name"])}" height="38">'
+        else:
+            mark = f'<span class="wm">{esc_html(inst["name"])}</span>'
+        inner = f'{mark}\n        <span class="yr">{esc_html(inst.get("years", ""))}</span>'
+        if inst.get("url"):
+            out.append(f'      <a class="affil-item" href="{esc_html(inst["url"])}" '
+                       f'target="_blank" rel="noopener" title="{title}">\n        {inner}\n      </a>')
+        else:
+            out.append(f'      <div class="affil-item" title="{title}">\n        {inner}\n      </div>')
+    return "\n".join(out)
+
+
 HTML_SECTIONS = [
     ("statement",    "Statement",    "Statement",    lambda cv: f'      <p class="lede">{inline(cv["statement"], "html", cv["me"])}</p>'),
     ("education",    "Education",    "Education",    lambda cv: h_entries(cv["education"], cv)),
@@ -282,6 +329,12 @@ def build_html(cv):
                 body += f'\n      <p class="note">{esc_html(cv["publications_note"])}</p>'
         secs.append(f'    <section id="{sid}">\n      <h2>{title}</h2>\n{body}\n    </section>')
 
+    email = cv["personal"]["email"]
+    footer_right = f'<a href="mailto:{email}">{email}</a>'
+    stats = (cv.get("analytics") or {}).get("public_url")
+    if stats:
+        footer_right += f' · <a href="{esc_html(stats)}" target="_blank" rel="noopener">Site stats ↗</a>'
+
     parts = cv["me"].split()
     out = (BANNER_HTML + tpl
            .replace("{{PHOTO}}", photo)
@@ -292,7 +345,10 @@ def build_html(cv):
            .replace("{{SOCIAL}}", "\n".join(social))
            .replace("{{NAV}}", "\n".join(nav))
            .replace("{{SECTIONS}}", "\n\n".join(secs))
-           .replace("{{EMAIL}}", cv["personal"]["email"])
+           .replace("{{INSTITUTIONS}}", h_institutions(cv))
+           .replace("{{ANALYTICS}}", analytics_snippet(cv.get("analytics")))
+           .replace("{{FOOTER_RIGHT}}", footer_right)
+           .replace("{{EMAIL}}", email)
            .replace("{{UPDATED}}", esc_html(cv["updated"])))
     return out
 
