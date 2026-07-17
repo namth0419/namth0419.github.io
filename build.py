@@ -289,6 +289,44 @@ def jsonld(cv, site):
             % json.dumps(d, ensure_ascii=False, indent=2))
 
 
+def resolve_updated_iso():
+    """sitemap 의 lastmod 용 ISO 날짜 (YYYY-MM-DD)."""
+    try:
+        r = subprocess.run(["git", "log", "-1", "--format=%cd", "--date=format:%Y-%m-%d"],
+                           cwd=ROOT, capture_output=True, text=True, timeout=5)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return datetime.date.today().isoformat()
+
+
+def build_sitemap(cv):
+    site = (cv.get("site_url") or "").rstrip("/")
+    if not site:
+        return None
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            '  <url>\n'
+            '    <loc>%s/</loc>\n'
+            '    <lastmod>%s</lastmod>\n'
+            '  </url>\n'
+            '</urlset>\n' % (site, resolve_updated_iso()))
+
+
+def build_robots(cv):
+    site = (cv.get("site_url") or "").rstrip("/")
+    lines = ["User-agent: *", "Allow: /", ""]
+    if site:
+        lines.append("Sitemap: %s/sitemap.xml" % site)
+    return "\n".join(lines) + "\n"
+
+
+def build_404(cv):
+    tpl = open(os.path.join(ROOT, "templates", "404.html"), encoding="utf-8").read()
+    return BANNER_HTML + tpl.replace("{{NAME}}", esc_html(cv["me"]))
+
+
 def cite_html(p, cv):
     bits = [inline(p["authors"], "html", cv["me"]) + ". " + inline(p["title"], "html", cv["me"]) + "."]
     if p.get("venue"):
@@ -678,6 +716,24 @@ def main():
     with open(os.path.join(ROOT, "cite.bib"), "w", encoding="utf-8") as f:
         f.write(bib)
     print("  cite.bib    %6d bytes" % len(bib))
+
+    page404 = build_404(cv)
+    with open(os.path.join(ROOT, "404.html"), "w", encoding="utf-8") as f:
+        f.write(page404)
+    print("  404.html    %6d bytes" % len(page404))
+
+    robots = build_robots(cv)
+    with open(os.path.join(ROOT, "robots.txt"), "w", encoding="utf-8") as f:
+        f.write(robots)
+    print("  robots.txt  %6d bytes" % len(robots))
+
+    sm = build_sitemap(cv)
+    if sm:
+        with open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8") as f:
+            f.write(sm)
+        print("  sitemap.xml %6d bytes" % len(sm))
+    else:
+        print("  ! site_url 이 비어 있어 sitemap.xml 을 건너뜁니다.")
 
     print("  %d publications · %d patents · %d talks · %d news"
           % (len(cv["publications"]), len(cv["patents"]), len(cv["talks"]), len(cv.get("news", []))))
