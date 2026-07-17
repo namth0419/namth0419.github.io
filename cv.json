@@ -458,7 +458,7 @@
       "full": "Pohang University of Science and Technology",
       "years": "2019 – 2023",
       "url": "https://www.postech.ac.kr/eng/",
-      "logo": "",
+      "logo": "assets/logos/POSTECH.png",
       "logo_dark": ""
     },
     {
@@ -466,7 +466,7 @@
       "full": "Korea Advanced Institute of Science and Technology",
       "years": "2023 – Current",
       "url": "https://www.kaist.ac.kr/en/",
-      "logo": "",
+      "logo": "assets/logos/kaist_logo_trans.png",
       "logo_dark": ""
     },
     {
@@ -474,7 +474,7 @@
       "full": "The Pennsylvania State University",
       "years": "2026",
       "url": "https://www.psu.edu/",
-      "logo": "",
+      "logo": "assets/logos/psu.png",
       "logo_dark": ""
     }
   ],
