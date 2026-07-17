@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found — {{NAME}}</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400&family=Source+Serif+4:opsz,wght@8..60,400&display=swap" rel="stylesheet">
+<script>
+  (function(){
+    var t = "light";
+    try{
+      t = localStorage.getItem("theme")
+          || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    }catch(e){}
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+<style>
+  :root{
+    color-scheme:light;
+    --ink:#12161a; --wafer:#E8EAE6; --rule:#CDD1CA; --muted:#6E7671; --deep:#1E2A78;
+    --film: linear-gradient(90deg,#1E2A78 0%,#6E2E8F 34%,#B98B22 67%,#2A7F6F 100%);
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --ink:#E4E8E3; --wafer:#0F1216; --rule:#282E35; --muted:#868E88; --deep:#93A7FF;
+    --film: linear-gradient(90deg,#5C6CE8 0%,#A867D8 34%,#E3B754 67%,#4CC6AC 100%);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;background:var(--wafer);color:var(--ink);
+    font-family:"Source Serif 4",Georgia,serif;
+    display:flex;align-items:center;justify-content:center;padding:32px;
+  }
+  .film-top{position:fixed;top:0;left:0;right:0;height:3px;background:var(--film)}
+  .box{max-width:520px}
+  .code{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 14px;
+    display:flex;align-items:center;gap:12px;
+  }
+  .code::after{content:"";flex:1;height:1px;background:var(--rule)}
+  h1{
+    font-family:"Archivo",system-ui,sans-serif;font-weight:700;font-size:40px;
+    letter-spacing:-.025em;margin:0 0 14px;line-height:1.05;
+  }
+  p{font-size:17px;line-height:1.6;color:var(--muted);margin:0 0 26px;max-width:44ch}
+  a.back{
+    font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;letter-spacing:.04em;
+    display:inline-flex;align-items:center;gap:8px;padding:9px 13px;
+    border:1px solid var(--ink);color:var(--ink);text-decoration:none;border-radius:2px;
+    transition:background .16s,color .16s;
+  }
+  a.back:hover{background:var(--ink);color:var(--wafer)}
+  .strata{display:flex;gap:4px;margin-top:40px}
+  .strata i{height:5px;border-radius:1px;display:block}
+</style>
+</head>
+<body>
+<div class="film-top"></div>
+<div class="box">
+  <p class="code">Error 404</p>
+  <h1>This layer was never deposited.</h1>
+  <p>The page you are looking for does not exist — it may have been moved or the address mistyped.</p>
+  <a class="back" href="/">← Back to the CV</a>
+  <div class="strata">
+    <i style="width:64px;background:#1E2A78"></i>
+    <i style="width:40px;background:#6E2E8F"></i>
+    <i style="width:26px;background:#B98B22"></i>
+    <i style="width:14px;background:#2A7F6F"></i>
+  </div>
+</div>
+</body>
+</html>
