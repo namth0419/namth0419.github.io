@@ -529,6 +529,9 @@ def build_html(cv):
            .replace("{{NAME_BR}}", "<br>".join([parts[0], " ".join(parts[1:])]) if len(parts) > 1 else cv["me"])
            .replace("{{NAME}}", esc_html(cv["me"]))
            .replace("{{DESC}}", esc_attr(desc))
+           .replace("{{VERIFY}}",
+                    ('<meta name="google-site-verification" content="%s">'
+                     % esc_attr(cv["google_verification"])) if cv.get("google_verification") else "")
            .replace("{{JSONLD}}", jsonld(cv, site))
            .replace("{{SITE_URL}}", esc_html(site))
            .replace("{{ROLE}}", "<br>".join(esc_html(r) for r in cv["role_lines"]))
