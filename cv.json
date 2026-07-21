@@ -322,7 +322,7 @@
       "year": "2026",
       "status": "published",
       "doi": "10.1002/adfm.202527125",
-      "pdf": "https://onlinelibrary.wiley.com/share/author/JVWNVXEZWDR2SQ3KMKSM?target=10.1002/adfm.202527125"
+      "pdf": "https://onlinelibrary.wiley.com/share/author/JVWNVXEZWDR2SQ3KMKSM?target=10.1002/adfm.202527125",
       "image": "assets/abstracts/adfm202527125.png",
       "image_alt": "",
       "image_caption": "Adv. Funct. Mater. 2026"
@@ -351,7 +351,7 @@
       "venue": "Nature Communications",
       "year": "2026",
       "status": "accepted",
-      "doi": "https://doi.org/10.1038/s41467-026-74238-y",
+      "doi": "10.1038/s41467-026-74238-y",
       "pdf": "papers/s41467-026-74238-y_reference.pdf"
     },
     {
