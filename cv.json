@@ -352,7 +352,10 @@
       "year": "2026",
       "status": "accepted",
       "doi": "10.1038/s41467-026-74238-y",
-      "pdf": "papers/s41467-026-74238-y_reference.pdf"
+      "pdf": "papers/s41467-026-74238-y_reference.pdf",
+      "image": "assets/abstracts/s41467-026-74238-y.png",
+      "image_alt": "",
+      "image_caption": "Nat. Commun. 2026"
     },
     {
       "authors": "Sukwon Jang†, Keunho Soh†, Chungryeol Lee†, {me}, Minjae Jang, Jeong-ik Park, Changhyeon Lee, Junhwan Choi, Jung Ho Yoon*, and Sung Gap Im*",
@@ -364,7 +367,7 @@
       "status": "published",
       "doi": "10.1038/s41467-025-63073-2",
       "pdf": "papers/s41467-025-63073-2.pdf",
-      "image": "",
+      "image": "assets/abstracts/s41467-025-63073-2.png",
       "image_alt": "",
       "image_caption": "Nat. Commun. 2025"
     },
