@@ -333,6 +333,12 @@
       "status": "in_submission"
     },
     {
+      "authors": "{me}†, Chungryeol Lee†, Seokhyun Hong, Jeong-ik Park, Youson Kim, and Sung Gap Im*",
+      "title": "A Synaptic Transistor with Stochastic but Tunable Charge Injection for Tailored Ensemble Reservoir Computing",
+      "venue": "Nature electronics",
+      "status": "in_submission"
+    },
+    {
       "authors": "Junyeong Yang†, Sanghyun Kim†, Jeong-Ik Park†, Minjeong Kang, Gyuwon Lee, Changmin Lee, {me}, and Sung Gap Im*",
       "title": "Sub-0.3 V Ultra-Low-Voltage Operation of Bilayer RRAM via High-Sulfur Polymer/Inorganic Hybrid Layers for Hardware Synaptic Devices",
       "venue": "Advanced Functional Materials",
@@ -343,7 +349,7 @@
       "title": "A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits",
       "venue": "Nature Communications",
       "year": "2026",
-      "status": "in proof",
+      "status": "accepted",
       "doi": "https://doi.org/10.1038/s41467-026-74238-y",
       "pdf": "papers/s41467-026-74238-y_reference.pdf"
     },
@@ -379,12 +385,6 @@
       "title": "Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors",
       "venue": "Advanced Functional Materials",
       "status": "in_revision"
-    },
-    {
-      "authors": "{me}†, Chungryeol Lee†, Seokhyun Hong, Jeong-ik Park, Youson Kim, and Sung Gap Im*",
-      "title": "Gate-Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing",
-      "venue": "",
-      "status": "in_preparation"
     },
     {
       "authors": "Seokhyun Hong†, {me}†, Chungryeol Lee†, Jeong-ik Park, Youson Kim, Junhwan Choi* and Sung Gap Im*",
