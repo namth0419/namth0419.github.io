@@ -454,8 +454,8 @@
     }
   ],
   "analytics": {
-    "provider": "none",
-    "code": "",
+    "provider": "goatcounter",
+    "code": "namth0419",
     "public_url": ""
   },
   "institutions": [
