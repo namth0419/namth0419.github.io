@@ -441,6 +441,11 @@
       "detail": "Korean Patent; Application Number: 10-2025-0084923"
     },
     {
+      "authors": "Sung Gap Im, {me}, Chungryeol Lee, Seokhyun Hong",
+      "title": "Gate injection synaptic transistor with tunable stochastic memory, method of manufacturing the same, and ensemble reservoir computing system including the same",
+      "detail": "Korean Patent; Application Number: 10-2026-0135907"
+    },
+    {
       "authors": "Sung Gap Im, Wooyoung Chung, {me}, Changmin Lee",
       "title": "Sn-based Organic/Inorganic Hybrid UV-sensitive Polymer Thin Film Formed by iCVD Process",
       "detail": "Korean Patent (Priority Claim Country); In submission, United States of America Patent; In submission",
@@ -449,12 +454,6 @@
     {
       "authors": "Sung Gap Im, Youson Kim, {me}",
       "title": "Electrolyte–channel interface engineering for short-term and long-term memory differentiation in OECTs for physical reservoir computing",
-      "detail": "Korean Patent; In submission",
-      "status": "in_submission"
-    },
-    {
-      "authors": "Sung Gap Im, {me}, Chungryeol Lee, Seokhyun Hong",
-      "title": "Gate Injection Synaptic Transistor with Tunable Stochastic Memory for Ensemble Reservoir Computing",
       "detail": "Korean Patent; In submission",
       "status": "in_submission"
     }
