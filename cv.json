@@ -489,6 +489,22 @@
       "url": "https://www.psu.edu/",
       "logo": "assets/logos/psu.png",
       "logo_dark": ""
+    },
+    {
+      "name": "SK Hynix",
+      "full": "SK Hynix",
+      "years": "2021",
+      "url": "https://www.skhynix.com/",
+      "logo": "assets/logos/skhynix.png",
+      "logo_dark": ""
+    },
+    {
+      "name": "Lotte Chemical",
+      "full": "Lotte Chemical",
+      "years": "2022",
+      "url": "https://www.lottechem.com/en/index.do",
+      "logo": "assets/logos/lottechemical.png",
+      "logo_dark": ""
     }
   ],
   "news": [
