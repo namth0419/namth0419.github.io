@@ -340,12 +340,6 @@
       "status": "in_submission"
     },
     {
-      "authors": "Junyeong Yang†, Sanghyun Kim†, Jeong-ik Park†, Minjeong Kang, Gyuwon Lee, Keonwoo Choi, {me}, Changmin Lee, Chaebin Park, Minsu So, Shinhyun Choi and Sung Gap Im*",
-      "title": "Sub-0.3 V SET/RESET of Bilayer RRAM via High-Sulfur Content Polymer/Inorganic Hybrid Switching Layers for Hardware Synaptic Devices",
-      "venue": "Advanced Functional Materials",
-      "status": "in_revision"
-    },
-    {
       "authors": "Chungryeol Lee†, Dongho Choi†, Sanghoon Park, Jeong-ik Park, {me}, Minjae Jang, Seunghyup Yoo*, and Sung Gap Im*",
       "title": "A light-driven multi-state heterojunction transistor for optoelectronic ternary logic circuits",
       "venue": "Nature Communications",
@@ -374,6 +368,18 @@
       "image_caption": "Nat. Commun. 2025"
     },
     {
+      "authors": "Jeong-ik Park†, Changhyeon Lee†, Chungryeol Lee, {me}, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*",
+      "title": "Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors",
+      "venue": "Advanced Functional Materials",
+      "status": "accepted"
+    },
+    {
+      "authors": "Junyeong Yang†, Sanghyun Kim†, Jeong-ik Park†, Minjeong Kang, Gyuwon Lee, Keonwoo Choi, {me}, Changmin Lee, Chaebin Park, Minsu So, Shinhyun Choi and Sung Gap Im*",
+      "title": "Sub-0.3 V SET/RESET of Bilayer RRAM via High-Sulfur Content Polymer/Inorganic Hybrid Switching Layers for Hardware Synaptic Devices",
+      "venue": "Advanced Functional Materials",
+      "status": "in_revision"
+    },
+    {
       "authors": "Sukwon Jang†, Youson Kim†, Chungryeol Lee†, {me}, Jeong-ik Park, Junyeong Yang, Juchan Kim, Bohyun Lee, Sung Gap Im*",
       "title": "Vapor-Phase Deposited Polymer Dielectric Layers for Organic Electronics: Design, Characteristics, and Applications",
       "venue": "Korean Journal of Chemical Engineering",
@@ -385,12 +391,6 @@
       "image": "",
       "image_alt": "",
       "image_caption": "Korean J. Chem. Eng. 2025"
-    },
-    {
-      "authors": "Jeong-ik Park†, Changhyeon Lee†, Chungryeol Lee, {me}, Yebin Bak, Sukwon Jang, Hocheon Yoo, Junhwan Choi*, and Sung Gap Im*",
-      "title": "Dynamically Reconfigurable Multibit Modulator Enabled by Programmable Anti-Ambipolar Memory Transistors",
-      "venue": "Advanced Functional Materials",
-      "status": "accepted"
     },
     {
       "authors": "Seokhyun Hong†, {me}†, Chungryeol Lee†, Jeong-ik Park, Youson Kim, Junhwan Choi* and Sung Gap Im*",
