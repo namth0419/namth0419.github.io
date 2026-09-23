@@ -34,6 +34,7 @@ ICONS = {
     "scholar":  '<path d="M12 2 1 8l11 6 9-4.9V17h2V8L12 2z"/><path d="M5 12.4V16c0 2.2 3.1 4 7 4s7-1.8 7-4v-3.6l-7 3.8-7-3.8z"/>',
     "orcid":    '<path d="M12 0a12 12 0 100 24 12 12 0 000-24zM7.1 6.3a1.1 1.1 0 110 2.2 1.1 1.1 0 010-2.2zM6.4 9.6h1.5v8.3H6.4V9.6zm3.5 0h3.3c3.2 0 4.6 2.3 4.6 4.2 0 2-1.6 4.1-4.6 4.1H9.9V9.6zm1.5 1.4v5.5h1.6c2.3 0 3.2-1.4 3.2-2.7 0-1.4-1-2.8-3.2-2.8h-1.6z"/>',
     "linkedin": '<path d="M4.98 3.5a2.5 2.5 0 11-.01 5.01A2.5 2.5 0 014.98 3.5zM3 9h4v12H3V9zm7 0h3.8v1.7h.05c.53-.95 1.83-1.95 3.76-1.95C21.6 8.75 23 11 23 14.4V21h-4v-5.9c0-1.4-.03-3.2-2-3.2-2 0-2.3 1.5-2.3 3.1V21h-4V9z"/>',
+    "github": '<path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>',
     "link":     '<path d="M10 13a5 5 0 007.5.5l3-3a5 5 0 00-7-7l-1.7 1.7M14 11a5 5 0 00-7.5-.5l-3 3a5 5 0 007 7l1.7-1.7" fill="none" stroke="currentColor" stroke-width="2"/>',
 }
 
@@ -733,11 +734,20 @@ def build_tex(cv):
             else:
                 v = esc_tex(v)
             fields.append("  \\field{%s}{%s}" % (label, v))
+    #if cv.get("links"):
+        #joined = "\n        \\;\\textperiodcentered\\;\n        ".join(
+            #"\\href{%s}{%s}" % (esc_tex_url(l["url"]), esc_tex(l.get("tex_label", l["label"])))
+            #for l in cv["links"])
+        #fields.append("  \\field{Links}{%s}" % joined)
+
     if cv.get("links"):
-        joined = "\n        \\;\\textperiodcentered\\;\n        ".join(
-            "\\href{%s}{%s}" % (esc_tex_url(l["url"]), esc_tex(l.get("tex_label", l["label"])))
-            for l in cv["links"])
-        fields.append("  \\field{Links}{%s}" % joined)
+        tex_links = [l for l in cv["links"] if l.get("icon") != "github"]
+        
+        if tex_links:
+            joined = "\n         \\;\\textperiodcentered\\;\n         ".join(
+                "\\href{%s}{%s}" % (esc_tex_url(l["url"]), esc_tex(l.get("tex_label", l["label"])))
+                for l in tex_links)
+            fields.append("  \\field{Links}{%s}" % joined)
 
     secs = []
     for title, fn in TEX_SECTIONS:
