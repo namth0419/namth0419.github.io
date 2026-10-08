@@ -35,7 +35,10 @@ assets/favicon.svg 등       ← 파비콘
 assets/abstracts/           ← 논문 graphical abstract 이미지
 assets/logos/               ← 소속 기관 로고 (선택)
 papers/                     ← 논문 PDF를 여기에
-planner/index.html          ← 개인용 연구 플래너 (build.py 와 무관, 직접 수정)
+planner/index.html          ← 개인용 연구 플래너 화면·스타일 (build.py 와 무관, 직접 수정)
+planner/app.js              ← 플래너 동작 (로그인, 저장, 탭들)
+planner/season.js           ← 상단 계절 풍경, 계절 포인트 색
+tools/weekly-email.gs       ← 주간 메일 (Google Apps Script, 본인 계정에 설치)
 .github/workflows/          ← push 시 자동 빌드 + 배포
 ```
 
@@ -64,6 +67,8 @@ planner/index.html          ← 개인용 연구 플래너 (build.py 와 무관,
 - 저장: Firestore `users/{uid}/items`
 - **접근 제한은 Firebase 콘솔 → Firestore → 규칙에서** 본인 계정만 허용합니다.
   이 저장소는 공개이므로 규칙에 들어가는 개인 이메일은 여기에 적지 않습니다.
+- 보안: 페이지에 CSP(불러올 수 있는 출처 제한)가 걸려 있어서, 새 외부 서비스를 쓰려면 `planner/index.html` 맨 위
+  `Content-Security-Policy`에 주소를 추가해야 합니다. 로그아웃하면 브라우저에 저장된 플래너 데이터도 지웁니다.
 - 로컬 미리보기: `python -m http.server 8000` 후 `http://localhost:8000/planner/?demo`
   (로그인 없이 브라우저에만 저장되는 데모 데이터)
 
