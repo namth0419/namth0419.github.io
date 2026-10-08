@@ -24,19 +24,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
 <style>
-  /* 색·글꼴 토큰은 templates/page.html 과 같은 값 */
+  /* 바탕은 튀지 않는 옅은 중립색. 포인트 색(--deep, --film-*)은 season.js 가 계절에 맞춰 덮어씀 */
   :root{
     color-scheme:light;
-    --ink:#12161a;
-    --wafer:#E8EAE6;
-    --card:#F4F5F2;
-    --rule:#CDD1CA;
-    --muted:#6E7671;
-    --deep:#1E2A78;
-    --film-1:#1E2A78;
-    --film-2:#6E2E8F;
-    --film-3:#B98B22;
-    --film-4:#2A7F6F;
+    --ink:#1f1d1a;
+    --wafer:#f7f6f3;
+    --card:#fcfbf9;
+    --rule:#e3e0da;
+    --muted:#77726b;
+    --deep:#b4532a;
+    --film-1:#b4532a;
+    --film-2:#d9822f;
+    --film-3:#c9a24a;
+    --film-4:#5f7f55;
     --danger:#B4342D;
     --film: linear-gradient(90deg,var(--film-1) 0%,var(--film-2) 34%,var(--film-3) 67%,var(--film-4) 100%);
     --display:"Archivo","Noto Sans KR",system-ui,sans-serif;
@@ -46,16 +46,16 @@
   }
   :root[data-theme="dark"]{
     color-scheme:dark;
-    --ink:#E4E8E3;
-    --wafer:#0F1216;
-    --card:#171B21;
-    --rule:#282E35;
-    --muted:#868E88;
-    --deep:#93A7FF;
-    --film-1:#5C6CE8;
-    --film-2:#A867D8;
-    --film-3:#E3B754;
-    --film-4:#4CC6AC;
+    --ink:#e8e6e2;
+    --wafer:#141517;
+    --card:#1b1c1f;
+    --rule:#2c2e32;
+    --muted:#95918b;
+    --deep:#f0915e;
+    --film-1:#e0703f;
+    --film-2:#f2a052;
+    --film-3:#e5c06e;
+    --film-4:#8fb27d;
     --danger:#E5716A;
   }
   *{box-sizing:border-box}
@@ -321,6 +321,26 @@
   .g-legend i.late{border-color:var(--danger);border-style:dashed;background:transparent}
   .g-legend i.today{width:2px;height:12px;border:none;background:var(--film-3)}
 
+  /* ---- attachments ---- */
+  .atts{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .att-list{list-style:none;margin:0;padding:0;width:100%;display:grid;gap:4px}
+  .att-list li{display:flex;align-items:center;gap:8px;min-width:0;font-size:13.5px}
+  .att-list a{color:var(--deep);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .att-list a:hover{text-decoration:underline}
+  .att-kind{
+    flex:none;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--muted);
+    border:1px solid var(--rule);border-radius:2px;padding:0 4px;min-width:30px;text-align:center;
+  }
+  .att-size{flex:none;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .att-list .x{all:unset;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--muted);opacity:0;margin-left:auto}
+  .att-list li:hover .x,.att-list .x:focus-visible{opacity:1}
+  .att-list .x:hover{color:var(--danger)}
+  .att-busy{margin:0;width:100%;font-family:var(--mono);font-size:11px;color:var(--film-2)}
+  .att-pick{cursor:pointer;display:inline-block}
+  .att-hint{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .detail.drop{outline:2px dashed var(--film-2);outline-offset:4px;border-radius:2px}
+  .comments p a{color:var(--deep);overflow-wrap:anywhere}
+
   /* ---- import dialog ---- */
   .dlg{
     border:1px solid var(--rule);background:var(--wafer);color:var(--ink);border-radius:2px;
@@ -343,6 +363,57 @@
   .imports li > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .imports .n{color:var(--muted);flex:none}
 
+  /* ---- 절기 풍경 (season.js) ---- */
+  .season{max-width:1140px;margin:16px auto 0;padding:0 28px}
+  .season[hidden]{display:none}
+  .season .frame{position:relative;height:128px;border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--card)}
+  .season canvas{display:block;width:100%;height:100%}
+  .season-label{
+    position:absolute;left:12px;top:10px;z-index:1;font-family:var(--mono);font-size:11px;letter-spacing:.02em;
+    color:var(--ink);background:color-mix(in srgb,var(--wafer) 78%,transparent);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--rule) 70%,transparent);
+  }
+  .season-label:empty{display:none}
+  .season-place{
+    all:unset;cursor:pointer;position:absolute;right:12px;top:10px;z-index:1;
+    font-family:var(--mono);font-size:11px;color:var(--ink);
+    background:color-mix(in srgb,var(--wafer) 78%,transparent);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    padding:3px 10px;border-radius:999px;border:1px solid color-mix(in srgb,var(--rule) 70%,transparent);
+    max-width:55%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .season-place:hover{border-color:var(--muted)}
+  .season-place:focus-visible{outline:2px solid var(--deep)}
+  .season-place::before{content:"⌖ ";color:var(--muted)}
+  .season{position:relative}
+  .season .frame{overflow:visible}
+  .season canvas{border-radius:3px}
+  .season-pop{
+    position:absolute;right:10px;top:40px;z-index:25;width:min(360px,calc(100% - 20px));
+    background:var(--wafer);color:var(--ink);border:1px solid var(--rule);border-radius:4px;
+    box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px;display:grid;gap:8px;font-size:13px;
+  }
+  .season-pop[hidden]{display:none}
+  .sp-head{display:flex;align-items:center;justify-content:space-between}
+  .sp-head b{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+  .sp-x{all:unset;cursor:pointer;font-size:18px;line-height:1;color:var(--muted);padding:0 4px}
+  .sp-row{display:flex;gap:6px}
+  .sp-row input{flex:1;min-width:0;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:6px 8px}
+  .sp-row input:focus{outline:none;border-color:var(--deep)}
+  .sp-row button,.sp-geo{font:inherit;font-family:var(--mono);font-size:11.5px;cursor:pointer;background:transparent;color:var(--ink);border:1px solid var(--rule);border-radius:2px;padding:5px 10px}
+  .sp-row button:hover,.sp-geo:hover{border-color:var(--muted)}
+  .sp-geo{justify-self:start}
+  .sp-list{display:grid;gap:2px;max-height:200px;overflow:auto;color:var(--muted);font-size:12.5px}
+  .sp-list:empty{display:none}
+  .sp-list button{all:unset;cursor:pointer;padding:5px 6px;border-radius:2px;color:var(--muted);font-size:12.5px}
+  .sp-list button b{color:var(--ink);font-weight:500}
+  .sp-list button:hover,.sp-list button:focus-visible{background:var(--card)}
+  .sp-note{margin:0;color:var(--muted);font-size:11.5px;line-height:1.5}
+  .season-label b{font-family:var(--display);font-weight:700;margin-right:5px}
+  .season-toggle svg{display:block}
+  .season-toggle[aria-pressed="true"]{color:var(--film-2);border-color:color-mix(in srgb,var(--film-2) 55%,transparent)}
+
   /* ---- gate / toast ---- */
   .gate{max-width:440px;margin:14vh auto 0;padding:0 16px;text-align:center}
   .gate h1{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0 0 8px}
@@ -363,6 +434,8 @@
     .month-nav .m{font-size:24px;min-width:0}
     .chip{max-width:30%}
     .gantt{--glw:170px;min-width:620px}
+    .season{padding:0 16px;margin-top:14px}
+    .season .frame{height:96px}
   }
   @media (max-width:640px){
     .stats{gap:8px}
@@ -388,6 +461,12 @@
 <div class="top">
   <a class="home" href="../">← homepage</a>
   <div class="who" id="who"></div>
+  <button class="theme-toggle season-toggle" id="st" type="button" aria-pressed="false" aria-label="계절 풍경 켜기" title="계절 풍경 켜기">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15"/><path d="M5 19l8-8"/>
+    </svg>
+  </button>
   <button class="theme-toggle" id="tt" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
     <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -399,6 +478,15 @@
       <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/>
     </svg>
   </button>
+</div>
+
+<div class="season" id="season" hidden>
+  <div class="frame">
+    <canvas aria-hidden="true"></canvas>
+    <div class="season-label"></div>
+    <button class="season-place" type="button" aria-haspopup="dialog" aria-expanded="false"></button>
+    <div class="season-pop" role="dialog" aria-label="풍경 위치" hidden></div>
+  </div>
 </div>
 
 <div id="app"></div>
@@ -428,7 +516,7 @@
  * 로컬 미리보기: http://localhost:8000/planner/?demo  (로그인 없이 브라우저 저장소 사용)
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, reauthenticateWithPopup,
          onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager,
          collection, doc, onSnapshot, addDoc, updateDoc, deleteDoc, writeBatch
@@ -610,6 +698,7 @@ function h(tag, props, ...kids) {
 }
 const svg = html => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
 const ICON_NOTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.9A8 8 0 1 1 21 12z"/></svg>';
+const ICON_CLIP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/></svg>';
 const typing = e => e.isComposing || e.keyCode === 229;   // 한글 조합 중 Enter 무시
 
 function bar(done, total) {
@@ -1078,7 +1167,7 @@ function toggleOpen(id) { openIds.has(id) ? openIds.delete(id) : openIds.add(id)
 function itemRow(it, o = {}) {
   const open = openIds.has(it.id);
   const parent = it.parent && byId.get(it.parent);
-  const nC = (it.comments || []).length;
+  const nC = (it.comments || []).length, nA = (it.attachments || []).length;
   return h("li", { class: "item" + (it.done ? " done" : "") + (open ? " open" : ""), dataset: { id: it.id } },
     h("div", { class: "row" },
       h("input", { type: "checkbox", checked: !!it.done, "aria-label": "완료 표시",
@@ -1087,6 +1176,9 @@ function itemRow(it, o = {}) {
         it.title || "(제목 없음)"),
       parent && h("span", { class: "chip", title: parent.title }, "↳ " + parent.title),
       o.meta,
+      nA > 0 && h("button", { class: "cnt has", type: "button", title: "첨부 파일",
+                              "aria-label": `첨부 파일 ${nA}개`, onclick: () => toggleOpen(it.id) },
+        svg(ICON_CLIP), String(nA)),
       h("button", { class: "cnt" + (nC ? " has" : ""), type: "button", title: "코멘트",
                     "aria-label": `코멘트 ${nC}개`, onclick: () => toggleOpen(it.id) },
         svg(ICON_NOTE), nC ? String(nC) : "")),
@@ -1136,7 +1228,8 @@ function detail(it, o) {
             h("option", { value: "", selected: !it.parent }, "— 연결 없음"),
             o.parents.map(p => h("option", { value: p.id, selected: p.id === it.parent }, p.title)))),
     h("button", { class: "btn danger", type: "button", onclick: () => {
-      if (confirm(`"${it.title}" 항목을 삭제할까요? 코멘트도 함께 지워집니다.`)) {
+      const att = (it.attachments || []).length ? " 첨부 파일은 Google Drive에 그대로 남습니다." : "";
+      if (confirm(`"${it.title}" 항목을 삭제할까요? 코멘트도 함께 지워집니다.${att}`)) {
         openIds.delete(it.id); act(store.remove(it.id));
       }
     } }, "삭제"));
@@ -1149,8 +1242,18 @@ function detail(it, o) {
     const cur = byId.get(it.id) || it;
     act(store.update(it.id, { comments: [...(cur.comments || []), { id: rid(), text, at: Date.now() }] }));
   };
-  return h("div", { class: "detail" },
+  return h("div", { class: "detail",
+      ondragover: e => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); e.currentTarget.classList.add("drop"); } },
+      ondragleave: e => e.currentTarget.classList.remove("drop"),
+      ondrop: e => {
+        e.preventDefault(); e.currentTarget.classList.remove("drop");
+        const files = [...(e.dataTransfer.files || [])];
+        if (!files.length) return;
+        if (!driveReady()) return toast("먼저 'Google Drive 연결'을 눌러 주세요.");
+        uploadFiles(it.id, files);
+      } },
     fields,
+    attachments(it),
     comments.length > 0 && h("ol", { class: "comments" }, comments.map(c =>
       h("li", {},
         h("div", { class: "meta" },
@@ -1160,7 +1263,7 @@ function detail(it, o) {
             const cur = byId.get(it.id) || it;
             act(store.update(it.id, { comments: (cur.comments || []).filter(x => x.id !== c.id) }));
           } }, "삭제")),
-        h("p", {}, c.text)))),
+        h("p", {}, linkify(c.text))))),
     h("div", { class: "compose" },
       h("textarea", { rows: 2, placeholder: "코멘트 (Ctrl+Enter로 추가)", "aria-label": "코멘트", dataset: { fk: cKey },
         value: drafts.get(cKey) || "",
@@ -1169,6 +1272,162 @@ function detail(it, o) {
           if (!typing(e) && e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addComment(); }
         } }),
       h("button", { class: "btn", type: "button", onclick: addComment }, "추가")));
+}
+
+// 코멘트 안의 주소를 링크로
+function linkify(text) {
+  return text.split(/(https?:\/\/[^\s<>"]+)/g).map((part, i) =>
+    i % 2 ? h("a", { href: part, target: "_blank", rel: "noopener noreferrer" }, part) : part);
+}
+
+/* ------------------------------------------------------------------ Google Drive 첨부
+ * 파일은 본인 Google Drive 의 "Research Planner" 폴더에 올라가고, 플래너(Firestore)에는 이름과 링크만 저장됩니다.
+ * 권한은 drive.file: 이 플래너가 올린 파일에만 접근합니다(Drive 의 다른 파일은 못 봄).
+ * 접근 토큰은 약 1시간 유효하고, 이 탭의 sessionStorage 에만 둡니다.
+ * 필요한 설정: Google Cloud 콘솔에서 이 Firebase 프로젝트의 "Google Drive API" 사용 설정.
+ */
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+const DRIVE_FOLDER = "Research Planner";
+const DRIVE_API = "https://www.googleapis.com/drive/v3/files";
+const DRIVE_UP = "https://www.googleapis.com/upload/drive/v3/files";
+const MAX_MB = 100;
+let drive = null, driveFolder = null;
+try { drive = JSON.parse(sessionStorage.getItem("planner-drive")); } catch (e) {}
+const uploading = new Map();            // 항목 id → 올리는 중인 파일 이름들
+
+const driveReady = () => DEMO || !!(drive && Date.now() < drive.exp);
+function forgetDrive() { drive = null; try { sessionStorage.removeItem("planner-drive"); } catch (e) {} }
+
+async function connectDrive() {
+  if (DEMO) { render(); return; }
+  try {
+    const p = new GoogleAuthProvider();
+    p.addScope(DRIVE_SCOPE);
+    p.setCustomParameters({ login_hint: auth.currentUser.email });
+    const res = await reauthenticateWithPopup(auth.currentUser, p);
+    const cred = GoogleAuthProvider.credentialFromResult(res);
+    if (!cred || !cred.accessToken) throw new Error("권한을 받지 못했습니다.");
+    drive = { token: cred.accessToken, exp: Date.now() + 50 * 60e3 };
+    try { sessionStorage.setItem("planner-drive", JSON.stringify(drive)); } catch (e) {}
+    toast("Google Drive에 연결했습니다.");
+  } catch (e) {
+    if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request")
+      toast("Drive 연결 실패: " + (e.code || e.message));
+  }
+  render();
+}
+
+async function driveFetch(url, opt = {}) {
+  if (!driveReady()) { forgetDrive(); throw new Error("Drive 연결이 만료되었습니다. 다시 연결해 주세요."); }
+  const r = await fetch(url, { ...opt, headers: { ...(opt.headers || {}), Authorization: "Bearer " + drive.token } });
+  if (r.status === 401) { forgetDrive(); throw new Error("Drive 연결이 만료되었습니다. 다시 연결해 주세요."); }
+  if (!r.ok) {
+    let msg = "HTTP " + r.status;
+    try { const j = await r.json(); msg = (j.error && j.error.message) || msg; } catch (e) {}
+    if (/has not been used|is disabled|accessNotConfigured/i.test(msg)) msg = "Google Cloud에서 Drive API가 아직 켜져 있지 않습니다.";
+    throw new Error(msg);
+  }
+  return r;
+}
+
+async function driveFolderId() {
+  if (driveFolder) return driveFolder;
+  const q = encodeURIComponent(`name='${DRIVE_FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  const found = await (await driveFetch(`${DRIVE_API}?q=${q}&fields=files(id)&spaces=drive`)).json();
+  if (found.files && found.files.length) return (driveFolder = found.files[0].id);
+  const made = await (await driveFetch(`${DRIVE_API}?fields=id`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: DRIVE_FOLDER, mimeType: "application/vnd.google-apps.folder" }) })).json();
+  return (driveFolder = made.id);
+}
+
+async function driveUpload(file) {
+  const meta = { name: file.name, parents: [await driveFolderId()] };
+  const type = file.type || "application/octet-stream";
+  const fields = "id,name,mimeType,size,webViewLink";
+  if (file.size <= 5 * 1024 * 1024) {             // 작은 파일: 한 번에
+    const b = "rp" + rid();
+    const body = new Blob([`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n`
+      + `--${b}\r\nContent-Type: ${type}\r\n\r\n`, file, `\r\n--${b}--`]);
+    return (await driveFetch(`${DRIVE_UP}?uploadType=multipart&fields=${fields}`, {
+      method: "POST", headers: { "Content-Type": `multipart/related; boundary=${b}` }, body })).json();
+  }
+  // 큰 파일: 업로드 세션을 열고 그 주소로 보냄
+  const init = await driveFetch(`${DRIVE_UP}?uploadType=resumable&fields=${fields}`, {
+    method: "POST", body: JSON.stringify(meta),
+    headers: { "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": type, "X-Upload-Content-Length": String(file.size) } });
+  const loc = init.headers.get("Location");
+  if (!loc) throw new Error("큰 파일 업로드를 시작하지 못했습니다. Drive에 직접 올린 뒤 코멘트에 링크를 붙여 주세요.");
+  const put = await fetch(loc, { method: "PUT", headers: { "Content-Type": type }, body: file });
+  if (!put.ok) throw new Error("업로드 실패 (HTTP " + put.status + ")");
+  return put.json();
+}
+
+async function uploadFiles(id, files) {
+  const big = files.find(f => f.size > MAX_MB * 1024 * 1024);
+  if (big) return toast(`${big.name}: ${MAX_MB}MB 이하 파일만 올릴 수 있습니다.`);
+  uploading.set(id, [...(uploading.get(id) || []), ...files.map(f => f.name)]);
+  render();
+  for (const f of files) {
+    try {
+      // 데모에서는 Drive 대신 이 브라우저 안의 임시 링크를 씀
+      const r = DEMO ? { id: rid(), name: f.name, mimeType: f.type, size: f.size, webViewLink: URL.createObjectURL(f) } : await driveUpload(f);
+      const cur = byId.get(id);
+      if (cur) await store.update(id, { attachments: [...(cur.attachments || []),
+        { id: r.id, name: r.name || f.name, mime: r.mimeType || f.type || "", size: +r.size || f.size, link: r.webViewLink || "", at: Date.now() }] });
+    } catch (e) {
+      console.error(e);
+      toast(`${f.name}: ${e.message}`);
+    } finally {
+      const left = uploading.get(id) || [], k = left.indexOf(f.name);
+      if (k >= 0) left.splice(k, 1);
+      left.length ? uploading.set(id, left) : uploading.delete(id);
+      render();
+    }
+  }
+}
+
+async function removeAttachment(it, a) {
+  const viaDrive = driveReady() && !DEMO;
+  const msg = viaDrive
+    ? `"${a.name}" 첨부를 뺄까요?\nGoogle Drive의 파일은 휴지통으로 옮겨집니다(30일 안에 복구 가능).`
+    : `"${a.name}" 첨부를 목록에서 뺄까요?` + (DEMO ? "" : "\nDrive에 연결되어 있지 않아서 Drive의 파일은 그대로 남습니다.");
+  if (!confirm(msg)) return;
+  if (viaDrive) {
+    try { await driveFetch(`${DRIVE_API}/${encodeURIComponent(a.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trashed: true }) }); }
+    catch (e) { if (!confirm(`Drive에서 파일을 옮기지 못했습니다 (${e.message}).\n목록에서만 뺄까요?`)) return; }
+  }
+  const cur = byId.get(it.id) || it;
+  act(store.update(it.id, { attachments: (cur.attachments || []).filter(x => x.id !== a.id) }));
+}
+
+const fmtSize = n => !n ? "" : n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(0) + " KB" : (n / 1048576).toFixed(1) + " MB";
+function fileKind(mime, name) {
+  const ext = (name.split(".").pop() || "").toLowerCase();
+  if (mime.startsWith("image/")) return "IMG";
+  if (mime === "application/pdf" || ext === "pdf") return "PDF";
+  if (/sheet|excel|csv/.test(mime) || ["xlsx", "xls", "csv"].includes(ext)) return "XLS";
+  if (/presentation|powerpoint/.test(mime) || ["pptx", "ppt"].includes(ext)) return "PPT";
+  if (/word|document/.test(mime) || ["docx", "doc", "hwp", "hwpx"].includes(ext)) return "DOC";
+  if (/zip|compressed/.test(mime) || ["zip", "7z", "rar"].includes(ext)) return "ZIP";
+  return ext && ext.length <= 4 ? ext.toUpperCase() : "FILE";
+}
+
+function attachments(it) {
+  const list = it.attachments || [], busy = uploading.get(it.id) || [];
+  return h("div", { class: "atts" },
+    list.length > 0 && h("ul", { class: "att-list" }, list.map(a => h("li", {},
+      h("span", { class: "att-kind" }, fileKind(a.mime || "", a.name)),
+      a.link ? h("a", { href: a.link, target: "_blank", rel: "noopener noreferrer" }, a.name) : h("span", {}, a.name),
+      h("span", { class: "att-size" }, fmtSize(a.size)),
+      h("button", { class: "x", type: "button", "aria-label": `${a.name} 첨부 빼기`, onclick: () => removeAttachment(it, a) }, "삭제")))),
+    busy.map(n => h("p", { class: "att-busy" }, "올리는 중… " + n)),
+    driveReady()
+      ? h("label", { class: "btn ghost att-pick" }, "+ 파일 첨부",
+          h("input", { type: "file", multiple: true, hidden: true,
+            onchange: e => { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) uploadFiles(it.id, fs); } }))
+      : h("button", { class: "btn ghost att-pick", type: "button", onclick: connectDrive }, "Google Drive 연결해서 파일 첨부"),
+    driveReady() && h("span", { class: "att-hint" }, "여기로 파일을 끌어다 놓아도 됩니다"));
 }
 
 function adder(fk, placeholder, make) {
@@ -1240,5 +1499,6 @@ document.getElementById("tt").addEventListener("click", () => {
 render();
 start();
 </script>
+<script src="season.js"></script>
 </body>
 </html>
