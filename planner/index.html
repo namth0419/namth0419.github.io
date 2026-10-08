@@ -117,7 +117,7 @@
     border-radius:2px;cursor:pointer;font-size:15px;color:var(--muted);
   }
   .nav-btn:hover{color:var(--ink);border-color:var(--muted)}
-  .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 34px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 34px}
   .stat{background:var(--card);border:1px solid var(--rule);padding:12px 14px}
   .stat .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
   .stat .v{font-family:var(--display);font-size:22px;font-weight:600;letter-spacing:-.01em}
@@ -162,13 +162,13 @@
   .detail{padding:2px 0 16px 27px;display:grid;gap:12px}
   .fields{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   .fields label{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
-  input.edit,select,input[type=month],textarea,input.add{
+  input.edit,select,input[type=date],textarea,input.add{
     font:inherit;font-size:14px;color:var(--ink);background:var(--card);
     border:1px solid var(--rule);border-radius:2px;padding:6px 9px;min-width:0;
   }
   input.edit{flex:1 1 220px}
   select{max-width:100%}
-  input.edit:focus,select:focus,input[type=month]:focus,textarea:focus{outline:none;border-color:var(--deep)}
+  input.edit:focus,select:focus,input[type=date]:focus,textarea:focus{outline:none;border-color:var(--deep)}
 
   .comments{list-style:none;margin:0;padding:0;border-left:2px solid var(--rule)}
   .comments li{padding:3px 0 7px 12px}
@@ -220,6 +220,99 @@
   .week .bar{margin:6px 0 4px}
   .week .item:last-child{border-bottom:none}
 
+  /* ---- tabs ---- */
+  .tabs{display:flex;gap:0;margin:0 0 26px;border-bottom:1px solid var(--rule)}
+  .tabs button{
+    all:unset;cursor:pointer;padding:8px 16px 9px;margin-bottom:-1px;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;color:var(--muted);
+    border-bottom:2px solid transparent;
+  }
+  .tabs button:hover{color:var(--ink)}
+  .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--film-2)}
+  .tabs button:focus-visible{outline:2px solid var(--deep)}
+
+  /* ---- calendar ---- */
+  .cal{border:1px solid var(--rule);background:var(--card);margin:0 0 30px}
+  .cal-row{display:grid;grid-template-columns:44px repeat(7,minmax(0,1fr))}
+  .cal-row + .cal-row{border-top:1px solid var(--rule)}
+  .cal-head{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:center}
+  .cal-head > div{padding:6px 0}
+  .cal-head .we{color:var(--film-2)}
+  .cal-wk{
+    font-family:var(--mono);font-size:10px;color:var(--muted);padding:6px 0 0;text-align:center;
+    display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--rule);
+  }
+  .cal-wk b{font-weight:500;color:var(--film-2)}
+  .cal-day{
+    all:unset;cursor:pointer;box-sizing:border-box;min-height:96px;padding:5px 6px 6px;
+    display:flex;flex-direction:column;gap:2px;min-width:0;
+    border-left:1px solid var(--rule);background:var(--wafer);
+  }
+  .cal-row > .cal-day:nth-child(2){border-left:none}
+  .cal-day:hover{background:color-mix(in srgb,var(--wafer) 70%,var(--card))}
+  .cal-day:focus-visible{outline:2px solid var(--deep);outline-offset:-2px}
+  .cal-day.out{opacity:.45}
+  .cal-day.sel{box-shadow:inset 0 0 0 2px var(--film-2)}
+  .cal-day .top-line{display:flex;align-items:center;gap:4px}
+  .cal-day .dn{font-family:var(--mono);font-size:11.5px;color:var(--muted);width:22px;height:22px;display:grid;place-items:center;border-radius:50%}
+  .cal-day.we .dn{color:var(--film-2)}
+  .cal-day.today .dn{background:var(--ink);color:var(--wafer)}
+  .cal-day .dc{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted)}
+  .cal-day .dc.all{color:var(--film-4)}
+  .cal-day .dt{
+    display:block;font-size:12px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    padding-left:7px;position:relative;
+  }
+  .cal-day .dt::before{content:"";position:absolute;left:0;top:.5em;width:4px;height:4px;border-radius:50%;background:var(--film-2)}
+  .cal-day .dt.done{color:var(--muted);text-decoration:line-through}
+  .cal-day .dt.done::before{background:var(--film-4)}
+  .cal-day .more{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+  /* ---- gantt ---- */
+  .gantt-wrap{overflow-x:auto;margin:0 0 12px;border:1px solid var(--rule);background:var(--card)}
+  .gantt{position:relative;min-width:680px}
+  .g-row{display:grid;grid-template-columns:200px 1fr;min-height:32px}
+  .g-row + .g-row{border-top:1px dotted var(--rule)}
+  .g-label{
+    position:sticky;left:0;z-index:2;background:var(--card);border-right:1px solid var(--rule);
+    padding:6px 10px;font-size:13px;line-height:1.35;min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .g-row.ms-row .g-label{font-weight:500}
+  .g-row.sub .g-label{padding-left:24px;font-size:12px;color:var(--muted)}
+  .g-row.group .g-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--muted);padding-top:10px}
+  .g-head .g-label{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .g-track{position:relative;min-width:0}
+  .g-months{display:flex;height:100%}
+  .g-months > div{
+    font-family:var(--mono);font-size:10.5px;color:var(--muted);padding:7px 0 6px 6px;
+    border-left:1px solid var(--rule);white-space:nowrap;overflow:hidden;
+  }
+  .g-months > div.cur{color:var(--ink);font-weight:500}
+  .g-grid{position:absolute;top:0;bottom:0;left:200px;right:0;pointer-events:none;z-index:1}
+  .g-grid i{position:absolute;top:0;bottom:0;width:1px;background:var(--rule);opacity:.6}
+  .g-grid .today{width:2px;background:var(--film-3);opacity:1}
+  .g-bar{
+    all:unset;cursor:pointer;box-sizing:border-box;position:absolute;top:8px;height:16px;z-index:1;
+    border:1px solid var(--film-2);border-radius:2px;overflow:hidden;
+    background:color-mix(in srgb,var(--film-2) 16%,transparent);
+  }
+  .g-bar > i{position:absolute;top:0;bottom:0;left:0;background:var(--film-2);opacity:.55}
+  .g-bar.done{border-color:var(--film-4);background:color-mix(in srgb,var(--film-4) 30%,transparent)}
+  .g-bar.late{border-color:var(--danger);border-style:dashed}
+  .g-bar.clip-l{border-left-style:dotted;border-top-left-radius:0;border-bottom-left-radius:0}
+  .g-bar.clip-r{border-right-style:dotted;border-top-right-radius:0;border-bottom-right-radius:0}
+  .g-bar.dot{width:10px!important;height:10px;top:11px;border-radius:50%;margin-left:-5px}
+  .g-bar.small{top:12px;height:8px;border-color:var(--muted);background:color-mix(in srgb,var(--muted) 20%,transparent)}
+  .g-bar.small.done{border-color:var(--film-4);background:var(--film-4)}
+  .g-bar:focus-visible{outline:2px solid var(--deep);outline-offset:1px}
+  .g-legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin:0 0 30px}
+  .g-legend span{display:inline-flex;align-items:center;gap:6px}
+  .g-legend i{display:inline-block;width:18px;height:9px;border:1px solid var(--film-2);border-radius:2px;background:color-mix(in srgb,var(--film-2) 16%,transparent)}
+  .g-legend i.done{border-color:var(--film-4);background:color-mix(in srgb,var(--film-4) 30%,transparent)}
+  .g-legend i.late{border-color:var(--danger);border-style:dashed;background:transparent}
+  .g-legend i.today{width:2px;height:12px;border:none;background:var(--film-3)}
+
   /* ---- gate / toast ---- */
   .gate{max-width:440px;margin:14vh auto 0;padding:0 16px;text-align:center}
   .gate h1{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0 0 8px}
@@ -239,6 +332,17 @@
     main{border-left:none;padding-left:0}
     .month-nav .m{font-size:24px;min-width:0}
     .chip{max-width:30%}
+  }
+  @media (max-width:640px){
+    .stats{gap:8px}
+    .stat{padding:10px 10px}
+    .stat .v{font-size:18px}
+    .cal-row{grid-template-columns:30px repeat(7,minmax(0,1fr))}
+    .cal-wk small{display:none}
+    .cal-day{min-height:56px;padding:4px 3px}
+    .cal-day .top-line{flex-direction:column;align-items:center;gap:1px}
+    .cal-day .dc{margin:0}
+    .cal-day .dt,.cal-day .more{display:none}
   }
   @media (max-width:420px){
     .stats{grid-template-columns:1fr}
@@ -278,13 +382,15 @@
  *     이 파일은 공개되어 있으므로 여기에 비밀번호·개인 이메일 등을 넣지 마세요.
  *
  * item 문서 구조
- *   kind     : "milestone" | "month" | "week"
+ *   kind     : "milestone" | "month" | "week" | "day"
  *   title    : string
  *   done     : boolean,   doneAt: ms | null
- *   period   : milestone → 목표 월 "YYYY-MM" (없으면 "")
+ *   period   : milestone → 마감 월 "YYYY-MM" (없으면 "", end 와 맞춰 저장)
  *              month     → "YYYY-MM"
  *              week      → 그 주 월요일 "YYYY-MM-DD"
- *   parent   : month → milestone id,  week → month 목표 id  (없으면 "")
+ *              day       → "YYYY-MM-DD"
+ *   start,end: milestone 만. 간트 차트 기간 "YYYY-MM-DD" (없으면 "")
+ *   parent   : month → milestone id,  week → month 목표 id,  day → week 목표 id  (없으면 "")
  *   comments : [{id, text, at(ms)}]
  *   created  : ms
  *
@@ -333,6 +439,14 @@ const fmtWhen = ms => {
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 const fmtYm = s => s ? s.replace("-", ".") : "";
+const WD = "일월화수목금토";
+const dayLabel = d => `${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]})`;
+const monthEnd = ym => { const [y, m] = ym.split("-").map(Number); return ymd(new Date(y, m, 0)); };
+// 마일스톤 기간. 예전 데이터(목표 월만 있는 경우)도 그대로 보이도록 period/created 로 보완
+const msEnd = m => m.end || (m.period ? monthEnd(m.period) : "");
+const msStart = m => m.start || ymd(new Date(m.created || Date.now()));
+const shortYmd = s => s.slice(0, 4) === String(new Date().getFullYear())
+  ? s.slice(5).replace("-", ".") : s.slice(2).replace(/-/g, ".");
 
 /* ------------------------------------------------------------------ stores */
 function firestoreStore(db, uid) {
@@ -351,7 +465,7 @@ function firestoreStore(db, uid) {
 }
 
 function demoStore() {
-  const KEY = "planner-demo-v1";
+  const KEY = "planner-demo-v2";
   let items = null, cb = null;
   try { items = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
   if (!Array.isArray(items)) items = demoSeed();
@@ -371,14 +485,23 @@ function demoStore() {
 function demoSeed() {
   const now = new Date(), t = Date.now(), mk = ymKey(now.getFullYear(), now.getMonth()), wk = ymd(mondayOf(now));
   const base = { done: false, doneAt: null, comments: [], parent: "" };
-  const m1 = { ...base, id: "m1", kind: "milestone", title: "논문 A 투고", period: ymKey(now.getFullYear(), now.getMonth() + 2), created: t };
-  const m2 = { ...base, id: "m2", kind: "milestone", title: "소자 공정 조건 최적화", period: "", created: t + 1 };
+  const y = now.getFullYear(), m = now.getMonth(), td = ymd(now);
+  const m1 = { ...base, id: "m1", kind: "milestone", title: "논문 A 투고", created: t,
+               start: ymd(new Date(y, m - 1, 1)), end: monthEnd(ymKey(y, m + 2)) };
+  m1.period = m1.end.slice(0, 7);
+  const m2 = { ...base, id: "m2", kind: "milestone", title: "소자 공정 조건 최적화", created: t + 1,
+               start: ymd(new Date(y, m, 1)), end: ymd(new Date(y, m + 1, 20)) };
+  m2.period = m2.end.slice(0, 7);
   const g1 = { ...base, id: "g1", kind: "month", title: "Figure 3, 4 데이터 정리", period: mk, parent: "m1", created: t + 2,
                comments: [{ id: "c1", text: "XRD 데이터 재측정 필요할 수도 있음", at: t - 864e5 }] };
   const g2 = { ...base, id: "g2", kind: "month", title: "어닐링 온도 스윕 실험", period: mk, parent: "m2", created: t + 3 };
   const w1 = { ...base, id: "w1", kind: "week", title: "Figure 3 초안 그리기", period: wk, parent: "g1", created: t + 4, done: true, doneAt: t };
   const w2 = { ...base, id: "w2", kind: "week", title: "샘플 6개 제작", period: wk, parent: "g2", created: t + 5 };
-  return [m1, m2, g1, g2, w1, w2];
+  const d1 = { ...base, id: "d1", kind: "day", title: "Figure 3 축 라벨 정리", period: ymd(addDays(now, -1)), parent: "w1", created: t + 6, done: true, doneAt: t };
+  const d2 = { ...base, id: "d2", kind: "day", title: "기판 세정", period: td, parent: "w2", created: t + 7, done: true, doneAt: t };
+  const d3 = { ...base, id: "d3", kind: "day", title: "스퍼터링 3개", period: td, parent: "w2", created: t + 8 };
+  const d4 = { ...base, id: "d4", kind: "day", title: "랩미팅 발표 자료", period: ymd(addDays(now, 1)), created: t + 9 };
+  return [m1, m2, g1, g2, w1, w2, d1, d2, d3, d4];
 }
 const rid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
@@ -394,6 +517,13 @@ let viewY = today.getFullYear(), viewM = today.getMonth();
 const openIds = new Set();       // 펼쳐진 항목
 const drafts = new Map();        // 입력 중인 글 (다시 그려도 유지)
 let showDoneMs = false;
+const TABS = [["goals", "목표"], ["calendar", "달력"], ["gantt", "간트"]];
+let tab = TABS.some(([k]) => "#" + k === location.hash) ? location.hash.slice(1) : "goals";
+let selDay = ymd(today);         // 달력에서 고른 날
+addEventListener("hashchange", () => {
+  const k = location.hash.slice(1);
+  if (TABS.some(([t]) => t === k) && k !== tab) { tab = k; render(); }
+});
 
 function setItems(list) {
   items = list;
@@ -485,19 +615,15 @@ function viewGate() {
 
 function viewPlanner() {
   const monthKey = ymKey(viewY, viewM);
-  const curMonth = ymKey(today.getFullYear(), today.getMonth());
-  const curWeek = ymd(mondayOf(today));
-  const mGoals = items.filter(i => i.kind === "month" && i.period === monthKey).sort(byCreated);
-  const weeks = weeksOf(viewY, viewM);
-  const wGoalsOf = wk => items.filter(i => i.kind === "week" && i.period === wk).sort(byCreated);
-  const allW = weeks.flatMap(wGoalsOf);
-  const nDone = list => list.filter(i => i.done).length;
-
-  const shift = n => { const d = new Date(viewY, viewM + n, 1); viewY = d.getFullYear(); viewM = d.getMonth(); render(); };
-  const isCurMonth = monthKey === curMonth;
-
-  const mUndone = mGoals.filter(i => !i.done);
-  const nextMonth = (() => { const d = new Date(viewY, viewM + 1, 1); return ymKey(d.getFullYear(), d.getMonth()); })();
+  const isCurMonth = monthKey === ymKey(today.getFullYear(), today.getMonth());
+  const shift = n => {
+    const d = new Date(viewY, viewM + n, 1);
+    viewY = d.getFullYear(); viewM = d.getMonth();
+    const t = ymd(today);
+    selDay = t.startsWith(ymKey(viewY, viewM)) ? t : ymd(d);   // 달력: 이번 달이면 오늘, 아니면 1일
+    render();
+  };
+  const setTab = k => { tab = k; history.replaceState(null, "", "#" + k); render(); };
 
   const main = h("main", {},
     h("div", { class: "month-nav" },
@@ -505,13 +631,35 @@ function viewPlanner() {
       h("div", { class: "m" }, `${viewY}년 ${viewM + 1}월`),
       h("button", { class: "nav-btn", type: "button", "aria-label": "다음 달", onclick: () => shift(1) }, "›"),
       !isCurMonth && h("button", { class: "btn ghost", type: "button", onclick: () => {
-        viewY = today.getFullYear(); viewM = today.getMonth(); render(); } }, "이번 달")),
+        viewY = today.getFullYear(); viewM = today.getMonth(); selDay = ymd(today); render(); } }, "이번 달")),
+    h("div", { class: "tabs", role: "tablist" },
+      TABS.map(([k, label]) => h("button", { type: "button", role: "tab", "aria-selected": String(tab === k),
+                                             onclick: () => setTab(k) }, label))),
+    tab === "calendar" ? viewCalendar() : tab === "gantt" ? viewGantt() : viewGoals());
 
-    h("div", { class: "stats" },
-      h("div", { class: "stat" }, h("div", { class: "k" }, "월간 목표"),
-        h("div", { class: "v" }, `${nDone(mGoals)} / ${mGoals.length}`), bar(nDone(mGoals), mGoals.length)),
-      h("div", { class: "stat" }, h("div", { class: "k" }, "주간 목표 (이 달)"),
-        h("div", { class: "v" }, `${nDone(allW)} / ${allW.length}`), bar(nDone(allW), allW.length))),
+  return h("div", { class: "wrap" }, milestonePanel(), main);
+}
+
+function viewGoals() {
+  const monthKey = ymKey(viewY, viewM);
+  const curMonth = ymKey(today.getFullYear(), today.getMonth());
+  const curWeek = ymd(mondayOf(today));
+  const mGoals = items.filter(i => i.kind === "month" && i.period === monthKey).sort(byCreated);
+  const weeks = weeksOf(viewY, viewM);
+  const wGoalsOf = wk => items.filter(i => i.kind === "week" && i.period === wk).sort(byCreated);
+  const allW = weeks.flatMap(wGoalsOf);
+  const allD = items.filter(i => i.kind === "day" && i.period.startsWith(monthKey));
+  const nDone = list => list.filter(i => i.done).length;
+  const stat = (k, list) => h("div", { class: "stat" }, h("div", { class: "k" }, k),
+    h("div", { class: "v" }, `${nDone(list)} / ${list.length}`), bar(nDone(list), list.length));
+
+  const mUndone = mGoals.filter(i => !i.done);
+  const nextMonth = (() => { const d = new Date(viewY, viewM + 1, 1); return ymKey(d.getFullYear(), d.getMonth()); })();
+
+  return h("div", {},
+    h("div", { class: "stats" }, stat("월간 목표", mGoals), stat("주간 목표", allW), stat("일간 목표", allD)),
+
+    dayList(ymd(today), "오늘 · " + dayLabel(today)),
 
     h("section", {},
       h("h2", {}, "월간 목표"),
@@ -527,8 +675,176 @@ function viewPlanner() {
     h("section", {},
       h("h2", {}, "주간 목표"),
       weeks.map(wk => weekCard(wk, wGoalsOf(wk), mGoals, curWeek))));
+}
 
-  return h("div", { class: "wrap" }, milestonePanel(), main);
+// 하루치 일간 목표 목록 (목표 탭의 "오늘", 달력 탭에서 고른 날)
+function dayList(key, heading) {
+  const d = parseYmd(key), wk = ymd(mondayOf(d));
+  const list = items.filter(i => i.kind === "day" && i.period === key).sort(byCreated);
+  const parents = items.filter(i => i.kind === "week" && i.period === wk).sort(byCreated)
+                       .map(g => ({ id: g.id, title: g.title }));
+  const undone = list.filter(i => !i.done);
+  const next = ymd(addDays(d, 1));
+  return h("section", {},
+    h("h2", {}, heading),
+    list.length ? h("ul", { class: "items" }, list.map(it => itemRow(it, { parents, parentLabel: "주간 목표" })))
+                : h("p", { class: "empty" }, "일간 목표가 없습니다."),
+    adder("ad:" + key, "+ 일간 목표 추가 (Enter)", () => ({ kind: "day", period: key, parent: "" })),
+    undone.length > 0 && key <= ymd(today) &&
+      h("button", { class: "link", type: "button", onclick: () => {
+        if (confirm(`미완료 일간 목표 ${undone.length}개를 ${md(addDays(d, 1))}로 옮길까요?`))
+          act(store.updateMany(undone.map(i => i.id), { period: next }));
+      } }, `미완료 ${undone.length}개 → 다음 날로`));
+}
+
+function viewCalendar() {
+  const first = new Date(viewY, viewM, 1), last = new Date(viewY, viewM + 1, 0);
+  const todayKey = ymd(today);
+  const byDay = new Map();
+  for (const i of items) if (i.kind === "day") {
+    if (!byDay.has(i.period)) byDay.set(i.period, []);
+    byDay.get(i.period).push(i);
+  }
+  const rows = [];
+  for (let mon = mondayOf(first); mon <= last; mon = addDays(mon, 7)) rows.push(mon);
+
+  const head = h("div", { class: "cal-row cal-head" },
+    h("div", {}),
+    [..."월화수목금토일"].map((w, k) => h("div", { class: k >= 5 ? "we" : "" }, w)));
+
+  const row = mon => {
+    const wg = items.filter(i => i.kind === "week" && i.period === ymd(mon));
+    const wd = wg.filter(i => i.done).length;
+    return h("div", { class: "cal-row" },
+      h("div", { class: "cal-wk", title: wg.length ? `주간 목표 ${wd}/${wg.length}` : null },
+        h("b", {}, "W" + pad(isoWeek(mon))),
+        wg.length > 0 && h("small", {}, `${wd}/${wg.length}`)),
+      [0, 1, 2, 3, 4, 5, 6].map(k => {
+        const d = addDays(mon, k), key = ymd(d);
+        const list = (byDay.get(key) || []).sort(byCreated);
+        const nd = list.filter(i => i.done).length;
+        return h("button", {
+            type: "button",
+            class: "cal-day" + (d.getMonth() !== viewM ? " out" : "") + (key === todayKey ? " today" : "")
+                 + (key === selDay ? " sel" : "") + (k >= 5 ? " we" : ""),
+            "aria-label": `${dayLabel(d)}, 일간 목표 ${list.length}개`, "aria-pressed": String(key === selDay),
+            onclick: () => { selDay = key; render(); } },
+          h("span", { class: "top-line" },
+            h("span", { class: "dn" }, d.getDate()),
+            list.length > 0 && h("span", { class: "dc" + (nd === list.length ? " all" : "") }, `${nd}/${list.length}`)),
+          list.slice(0, 3).map(i => h("span", { class: "dt" + (i.done ? " done" : "") }, i.title)),
+          list.length > 3 && h("span", { class: "more" }, `+${list.length - 3}`));
+      }));
+  };
+
+  return h("div", {},
+    h("div", { class: "cal" }, head, rows.map(row)),
+    dayList(selDay, dayLabel(parseYmd(selDay)) + " 일간 목표"));
+}
+
+function viewGantt() {
+  // 보고 있는 달의 전 달부터 6개월
+  const r0 = new Date(viewY, viewM - 1, 1), r1 = new Date(viewY, viewM + 5, 0);
+  const total = Math.round((r1 - r0) / 864e5) + 1;
+  const pos = d => Math.round((d - r0) / 864e5);
+  const pct = n => (n / total * 100).toFixed(3) + "%";
+  const span = (s, e) => {               // s, e: Date (양 끝 포함)
+    const a = pos(s), b = pos(e);
+    if (b < 0 || a > total - 1 || b < a) return null;
+    const ca = Math.max(0, a), cb = Math.min(total - 1, b);
+    return { left: pct(ca), width: pct(cb - ca + 1), clipL: a < 0, clipR: b > total - 1 };
+  };
+  const todayKey = ymd(today);
+  const byPeriod = (a, b) => a.period < b.period ? -1 : a.period > b.period ? 1 : byCreated(a, b);
+
+  const months = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(viewY, viewM - 1 + i, 1);
+    months.push({ d, days: new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate() });
+  }
+  const head = h("div", { class: "g-row g-head" },
+    h("div", { class: "g-label" }, "기간"),
+    h("div", { class: "g-track" },
+      h("div", { class: "g-months" }, months.map(({ d, days }, i) =>
+        h("div", { class: d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() ? "cur" : "",
+                   style: `width:${pct(days)}` },
+          (i === 0 || d.getMonth() === 0 ? `${d.getFullYear()}.` : "") + `${d.getMonth() + 1}월`)))));
+
+  // 월 경계선 + 오늘 선
+  let acc = 0;
+  const lines = months.slice(0, -1).map(({ days }) => { acc += days; return h("i", { style: `left:${pct(acc)}` }); });
+  const tp = pos(today);
+  const grid = h("div", { class: "g-grid" }, lines,
+    tp >= 0 && tp < total && h("i", { class: "today", style: `left:${pct(tp + .5)}`, title: "오늘" }));
+
+  const barBtn = (cls, sp, title, onclick, fill) => h("button", {
+      type: "button", title, "aria-label": title, onclick,
+      class: `g-bar ${cls}` + (sp.clipL ? " clip-l" : "") + (sp.clipR ? " clip-r" : ""),
+      style: `left:${sp.left};width:${sp.width}` },
+    fill != null && h("i", { style: `width:${Math.round(fill * 100)}%` }));
+
+  const goMonthGoal = g => {
+    const [y, m] = g.period.split("-").map(Number);
+    viewY = y; viewM = m - 1; tab = "goals"; history.replaceState(null, "", "#goals");
+    openIds.add(g.id); render();
+    const el = document.querySelector(`main [data-id="${g.id}"]`);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+  const subRow = g => {
+    const sp = span(parseYmd(g.period + "-01"), parseYmd(monthEnd(g.period)));
+    return h("div", { class: "g-row sub" },
+      h("div", { class: "g-label", title: g.title }, (g.done ? "✓ " : "") + g.title),
+      h("div", { class: "g-track" },
+        sp && barBtn("small" + (g.done ? " done" : ""), sp, `${g.title} · ${fmtYm(g.period)}`, () => goMonthGoal(g))));
+  };
+
+  const shown = items.filter(i => i.kind === "milestone" && (!i.done || showDoneMs))
+                     .sort((a, b) => msStart(a) < msStart(b) ? -1 : msStart(a) > msStart(b) ? 1 : byCreated(a, b));
+  const shownIds = new Set(shown.map(m => m.id));
+  const r0k = ymKey(r0.getFullYear(), r0.getMonth()), r1k = ymKey(r1.getFullYear(), r1.getMonth());
+  const inRange = g => g.period >= r0k && g.period <= r1k;
+  const monthGoals = items.filter(i => i.kind === "month");
+  const rows = [];
+  for (const m of shown) {
+    const s = msStart(m), e = msEnd(m);
+    const kids = monthGoals.filter(g => g.parent === m.id).sort(byPeriod);
+    const k = kids.filter(g => g.done).length;
+    const late = !m.done && e && e < todayKey;
+    const sp = span(parseYmd(s), parseYmd(e || s));
+    const label = `${m.title} · ${shortYmd(s)} → ${e ? shortYmd(e) : "마감일 미정"}`
+                + (kids.length ? ` · 월간 목표 ${k}/${kids.length}` : "");
+    rows.push(h("div", { class: "g-row ms-row" },
+      h("div", { class: "g-label", title: m.title }, (m.done ? "✓ " : "") + m.title),
+      h("div", { class: "g-track" },
+        sp && barBtn((e ? "" : "dot") + (m.done ? " done" : late ? " late" : ""), sp, label,
+                     () => openMilestone(m.id), kids.length ? k / kids.length : null))));
+    kids.filter(inRange).forEach(g => rows.push(subRow(g)));
+  }
+  // 마일스톤에 연결되지 않았거나 (완료되어 숨긴 마일스톤 제외) 연결 대상이 지워진 월간 목표
+  const loose = monthGoals.filter(g => inRange(g) && (!g.parent || !byId.has(g.parent))).sort(byPeriod);
+  if (loose.length) {
+    rows.push(h("div", { class: "g-row group" }, h("div", { class: "g-label" }, "연결 없는 월간 목표"), h("div", { class: "g-track" })));
+    loose.forEach(g => rows.push(subRow(g)));
+  }
+
+  return h("div", {},
+    rows.length
+      ? h("div", { class: "gantt-wrap" }, h("div", { class: "gantt" }, head, rows, grid))
+      : h("p", { class: "empty" }, "마일스톤을 추가하고 시작일·마감일을 정하면 여기에 막대로 표시됩니다."),
+    h("div", { class: "g-legend" },
+      h("span", {}, h("i", {}), "진행 중 (채운 부분 = 연결된 월간 목표 달성률)"),
+      h("span", {}, h("i", { class: "done" }), "완료"),
+      h("span", {}, h("i", { class: "late" }), "마감 지남"),
+      h("span", {}, h("i", { class: "today" }), "오늘")),
+    h("p", { class: "empty" }, "막대를 누르면 해당 항목이 열립니다. 마일스톤 기간은 왼쪽 목록에서 항목을 펼쳐 수정하세요."));
+}
+
+function openMilestone(id) {
+  const m = byId.get(id);
+  if (m && m.done) showDoneMs = true;
+  openIds.add(id); render();
+  const el = document.querySelector(`.ms [data-id="${id}"]`);
+  if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 function weekCard(wk, goals, mGoals, curWeek) {
@@ -560,8 +876,8 @@ function milestoneOptions(it) {
 
 function milestonePanel() {
   const ms = items.filter(i => i.kind === "milestone");
-  const order = (a, b) => (a.period || "9999") < (b.period || "9999") ? -1
-                        : (a.period || "9999") > (b.period || "9999") ? 1 : byCreated(a, b);
+  const order = (a, b) => (msEnd(a) || "9999") < (msEnd(b) || "9999") ? -1
+                        : (msEnd(a) || "9999") > (msEnd(b) || "9999") ? 1 : byCreated(a, b);
   const active = ms.filter(m => !m.done).sort(order);
   const done = ms.filter(m => m.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
   const row = m => {
@@ -569,7 +885,7 @@ function milestonePanel() {
     const k = kids.filter(i => i.done).length;
     return itemRow(m, {
       milestone: true,
-      meta: m.period && h("span", { class: "when", title: "목표 시점" }, "~" + fmtYm(m.period)),
+      meta: msEnd(m) && h("span", { class: "when", title: "마감일 " + msEnd(m) }, "~" + shortYmd(msEnd(m))),
       after: kids.length > 0 && h("div", { class: "ms-bar", title: `연결된 월간 목표 ${k}/${kids.length} 완료` }, bar(k, kids.length))
     });
   };
@@ -577,7 +893,7 @@ function milestonePanel() {
     h("h2", {}, "Milestones"),
     active.length ? h("ul", { class: "items" }, active.map(row))
                   : h("p", { class: "empty" }, "장기 목표를 추가해 보세요."),
-    adder("ams", "+ 마일스톤 추가 (Enter)", () => ({ kind: "milestone", period: "", parent: "" })),
+    adder("ams", "+ 마일스톤 추가 (Enter)", () => ({ kind: "milestone", period: "", parent: "", start: ymd(new Date()), end: "" })),
     done.length > 0 && h("div", {},
       h("button", { class: "link", type: "button", "aria-expanded": String(showDoneMs),
                     onclick: () => { showDoneMs = !showDoneMs; render(); } },
@@ -592,7 +908,7 @@ function itemRow(it, o = {}) {
   const open = openIds.has(it.id);
   const parent = it.parent && byId.get(it.parent);
   const nC = (it.comments || []).length;
-  return h("li", { class: "item" + (it.done ? " done" : "") + (open ? " open" : "") },
+  return h("li", { class: "item" + (it.done ? " done" : "") + (open ? " open" : ""), dataset: { id: it.id } },
     h("div", { class: "row" },
       h("input", { type: "checkbox", checked: !!it.done, "aria-label": "완료 표시",
         onchange: e => act(store.update(it.id, { done: e.target.checked, doneAt: e.target.checked ? Date.now() : null })) }),
@@ -627,9 +943,23 @@ function detail(it, o) {
       },
       onblur: commitTitle }),
     o.milestone
-      ? h("label", {}, "목표 시점",
-          h("input", { type: "month", value: it.period || "",
-            onchange: e => act(store.update(it.id, { period: e.target.value || "" })) }))
+      ? [h("label", {}, "시작",
+          h("input", { type: "date", value: msStart(it),
+            onchange: e => {
+              const v = e.target.value, end = msEnd(it);
+              if (v && v < "1900") return;              // 연도를 입력하는 중
+              if (!v) return render();
+              if (end && v > end) { toast("시작일이 마감일보다 늦습니다."); return render(); }
+              act(store.update(it.id, { start: v }));
+            } })),
+         h("label", {}, "마감",
+          h("input", { type: "date", value: msEnd(it),
+            onchange: e => {
+              const v = e.target.value;
+              if (v && v < "1900") return;
+              if (v && v < msStart(it)) { toast("마감일이 시작일보다 빠릅니다."); return render(); }
+              act(store.update(it.id, { end: v, period: v ? v.slice(0, 7) : "" }));
+            } }))]
       : o.parents && h("label", {}, o.parentLabel || "마일스톤",
           h("select", { onchange: e => act(store.update(it.id, { parent: e.target.value })) },
             h("option", { value: "", selected: !it.parent }, "— 연결 없음"),
