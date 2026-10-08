@@ -270,16 +270,24 @@
 
   /* ---- gantt ---- */
   .gantt-wrap{overflow-x:auto;margin:0 0 12px;border:1px solid var(--rule);background:var(--card)}
-  .gantt{position:relative;min-width:680px}
-  .g-row{display:grid;grid-template-columns:200px 1fr;min-height:32px}
+  .gantt{--glw:250px;position:relative;min-width:640px}
+  .g-row{display:grid;grid-template-columns:var(--glw) 1fr;min-height:32px}
   .g-row + .g-row{border-top:1px dotted var(--rule)}
   .g-label{
     position:sticky;left:0;z-index:2;background:var(--card);border-right:1px solid var(--rule);
-    padding:6px 10px;font-size:13px;line-height:1.35;min-width:0;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    padding:6px 10px;font-size:13px;line-height:1.35;min-width:0;overflow-wrap:anywhere;
   }
-  .g-row.ms-row .g-label{font-weight:500}
-  .g-row.sub .g-label{padding-left:24px;font-size:12px;color:var(--muted)}
+  .g-row.ms-row .g-label{font-weight:500;display:flex;align-items:flex-start;gap:4px}
+  .g-row.sub .g-label{padding-left:30px;font-size:12px;color:var(--muted)}
+  .g-fold{
+    all:unset;cursor:pointer;flex:none;width:16px;text-align:center;color:var(--muted);
+    font-size:10px;line-height:18px;border-radius:2px;
+  }
+  .g-fold:hover{color:var(--ink)}
+  .g-fold:focus-visible{outline:2px solid var(--deep)}
+  .g-fold.none{visibility:hidden}
+  .g-label .n{font-family:var(--mono);font-size:10.5px;color:var(--muted);font-weight:400;margin-left:4px}
+  .g-tools{display:flex;gap:14px;margin:0 0 8px}
   .g-row.group .g-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--muted);padding-top:10px}
   .g-head .g-label{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
   .g-track{position:relative;min-width:0}
@@ -289,11 +297,11 @@
     border-left:1px solid var(--rule);white-space:nowrap;overflow:hidden;
   }
   .g-months > div.cur{color:var(--ink);font-weight:500}
-  .g-grid{position:absolute;top:0;bottom:0;left:200px;right:0;pointer-events:none;z-index:1}
+  .g-grid{position:absolute;top:0;bottom:0;left:var(--glw);right:0;pointer-events:none;z-index:1}
   .g-grid i{position:absolute;top:0;bottom:0;width:1px;background:var(--rule);opacity:.6}
   .g-grid .today{width:2px;background:var(--film-3);opacity:1}
   .g-bar{
-    all:unset;cursor:pointer;box-sizing:border-box;position:absolute;top:8px;height:16px;z-index:1;
+    all:unset;cursor:pointer;box-sizing:border-box;position:absolute;top:calc(50% - 8px);height:16px;z-index:1;
     border:1px solid var(--film-2);border-radius:2px;overflow:hidden;
     background:color-mix(in srgb,var(--film-2) 16%,transparent);
   }
@@ -302,8 +310,8 @@
   .g-bar.late{border-color:var(--danger);border-style:dashed}
   .g-bar.clip-l{border-left-style:dotted;border-top-left-radius:0;border-bottom-left-radius:0}
   .g-bar.clip-r{border-right-style:dotted;border-top-right-radius:0;border-bottom-right-radius:0}
-  .g-bar.dot{width:10px!important;height:10px;top:11px;border-radius:50%;margin-left:-5px}
-  .g-bar.small{top:12px;height:8px;border-color:var(--muted);background:color-mix(in srgb,var(--muted) 20%,transparent)}
+  .g-bar.dot{width:10px!important;height:10px;top:calc(50% - 5px);border-radius:50%;margin-left:-5px}
+  .g-bar.small{top:calc(50% - 4px);height:8px;border-color:var(--muted);background:color-mix(in srgb,var(--muted) 20%,transparent)}
   .g-bar.small.done{border-color:var(--film-4);background:var(--film-4)}
   .g-bar:focus-visible{outline:2px solid var(--deep);outline-offset:1px}
   .g-legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:10.5px;color:var(--muted);margin:0 0 30px}
@@ -354,6 +362,7 @@
     main{border-left:none;padding-left:0}
     .month-nav .m{font-size:24px;min-width:0}
     .chip{max-width:30%}
+    .gantt{--glw:170px;min-width:620px}
   }
   @media (max-width:640px){
     .stats{gap:8px}
@@ -559,6 +568,9 @@ let showDoneMs = false;
 const TABS = [["goals", "목표"], ["calendar", "달력"], ["gantt", "간트"]];
 let tab = TABS.some(([k]) => "#" + k === location.hash) ? location.hash.slice(1) : "goals";
 let selDay = ymd(today);         // 달력에서 고른 날
+let ganttFolded = new Set();      // 간트에서 접은 마일스톤 (이 브라우저에만 기억)
+try { ganttFolded = new Set(JSON.parse(localStorage.getItem("planner-gantt-folded")) || []); } catch (e) {}
+const saveFolded = () => { try { localStorage.setItem("planner-gantt-folded", JSON.stringify([...ganttFolded])); } catch (e) {} };
 addEventListener("hashchange", () => {
   const k = location.hash.slice(1);
   if (TABS.some(([t]) => t === k) && k !== tab) { tab = k; render(); }
@@ -942,27 +954,40 @@ function viewGantt() {
 
   const shown = items.filter(i => i.kind === "milestone" && (!i.done || showDoneMs))
                      .sort((a, b) => msStart(a) < msStart(b) ? -1 : msStart(a) > msStart(b) ? 1 : byCreated(a, b));
-  const shownIds = new Set(shown.map(m => m.id));
   const r0k = ymKey(r0.getFullYear(), r0.getMonth()), r1k = ymKey(r1.getFullYear(), r1.getMonth());
   const inRange = g => g.period >= r0k && g.period <= r1k;
   const monthGoals = items.filter(i => i.kind === "month");
-  const rows = [];
+  const groups = [];
+  let outside = 0;
   for (const m of shown) {
     const s = msStart(m), e = msEnd(m);
-    const kids = monthGoals.filter(g => g.parent === m.id).sort(byPeriod);
+    const sp = span(parseYmd(s), parseYmd(e || s));
+    if (!sp) { outside++; continue; }       // 보이는 6개월과 겹치지 않는 마일스톤은 숨김
+    groups.push({ m, s, e, sp, kids: monthGoals.filter(g => g.parent === m.id).sort(byPeriod) });
+  }
+  const setFolded = ids => { ganttFolded = new Set(ids); saveFolded(); render(); };
+
+  const rows = [];
+  for (const { m, s, e, sp, kids } of groups) {
     const k = kids.filter(g => g.done).length;
     const late = !m.done && e && e < todayKey;
-    const sp = span(parseYmd(s), parseYmd(e || s));
+    const visKids = kids.filter(inRange);
+    const folded = ganttFolded.has(m.id);
     const label = `${m.title} · ${shortYmd(s)} → ${e ? shortYmd(e) : "마감일 미정"}`
                 + (kids.length ? ` · 월간 목표 ${k}/${kids.length}` : "");
     rows.push(h("div", { class: "g-row ms-row" },
-      h("div", { class: "g-label", title: m.title }, (m.done ? "✓ " : "") + m.title),
+      h("div", { class: "g-label" },
+        h("button", { type: "button", class: "g-fold" + (visKids.length ? "" : " none"),
+                      "aria-expanded": String(!folded), "aria-label": folded ? "월간 목표 펼치기" : "월간 목표 접기",
+                      onclick: () => { folded ? ganttFolded.delete(m.id) : ganttFolded.add(m.id); saveFolded(); render(); } },
+          folded ? "▸" : "▾"),
+        h("span", {}, (m.done ? "✓ " : "") + m.title, visKids.length > 0 && h("span", { class: "n" }, visKids.length))),
       h("div", { class: "g-track" },
-        sp && barBtn((e ? "" : "dot") + (m.done ? " done" : late ? " late" : ""), sp, label,
-                     () => openMilestone(m.id), kids.length ? k / kids.length : null))));
-    kids.filter(inRange).forEach(g => rows.push(subRow(g)));
+        barBtn((e ? "" : "dot") + (m.done ? " done" : late ? " late" : ""), sp, label,
+               () => openMilestone(m.id), kids.length ? k / kids.length : null))));
+    if (!folded) visKids.forEach(g => rows.push(subRow(g)));
   }
-  // 마일스톤에 연결되지 않았거나 (완료되어 숨긴 마일스톤 제외) 연결 대상이 지워진 월간 목표
+  // 마일스톤에 연결되지 않았거나 연결 대상이 지워진 월간 목표
   const loose = monthGoals.filter(g => inRange(g) && (!g.parent || !byId.has(g.parent))).sort(byPeriod);
   if (loose.length) {
     rows.push(h("div", { class: "g-row group" }, h("div", { class: "g-label" }, "연결 없는 월간 목표"), h("div", { class: "g-track" })));
@@ -970,9 +995,13 @@ function viewGantt() {
   }
 
   return h("div", {},
+    groups.length > 0 && h("div", { class: "g-tools" },
+      h("button", { class: "link", type: "button", onclick: () => setFolded([]) }, "모두 펼치기"),
+      h("button", { class: "link", type: "button", onclick: () => setFolded(groups.map(g => g.m.id)) }, "모두 접기")),
     rows.length
       ? h("div", { class: "gantt-wrap" }, h("div", { class: "gantt" }, head, rows, grid))
-      : h("p", { class: "empty" }, "마일스톤을 추가하고 시작일·마감일을 정하면 여기에 막대로 표시됩니다."),
+      : h("p", { class: "empty" }, "이 기간에 표시할 마일스톤이 없습니다. 마일스톤에 시작일·마감일을 정하거나 위에서 달을 옮겨 보세요."),
+    outside > 0 && h("p", { class: "empty" }, `이 6개월과 겹치지 않는 마일스톤 ${outside}개는 숨겼습니다. 위에서 달을 옮기면 보입니다.`),
     h("div", { class: "g-legend" },
       h("span", {}, h("i", {}), "진행 중 (채운 부분 = 연결된 월간 목표 달성률)"),
       h("span", {}, h("i", { class: "done" }), "완료"),
