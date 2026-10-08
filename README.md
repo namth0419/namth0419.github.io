@@ -35,11 +35,24 @@ assets/favicon.svg 등       ← 파비콘
 assets/abstracts/           ← 논문 graphical abstract 이미지
 assets/logos/               ← 소속 기관 로고 (선택)
 papers/                     ← 논문 PDF를 여기에
+planner/index.html          ← 개인용 연구 플래너 (build.py 와 무관, 직접 수정)
 .github/workflows/          ← push 시 자동 빌드 + 배포
 ```
 
 `index.html` 과 `cv.tex` 맨 위에는 "GENERATED — DO NOT EDIT" 표시가 붙습니다. 여기에 손으로 쓴 내용은
 다음 빌드 때 **지워집니다.**
+
+### 연구 플래너 (`/planner/`)
+
+마일스톤 · 월간 목표 · 주간 목표를 체크하고 코멘트를 남기는 개인용 페이지입니다.
+홈페이지에는 링크하지 않고, 검색엔진에도 노출되지 않습니다(`noindex`).
+
+- 로그인: Firebase Authentication (Google)
+- 저장: Firestore `users/{uid}/items`
+- **접근 제한은 Firebase 콘솔 → Firestore → 규칙에서** 본인 계정만 허용합니다.
+  이 저장소는 공개이므로 규칙에 들어가는 개인 이메일은 여기에 적지 않습니다.
+- 로컬 미리보기: `python -m http.server 8000` 후 `http://localhost:8000/planner/?demo`
+  (로그인 없이 브라우저에만 저장되는 데모 데이터)
 
 ## 쓰는 법
 
