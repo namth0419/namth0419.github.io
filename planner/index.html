@@ -313,6 +313,28 @@
   .g-legend i.late{border-color:var(--danger);border-style:dashed;background:transparent}
   .g-legend i.today{width:2px;height:12px;border:none;background:var(--film-3)}
 
+  /* ---- import dialog ---- */
+  .dlg{
+    border:1px solid var(--rule);background:var(--wafer);color:var(--ink);border-radius:2px;
+    padding:20px;width:calc(100% - 32px);max-width:560px;
+  }
+  .dlg::backdrop{background:rgba(0,0,0,.45)}
+  .dlg h3{font-family:var(--display);font-weight:700;font-size:19px;margin:0 0 6px}
+  .dlg h4{font-family:var(--mono);font-weight:500;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:20px 0 4px}
+  .dlg p{color:var(--muted);font-size:13.5px;margin:0 0 12px}
+  .dlg input[type=file]{font:inherit;font-size:13px;color:var(--muted);margin:0 0 10px;max-width:100%}
+  .dlg textarea{
+    display:block;width:100%;min-height:150px;resize:vertical;font-family:var(--mono);font-size:12px;
+    color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:2px;padding:8px;
+  }
+  .dlg .err{color:var(--danger);margin:8px 0 0;font-size:13px}
+  .dlg .err:empty{display:none}
+  .dlg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .imports{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+  .imports li{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dotted var(--rule);font-family:var(--mono);font-size:11.5px;min-width:0}
+  .imports li > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .imports .n{color:var(--muted);flex:none}
+
   /* ---- gate / toast ---- */
   .gate{max-width:440px;margin:14vh auto 0;padding:0 16px;text-align:center}
   .gate h1{font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:-.02em;margin:0 0 8px}
@@ -460,6 +482,21 @@ function firestoreStore(db, uid) {
       const b = writeBatch(db);
       ids.forEach(id => b.update(doc(col, id), patch));
       return b.commit();
+    },
+    // 가져오기용. 한 번에 쓸 수 있는 개수(500)를 넘지 않게 나눠서 씀
+    addMany: async list => {
+      for (let i = 0; i < list.length; i += 400) {
+        const b = writeBatch(db);
+        list.slice(i, i + 400).forEach(({ id, data }) => b.set(doc(col, id), data));
+        await b.commit();
+      }
+    },
+    removeMany: async ids => {
+      for (let i = 0; i < ids.length; i += 400) {
+        const b = writeBatch(db);
+        ids.slice(i, i + 400).forEach(id => b.delete(doc(col, id)));
+        await b.commit();
+      }
     }
   };
 }
@@ -479,7 +516,9 @@ function demoStore() {
     add: async d => { const id = rid(); items.push({ id, ...d }); emit(); return { id }; },
     update: async (id, p) => { Object.assign(find(id) || {}, p); emit(); },
     remove: async id => { items = items.filter(x => x.id !== id); emit(); },
-    updateMany: async (ids, p) => { ids.forEach(id => Object.assign(find(id) || {}, p)); emit(); }
+    updateMany: async (ids, p) => { ids.forEach(id => Object.assign(find(id) || {}, p)); emit(); },
+    addMany: async list => { list.forEach(({ id, data }) => items.push({ id, ...data })); emit(); },
+    removeMany: async ids => { const s = new Set(ids); items = items.filter(x => !s.has(x.id)); emit(); }
   };
 }
 function demoSeed() {
@@ -589,10 +628,113 @@ function render() {
 
 function renderWho() {
   who.replaceChildren();
+  if (state === "ready")
+    who.append(h("button", { class: "btn ghost", type: "button", onclick: openImport }, "가져오기"));
   if (DEMO) who.append(h("span", { class: "demo-flag" }, "DEMO · 로컬 저장"));
   else if (auth && auth.currentUser)
     who.append(h("span", {}, auth.currentUser.email),
                h("button", { class: "btn ghost", type: "button", onclick: () => signOut(auth) }, "로그아웃"));
+}
+
+/* ------------------------------------------------------------------ import
+ * 계획을 JSON 으로 한 번에 넣습니다. 계획 파일은 공개 저장소에 올리지 마세요.
+ * { "source": "이름", "items": [
+ *     { "key": "a", "kind": "milestone", "title": "...", "start": "YYYY-MM-DD", "end": "YYYY-MM-DD", "comments": ["..."] },
+ *     { "kind": "month", "period": "YYYY-MM", "title": "...", "parent": "a" },
+ *     { "kind": "week",  "period": "YYYY-MM-DD", ... },   // 그 주의 아무 날짜 (월요일로 맞춤)
+ *     { "kind": "day",   "period": "YYYY-MM-DD", ... } ] }
+ * parent 는 같은 파일 안의 key. 같은 source 를 다시 가져오면 예전에 가져온 항목을 지우고 새로 넣습니다.
+ */
+function parsePlan(text) {
+  const data = JSON.parse(text);
+  if (!data || !Array.isArray(data.items) || !data.items.length) throw new Error("items 목록이 없습니다.");
+  const src = String(data.source || "import").trim();
+  const D = /^\d{4}-\d{2}-\d{2}$/, M = /^\d{4}-\d{2}$/;
+  const keyToId = new Map(), now = Date.now();
+  const rows = data.items.map((x, i) => {
+    const where = `${i + 1}번째 항목`;
+    if (!["milestone", "month", "week", "day"].includes(x.kind)) throw new Error(`${where}: kind 가 잘못되었습니다.`);
+    if (!x.title || !String(x.title).trim()) throw new Error(`${where}: title 이 비어 있습니다.`);
+    const id = rid();
+    if (x.key != null) {
+      if (keyToId.has(x.key)) throw new Error(`${where}: key "${x.key}" 가 중복됩니다.`);
+      keyToId.set(x.key, id);
+    }
+    return { x, id, i, where };
+  });
+  return rows.map(({ x, id, i, where }) => {
+    let period = "", extra = {};
+    if (x.kind === "milestone") {
+      const start = x.start || "", end = x.end || "";
+      if ((start && !D.test(start)) || (end && !D.test(end))) throw new Error(`${where}: start/end 는 YYYY-MM-DD 형식이어야 합니다.`);
+      if (start && end && end < start) throw new Error(`${where}: end 가 start 보다 빠릅니다.`);
+      extra = { start, end };
+      period = end ? end.slice(0, 7) : "";
+    } else if (x.kind === "month") {
+      if (!M.test(x.period || "")) throw new Error(`${where}: 월간 목표의 period 는 YYYY-MM 형식이어야 합니다.`);
+      period = x.period;
+    } else {
+      if (!D.test(x.period || "")) throw new Error(`${where}: period 는 YYYY-MM-DD 형식이어야 합니다.`);
+      period = x.kind === "week" ? ymd(mondayOf(parseYmd(x.period))) : x.period;
+    }
+    if (x.parent != null && !keyToId.has(x.parent)) throw new Error(`${where}: parent "${x.parent}" 를 찾을 수 없습니다.`);
+    return { id, data: {
+      kind: x.kind, title: String(x.title).trim(), period,
+      parent: x.parent != null ? keyToId.get(x.parent) : "",
+      done: !!x.done, doneAt: x.done ? now : null,
+      comments: (x.comments || []).map((t, j) => ({ id: rid(), text: String(t), at: now + j })),
+      created: now + i, src, ...extra } };
+  });
+}
+
+function openImport() {
+  const dlg = h("dialog", { class: "dlg", onclose: () => dlg.remove() });
+  let text = "";
+  const err = h("p", { class: "err", role: "alert" });
+  const fill = () => {
+    const sources = new Map();
+    for (const i of items) if (i.src) sources.set(i.src, (sources.get(i.src) || 0) + 1);
+    const ta = h("textarea", { placeholder: "여기에 JSON 을 붙여넣거나 위에서 파일을 고르세요.", "aria-label": "가져올 JSON",
+                               value: text, oninput: e => { text = e.target.value; } });
+    dlg.replaceChildren(
+      h("h3", {}, "계획 가져오기"),
+      h("p", {}, "JSON 파일로 마일스톤과 목표를 한 번에 추가합니다. 계획 파일은 공개 저장소에 올리지 마세요."),
+      h("input", { type: "file", accept: ".json,application/json", "aria-label": "JSON 파일",
+        onchange: async e => { const f = e.target.files[0]; if (f) { text = await f.text(); ta.value = text; } } }),
+      ta, err,
+      h("div", { class: "dlg-actions" },
+        h("button", { class: "btn ghost", type: "button", onclick: () => { dlg.close(); dlg.remove(); } }, "닫기"),
+        h("button", { class: "btn", type: "button", onclick: () => runImport(text) }, "가져오기")),
+      sources.size > 0 && h("div", {},
+        h("h4", {}, "가져온 계획"),
+        h("ul", { class: "imports" }, [...sources].map(([s, n]) => h("li", {},
+          h("span", {}, s), h("span", { class: "n" }, `${n}개`),
+          h("button", { class: "btn danger", type: "button", onclick: async () => {
+            if (!confirm(`"${s}"에서 가져온 항목 ${n}개를 모두 삭제할까요? 그 항목에 남긴 체크와 코멘트도 지워집니다.`)) return;
+            await act(store.removeMany(items.filter(i => i.src === s).map(i => i.id)));
+            fill();
+          } }, "모두 삭제"))))));
+  };
+  const runImport = async t => {
+    err.textContent = "";
+    let list;
+    try { list = parsePlan(t); } catch (e) { err.textContent = "가져올 수 없습니다: " + e.message; return; }
+    const src = list[0].data.src;
+    const count = k => list.filter(r => r.data.kind === k).length;
+    const old = items.filter(i => i.src === src);
+    const msg = `"${src}": 마일스톤 ${count("milestone")}, 월간 ${count("month")}, 주간 ${count("week")}, 일간 ${count("day")}개를 가져올까요?`
+      + (old.length ? `\n\n같은 계획에서 이미 가져온 항목 ${old.length}개가 있습니다. 계속하면 그 항목을 지우고 새로 넣습니다. 그 항목에 남긴 체크와 코멘트도 지워집니다.` : "");
+    if (!confirm(msg)) return;
+    try {
+      if (old.length) await store.removeMany(old.map(i => i.id));
+      await store.addMany(list);
+    } catch (e) { err.textContent = "저장하지 못했습니다: " + (e.code || e.message); return; }
+    dlg.close(); dlg.remove();
+    toast(`${list.length}개 항목을 가져왔습니다.`);
+  };
+  fill();
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 function viewGate() {
