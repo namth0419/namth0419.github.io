@@ -128,8 +128,11 @@ function sendWeekly() {
   })));
   if (papers.length) sec("원고 현황", ul(papers.map(p => {
     const P = p.paper || {}, log = (p.stageLog || []).filter(x => x.stage === P.stage).pop();
-    const wait = log ? Math.floor((Date.now() - log.at) / 864e5) : null;
-    const extra = [P.journal, wait != null && ["submitted", "review", "revision"].includes(P.stage) ? `${wait}일째` : "", p.due ? dd(daysBetween(today, p.due)) : ""].filter(Boolean).join(" · ");
+    const dur = n => n >= 14 ? `${Math.floor(n / 7)}주` : `${n}일`;
+    // 투고·리뷰는 투고일부터, 리비전은 리비전에 들어간 날부터
+    const wait = ["submitted", "review"].includes(P.stage) && P.submitted ? `투고 후 ${dur(Math.max(0, daysBetween(P.submitted, today)))}`
+               : ["submitted", "review", "revision"].includes(P.stage) && log ? `${STAGE[P.stage]} ${dur(Math.max(0, Math.floor((Date.now() - log.at) / 864e5)))}째` : "";
+    const extra = [P.journal, wait, p.due ? dd(daysBetween(today, p.due)) : ""].filter(Boolean).join(" · ");
     return li(`<b>${STAGE[P.stage] || "작성 중"}</b> ${esc(p.title)}${extra ? ` <span style="color:#888">· ${esc(extra)}</span>` : ""}`);
   })));
   if (review && review.review) {

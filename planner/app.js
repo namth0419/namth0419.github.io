@@ -402,6 +402,8 @@ function viewPlanner() {
             h("button", { class: "nav-btn", type: "button", "aria-label": "이전 달", onclick: () => shift(-1) }, "‹"),
             h("div", { class: "m" }, `${viewY}년 ${viewM + 1}월`),
             h("button", { class: "nav-btn", type: "button", "aria-label": "다음 달", onclick: () => shift(1) }, "›"),
+            h("input", { type: "date", class: "jump", value: selDay, "aria-label": "날짜로 이동", title: "날짜로 이동",
+              onchange: e => { const v = e.target.value; if (v && v >= "1900") setDay(v); } }),
             !isCurMonth && h("button", { class: "btn ghost", type: "button", onclick: () => {
               viewY = today.getFullYear(); viewM = today.getMonth(); selDay = ymd(today); render(); } }, "이번 달"))
         : h("div", { class: "month-nav" }, h("div", { class: "m solo" }, TITLES[tab])),
@@ -436,7 +438,7 @@ function viewGoals() {
   return h("div", {},
     h("div", { class: "stats" }, stat("월간 목표", mGoals), stat("주간 목표", allW), stat("일간 목표", allD)),
 
-    dayList(ymd(today), "오늘 · " + dayLabel(today)),
+    dayList(selDay, `${relDay(selDay)} · ${dayLabel(parseYmd(selDay))}`, dayStrip()),
 
     h("section", {},
       h("h2", {}, "월간 목표"),
@@ -455,7 +457,35 @@ function viewGoals() {
 }
 
 // 하루치 일간 목표 목록 (목표 탭의 "오늘", 달력 탭에서 고른 날)
-function dayList(key, heading) {
+const relDay = key => { const n = daysTo(key); return n === 0 ? "오늘" : n === 1 ? "내일" : n === -1 ? "어제" : n > 0 ? `${n}일 후` : `${-n}일 전`; };
+// 고른 날을 바꾸고, 보고 있는 달도 그 날짜의 달로 맞춤
+function setDay(key) {
+  if (!key) return;
+  selDay = key;
+  const d = parseYmd(key);
+  viewY = d.getFullYear(); viewM = d.getMonth();
+  render();
+}
+// 목표 탭의 요일 줄: 하루씩 넘기거나 이번 주 안에서 바로 고름
+function dayStrip() {
+  const sd = parseYmd(selDay), mon = mondayOf(sd), todayKey = ymd(new Date());
+  return h("div", { class: "daystrip" },
+    h("button", { class: "nav-btn", type: "button", "aria-label": "전날", onclick: () => setDay(ymd(addDays(sd, -1))) }, "‹"),
+    h("div", { class: "ds-days" }, [0, 1, 2, 3, 4, 5, 6].map(k => {
+      const d = addDays(mon, k), key = ymd(d);
+      const list = items.filter(i => i.kind === "day" && i.period === key), dn = list.filter(i => i.done).length;
+      return h("button", { type: "button", "aria-pressed": String(key === selDay), "aria-label": `${dayLabel(d)}, 일간 목표 ${list.length}개`,
+          class: "ds" + (key === selDay ? " sel" : "") + (key === todayKey ? " today" : "") + (d.getDay() % 6 === 0 ? " we" : ""),
+          onclick: () => setDay(key) },
+        h("span", { class: "wd" }, WD[d.getDay()]),
+        h("span", { class: "dn" }, String(d.getDate())),
+        h("span", { class: "dc" + (list.length && dn === list.length ? " all" : "") }, list.length ? `${dn}/${list.length}` : ""));
+    })),
+    h("button", { class: "nav-btn", type: "button", "aria-label": "다음날", onclick: () => setDay(ymd(addDays(sd, 1))) }, "›"),
+    selDay !== todayKey && h("button", { class: "btn ghost", type: "button", onclick: () => setDay(todayKey) }, "오늘"));
+}
+
+function dayList(key, heading, top) {
   const d = parseYmd(key), wk = ymd(mondayOf(d));
   const list = items.filter(i => i.kind === "day" && i.period === key).sort(byCreated);
   const parents = items.filter(i => i.kind === "week" && i.period === wk).sort(byCreated)
@@ -464,6 +494,7 @@ function dayList(key, heading) {
   const next = ymd(addDays(d, 1));
   return h("section", {},
     h("h2", {}, heading),
+    top,
     list.length ? h("ul", { class: "items" }, list.map(it => itemRow(it, { parents, parentLabel: "주간 목표" })))
                 : h("p", { class: "empty" }, "일간 목표가 없습니다."),
     adder("ad:" + key, "+ 일간 목표 추가 (Enter)", () => ({ kind: "day", period: key, parent: "" })),
@@ -1258,6 +1289,100 @@ function paperFields(p) {
     h("label", { class: "wide" }, "공저자", textInput("pa:" + p.id, P.authors, v => set({ authors: v }), { class: "edit", placeholder: "예: 김OO, 이OO, 지도교수", "aria-label": "공저자" })));
 }
 
+/* cv.json 의 publications 를 원고로 가져오기 (홈페이지와 같은 사이트라 바로 읽을 수 있음) */
+let cvPubs = null, cvMe = "", cvOpen = false, cvErr = "";
+const CV_STAGE = { in_preparation: "draft", in_submission: "submitted", under_review: "review", in_review: "review",
+                   in_revision: "revision", accepted: "accepted", in_press: "accepted", published: "published" };
+const normTitle = t => (t || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+async function loadCv() {
+  cvErr = "";
+  try {
+    const r = await fetch("../cv.json", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const cv = await r.json();
+    cvMe = cv.me || "";
+    cvPubs = (cv.publications || []).filter(x => x && x.title);
+  } catch (e) { cvErr = "cv.json 을 읽지 못했습니다: " + e.message; cvPubs = []; }
+  render();
+}
+function cvRole(authors) {
+  const parts = (authors || "").split(/,\s*(?:and\s+)?|\s+and\s+/).map(s => s.trim()).filter(Boolean);
+  const i = parts.findIndex(s => s.includes("{me}"));
+  if (i < 0) return "공저자";
+  const me = parts[i];
+  if (me.includes("*")) return "교신저자";
+  if (me.includes("†")) return parts.filter(s => s.includes("†")).length > 1 ? "공동 1저자" : "1저자";
+  return i === 0 ? "1저자" : "공저자";
+}
+function cvFields(x) {
+  return {
+    stage: CV_STAGE[x.status] || (x.year ? "published" : "draft"),
+    journal: x.venue || "",
+    role: cvRole(x.authors),
+    authors: (x.authors || "").replace(/\{me\}/g, cvMe || "나"),
+    cvKey: x.doi || normTitle(x.title)
+  };
+}
+const paperOfCv = x => items.find(i => i.kind === "paper" && (((i.paper || {}).cvKey && i.paper.cvKey === (x.doi || normTitle(x.title)))
+                                                              || normTitle(i.title) === normTitle(x.title)));
+function addFromCv(list) {
+  const now = Date.now();
+  const rows = list.map((x, k) => {
+    const f = cvFields(x);
+    const done = f.stage === "accepted" || f.stage === "published";
+    return { id: rid(), data: { kind: "paper", title: x.title, period: "", parent: "",
+      paper: { stage: f.stage, journal: f.journal, role: f.role, submitted: "", authors: f.authors, cvKey: f.cvKey },
+      stageLog: [{ stage: f.stage, at: now }], done, doneAt: null, due: "",
+      comments: x.doi ? [{ id: rid(), text: `DOI: https://doi.org/${x.doi}`, at: now }] : [], created: now + k } };
+  });
+  if (rows.length) act(store.addMany(rows).then(() => toast(`원고 ${rows.length}편을 CV에서 가져왔습니다.`)));
+}
+// 이미 있는 원고에 CV 정보를 덮어쓰기 (투고일·마감·체크리스트·코멘트는 그대로)
+function fillFromCv(p, x) {
+  const f = cvFields(x), cur = byId.get(p.id) || p, P = cur.paper || {};
+  const patch = { paper: { ...P, journal: f.journal, role: f.role, authors: f.authors, cvKey: f.cvKey } };
+  if ((P.stage || "draft") !== f.stage) {
+    patch.paper.stage = f.stage;
+    patch.stageLog = [...(cur.stageLog || []), { stage: f.stage, at: Date.now() }];
+    patch.done = f.stage === "accepted" || f.stage === "published";
+  }
+  act(store.update(p.id, patch).then(() => toast("CV 정보로 채웠습니다.")));
+}
+const CV_STATUS_TEXT = { published: "출판", in_revision: "리비전", in_submission: "투고 중", in_preparation: "준비 중", under_review: "리뷰 중", accepted: "게재 확정" };
+function cvPanel() {
+  if (!cvOpen) return null;
+  if (!cvPubs) { loadCv(); return h("section", { class: "cvpanel" }, h("p", { class: "empty" }, "cv.json 을 읽는 중…")); }
+  const rest = cvPubs.filter(x => !paperOfCv(x));
+  return h("section", { class: "cvpanel" },
+    h("div", { class: "pd-head" }, h("b", {}, "CV에서 원고 가져오기"),
+      h("span", { class: "when" }, `${cvPubs.length}편 중 ${cvPubs.length - rest.length}편은 이미 있음`),
+      h("button", { class: "link", type: "button", onclick: () => { cvOpen = false; render(); } }, "닫기")),
+    cvErr && h("p", { class: "err" }, cvErr),
+    h("ul", { class: "cvlist" }, cvPubs.map(x => {
+      const have = paperOfCv(x);
+      return h("li", {},
+        h("span", { class: "kind" }, CV_STATUS_TEXT[x.status] || x.status || "—"),
+        h("span", { class: "rt" }, x.title, h("small", {}, [x.venue, x.year, cvRole(x.authors)].filter(Boolean).join(" · "))),
+        have ? h("span", { class: "when" }, "추가됨")
+             : h("button", { class: "btn ghost", type: "button", onclick: () => addFromCv([x]) }, "추가"));
+    })),
+    h("div", { class: "rp-actions" },
+      rest.length > 0 && h("button", { class: "btn", type: "button", onclick: () => addFromCv(rest) }, `없는 ${rest.length}편 모두 추가`),
+      h("span", { class: "hint" }, "저널·저자·역할·단계를 채웁니다. 투고일과 마감은 직접 넣어 주세요.")));
+}
+// 원고 상세에서 CV 항목을 골라 정보 채우기
+function cvFillField(p) {
+  if (!cvPubs) return h("div", { class: "fields" },
+    h("button", { class: "link", type: "button", onclick: () => loadCv() }, "CV(cv.json)에서 정보 채우기…"));
+  if (!cvPubs.length) return null;
+  const mine = cvPubs.find(x => ((p.paper || {}).cvKey && (x.doi || normTitle(x.title)) === p.paper.cvKey) || normTitle(x.title) === normTitle(p.title));
+  return h("div", { class: "fields" },
+    h("label", { class: "wide" }, "CV 정보로 채우기",
+      h("select", { onchange: e => { const x = cvPubs[+e.target.value]; if (x) fillFromCv(p, x); } },
+        h("option", { value: "" }, mine ? "— 연결된 CV 항목에서 다시 채우기" : "— CV 논문 고르기"),
+        cvPubs.map((x, k) => h("option", { value: String(k) }, (x === mine ? "✓ " : "") + x.title)))));
+}
+
 function viewPapers() {
   const papers = items.filter(i => i.kind === "paper");
   const stageOf = p => (p.paper || {}).stage || "draft";
@@ -1270,6 +1395,10 @@ function viewPapers() {
       stat("게재 확정·출판", String(accepted.length), `1저자 ${accepted.filter(lead).length}`),
       stat("투고·리뷰·리비전", String(papers.filter(p => ["submitted", "review", "revision"].includes(stageOf(p))).length)),
       stat("작성 중", String(papers.filter(p => stageOf(p) === "draft").length))),
+    h("div", { class: "rp-actions" },
+      h("button", { class: "btn ghost", type: "button", "aria-expanded": String(cvOpen),
+                    onclick: () => { cvOpen = !cvOpen; if (cvOpen) cvPubs = null; render(); } }, "CV에서 가져오기")),
+    cvPanel(),
     h("div", { class: "board" }, STAGES.map(([k, label]) => {
       const list = papers.filter(p => stageOf(p) === k).sort(byDue);
       return h("section", { class: "col" },
@@ -1280,18 +1409,30 @@ function viewPapers() {
     papers.filter(p => openIds.has(p.id)).map(p => h("section", { class: "pdetail", dataset: { id: p.id } },
       h("div", { class: "pd-head" }, h("b", {}, p.title), h("span", { class: "when" }, stageName((p.paper || {}).stage)),
         h("button", { class: "link", type: "button", onclick: () => toggleOpen(p.id) }, "닫기")),
+      cvFillField(p),
       detail(p, { paper: true, parents: milestoneOptions(p) }))),
     adder("ap", "+ 원고 추가 (Enter)", () => ({ kind: "paper", period: "", parent: "",
       paper: { stage: "draft", journal: "", role: "1저자", submitted: "", authors: "" }, stageLog: [{ stage: "draft", at: Date.now() }] })),
     h("p", { class: "empty" }, "카드의 ‹ › 로 단계를 옮기고, 제목을 누르면 저널·공저자·마감·체크리스트·파일을 적을 수 있습니다."));
 }
 
+// 원고가 얼마나 기다리고 있는지: 투고·리뷰는 투고일부터, 리비전은 리비전에 들어간 날부터
+const dur = days => days >= 14 ? `${Math.floor(days / 7)}주` : `${days}일`;
+function paperWait(p) {
+  const P = p.paper || {}, st = P.stage || "draft";
+  if (["submitted", "review"].includes(st) && P.submitted)
+    return `투고 후 ${dur(Math.max(0, -daysTo(P.submitted)))}`;
+  if (["submitted", "review", "revision"].includes(st)) {
+    const log = (p.stageLog || []).filter(x => x.stage === st).pop();
+    if (log) return `${stageName(st)} ${dur(Math.max(0, Math.floor((Date.now() - log.at) / 864e5)))}째`;
+  }
+  return null;
+}
+
 function paperCard(p) {
   const open = openIds.has(p.id), P = p.paper || {}, st = P.stage || "draft";
   const i = Math.max(0, STAGES.findIndex(s => s[0] === st));
-  const log = (p.stageLog || []).filter(x => x.stage === st).pop();
-  const days = log ? Math.floor((Date.now() - log.at) / 864e5) : null;
-  const wait = ["submitted", "review", "revision"].includes(st) && days != null ? (days >= 14 ? `${Math.floor(days / 7)}주째` : `${days}일째`) : null;
+  const wait = paperWait(p);
   const nK = (p.checks || []).length, nKd = (p.checks || []).filter(c => c.done).length;
   return h("li", { class: "pcard" + (open ? " open" : ""), dataset: { id: p.id } },
     h("div", { class: "ph" },
@@ -1302,7 +1443,7 @@ function paperCard(p) {
     h("div", { class: "pm" },
       P.journal && h("span", {}, P.journal),
       P.role && P.role !== "1저자" && h("span", {}, P.role),
-      wait && h("span", { title: "이 단계에 머문 기간" }, wait),
+      wait && h("span", { title: "투고·리뷰는 투고일부터, 리비전은 리비전에 들어간 날부터" }, wait),
       nK > 0 && h("span", {}, `☑ ${nKd}/${nK}`),
       dueChip(p)));
 }
