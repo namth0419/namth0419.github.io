@@ -158,7 +158,7 @@ let viewY = today.getFullYear(), viewM = today.getMonth();
 const openIds = new Set();       // 펼쳐진 항목
 const drafts = new Map();        // 입력 중인 글 (다시 그려도 유지)
 let showDoneMs = false;
-const TABS = [["goals", "목표"], ["calendar", "달력"], ["gantt", "간트"], ["papers", "원고"], ["library", "문헌"], ["lab", "실험"], ["review", "회고"]];
+const TABS = [["goals", "목표"], ["calendar", "달력"], ["gantt", "간트"], ["papers", "원고"], ["library", "문헌"], ["lab", "실험"], ["thoughts", "생각"], ["meetings", "미팅"], ["review", "회고"]];
 let query = "";                  // 전체 검색
 let labFilter = "";              // 실험 기록 안에서 찾기
 let revWeek = ymd(mondayOf(today));   // 회고 탭에서 보는 주
@@ -391,7 +391,8 @@ function viewPlanner() {
   const setTab = k => { tab = k; history.replaceState(null, "", "#" + k); render(); };
 
   const monthly = ["goals", "calendar", "gantt"].includes(tab);
-  const TITLES = { papers: "원고", library: "문헌", lab: "실험 기록", review: "주간 회고" };
+  const TITLES = { papers: "원고", library: "문헌", lab: "실험 기록", thoughts: "생각", meetings: "미팅", review: "주간 회고" };
+  const nNotes = items.filter(i => i.kind === "note").length;
   const main = h("main", {},
     h("div", { class: "topline" },
       monthly
@@ -408,10 +409,12 @@ function viewPlanner() {
     deadlineBar(),
     h("div", { class: "tabs", role: "tablist" },
       TABS.map(([k, label]) => h("button", { type: "button", role: "tab", "aria-selected": String(tab === k && !query.trim()),
-                                             onclick: () => { query = ""; setTab(k); } }, label))),
+                                             onclick: () => { query = ""; setTab(k); } }, label,
+        k === "thoughts" && nNotes > 0 && h("span", { class: "tab-n", title: `수집함 ${nNotes}개` }, String(nNotes))))),
     query.trim() ? viewSearch()
       : tab === "calendar" ? viewCalendar() : tab === "gantt" ? viewGantt()
-      : tab === "papers" ? viewPapers() : tab === "library" ? viewLibrary() : tab === "lab" ? viewLab() : tab === "review" ? viewReview() : viewGoals());
+      : tab === "papers" ? viewPapers() : tab === "library" ? viewLibrary() : tab === "lab" ? viewLab()
+      : tab === "thoughts" ? viewThoughts() : tab === "meetings" ? viewMeetings() : tab === "review" ? viewReview() : viewGoals());
 
   return h("div", { class: "wrap" }, milestonePanel(), main);
 }
@@ -887,6 +890,8 @@ function itemRow(it, o = {}) {
       h("button", { class: "title", type: "button", "aria-expanded": String(open), onclick: () => toggleOpen(it.id) },
         it.title || "(제목 없음)"),
       parent && h("span", { class: "chip", title: parent.title }, "↳ " + parent.title),
+      it.from && byId.get(it.from) && h("button", { type: "button", class: "chip", title: "이 할 일이 나온 미팅 노트 열기",
+        onclick: () => goTo(byId.get(it.from)) }, "미팅 " + (byId.get(it.from).period ? md(parseYmd(byId.get(it.from).period)) : "")),
       o.meta,
       it.kind !== "milestone" && dueChip(it),
       (it.repeat || it.repeatOf) && h("span", { class: "when", title: "반복" }, "↻"),
@@ -974,11 +979,14 @@ function detail(it, o) {
     o.ref && refFields(it),
     o.paper && cvFillField(it),
     o.sample && sampleFields(it),
+    o.idea && ideaFields(it),
+    o.meeting && meetingFields(it),
     extraFields(it, o),
-    checklist(it),
+    !o.meeting && checklist(it),
     linkedSamples(it),
+    linkedIdeas(it),
     attachments(it),
-    comments.length > 0 && h("ol", { class: "comments" }, comments.map(c =>
+    !o.meeting && comments.length > 0 && h("ol", { class: "comments" }, comments.map(c =>
       h("li", {},
         h("div", { class: "meta" },
           h("time", { datetime: new Date(c.at).toISOString() }, fmtWhen(c.at)),
@@ -988,7 +996,7 @@ function detail(it, o) {
             act(store.update(it.id, { comments: (cur.comments || []).filter(x => x.id !== c.id) }));
           } }, "삭제")),
         h("p", {}, linkify(c.text))))),
-    h("div", { class: "compose" },
+    !o.meeting && h("div", { class: "compose" },
       h("textarea", { rows: 2, placeholder: "코멘트 (Ctrl+Enter로 추가)", "aria-label": "코멘트", dataset: { fk: cKey },
         value: drafts.get(cKey) || "",
         oninput: e => drafts.set(cKey, e.target.value),
@@ -1192,7 +1200,7 @@ function adder(fk, placeholder, make) {
 }
 
 /* ------------------------------------------------------------------ 공통 도구 */
-const KIND_LABEL = { milestone: "마일스톤", month: "월간", week: "주간", day: "일간", paper: "원고", ref: "문헌", sample: "실험", review: "회고" };
+const KIND_LABEL = { milestone: "마일스톤", month: "월간", week: "주간", day: "일간", paper: "원고", ref: "문헌", sample: "실험", review: "회고", note: "메모", idea: "아이디어", meeting: "미팅" };
 const STAGES = [["draft", "작성 중"], ["submitted", "투고"], ["review", "리뷰 중"], ["revision", "리비전"], ["accepted", "게재 확정"], ["published", "출판"]];
 const ROLES = ["1저자", "공동 1저자", "공저자", "교신저자"];
 const stageName = k => (STAGES.find(s => s[0] === k) || STAGES[0])[1];
@@ -1276,7 +1284,9 @@ function exportBackup() {
 }
 
 /* ------------------------------------------------------------------ 검색·태그 */
-const textOf = it => [it.title, ...(it.comments || []).map(c => c.text), ...(it.checks || []).map(c => c.text),
+const textOf = it => [it.title, it.body, ...(it.comments || []).map(c => c.text), ...(it.checks || []).map(c => c.text),
+  it.idea && it.idea.body,
+  it.meeting && [it.meeting.with, it.meeting.agenda, it.meeting.notes, it.meeting.decisions, ...(it.meeting.actions || []).map(a => a.text)].join(" "),
   it.ref && [(it.ref.authors || []).map(a => `${a.family} ${a.given}`).join(" "), it.ref.journal, it.ref.year, it.ref.doi].join(" "),
   it.paper && [it.paper.journal, it.paper.authors].join(" "),
   it.sample && [it.sample.process, it.sample.result].join(" "),
@@ -1291,6 +1301,9 @@ function periodLabel(it) {
   if (it.kind === "day" || it.kind === "sample") return it.period ? shortYmd(it.period) : "";
   if (it.kind === "paper") return stageName((it.paper || {}).stage);
   if (it.kind === "ref") return [(it.ref || {}).journal, (it.ref || {}).year].filter(Boolean).join(" · ");
+  if (it.kind === "note") return "수집함";
+  if (it.kind === "idea") return ideaStageName((it.idea || {}).stage);
+  if (it.kind === "meeting") return meetWhen(it);
   return "";
 }
 
@@ -1349,6 +1362,9 @@ function goTo(it) {
   else if (it.kind === "sample") setT("lab");
   else if (it.kind === "ref") { setT("library"); libStatus = "all"; libStar = false; libQuery = ""; }
   else if (it.kind === "review") { revWeek = it.period; setT("review"); }
+  else if (it.kind === "note") setT("thoughts");
+  else if (it.kind === "idea") { setT("thoughts"); ideaSel = it.id; }
+  else if (it.kind === "meeting") setT("meetings");
   openIds.add(it.id);
   render();
   const el = document.querySelector(`main [data-id="${it.id}"]`);
@@ -1358,7 +1374,7 @@ function goTo(it) {
 /* ------------------------------------------------------------------ 항목 상세: 마감·반복·체크리스트·연결된 실험 */
 function extraFields(it, o) {
   const out = [];
-  if (!o.milestone && it.kind !== "review")
+  if (!o.milestone && !["review", "idea", "meeting", "note"].includes(it.kind))
     out.push(h("label", {}, "마감", h("input", { type: "date", value: it.due || "",
       onchange: e => { const v = e.target.value; if (v && v < "1900") return; act(store.update(it.id, { due: v || "" })); } })));
   const R = { month: [["monthly", "매달"]], week: [["weekly", "매주"]], day: [["daily", "매일"], ["weekdays", "평일마다"]] }[it.kind];
@@ -1718,6 +1734,7 @@ function weekReport(wk) {
     moves: items.filter(i => i.kind === "paper").flatMap(p => (p.stageLog || []).map((x, k, arr) => ({ p, x, prev: k ? arr[k - 1].stage : null }))
                                                           .filter(m => m.prev && inW(m.x.at))),
     samples: items.filter(i => i.kind === "sample" && i.period >= wk && i.period <= end),
+    meetings: items.filter(i => i.kind === "meeting" && i.period && i.period >= wk && i.period <= end).sort((a, b) => a.period < b.period ? -1 : 1),
     comments: items.flatMap(i => (i.comments || []).filter(c => inW(c.at)).map(c => ({ it: i, c }))),
     next: items.filter(i => i.kind === "week" && i.period === ymd(addDays(mon, 7))),
     soon: items.filter(i => !i.done && dueOf(i) && i.kind !== "review" && dueOf(i) > end && dueOf(i) <= soonEnd)
@@ -1735,6 +1752,10 @@ function buildMarkdown(wk, R, rv) {
   sec("원고 진행", R.moves.map(({ p, x, prev }) => `- ${p.title}: ${stageName(prev)} → ${stageName(x.stage)}`));
   sec("실험 기록", R.samples.map(s => `- ${shortYmd(s.period)} ${s.title}` + (s.sample && s.sample.process ? ` — ${s.sample.process}` : "")
                                     + (s.sample && s.sample.result ? ` → ${s.sample.result}` : "")));
+  sec("미팅", R.meetings.flatMap(m => {
+    const M = m.meeting || {}, dec = (M.decisions || "").split(/\n+/).map(x => x.replace(/^\s*[-*•]\s*/, "").trim()).filter(Boolean);
+    return [`- ${shortYmd(m.period)} ${m.title}`, ...dec.map(x => `  - 결정: ${x}`), ...(M.actions || []).map(a => `  - [${actionDone(a) ? "x" : " "}] ${a.text}`)];
+  }));
   sec("이월 (못 한 주간 목표)", R.open.map(i => `- ${i.title}`));
   const r = (rv && rv.review) || {};
   if (r.good || r.blocked || r.next) {
@@ -1799,9 +1820,10 @@ function viewReview() {
         list("세부 항목 완료", R.checks, ({ it, c }) => h("li", {}, c.text, h("span", { class: "when" }, " · " + it.title))),
         list("원고 진행", R.moves, ({ p, x, prev }) => h("li", {}, p.title, h("span", { class: "when" }, ` · ${stageName(prev)} → ${stageName(x.stage)}`))),
         list("실험 기록", R.samples, s => h("li", {}, h("span", { class: "when" }, shortYmd(s.period) + " "), s.title)),
+        list("미팅", R.meetings, m => h("li", {}, h("span", { class: "when" }, shortYmd(m.period) + " "), m.title)),
         list("코멘트", R.comments, ({ it, c }) => h("li", {}, c.text.length > 60 ? c.text.slice(0, 60) + "…" : c.text, h("span", { class: "when" }, " · " + it.title))),
         list("못 한 주간 목표", R.open, i => h("li", {}, i.title))),
-      !R.done.length && !R.checks.length && !R.moves.length && !R.samples.length && !R.comments.length && !R.open.length
+      !R.done.length && !R.checks.length && !R.moves.length && !R.samples.length && !R.meetings.length && !R.comments.length && !R.open.length
         && h("p", { class: "empty" }, "이 주에 기록된 내용이 없습니다.")),
     h("section", {},
       h("h2", {}, "회고"),
@@ -1871,14 +1893,17 @@ async function addRef(text) {
     return;
   }
   const dup = items.find(i => i.kind === "ref" && (i.ref || {}).doi && i.ref.doi.toLowerCase() === doi.toLowerCase());
-  if (dup) { drafts.delete("lib:add"); toast("이미 있는 문헌입니다."); goTo(dup); return; }
+  if (dup) { drafts.delete("lib:add"); toast("이미 있는 문헌입니다."); goTo(dup); return true; }
+  let ok = false;
   libBusy = true; render();
   try {
     const m = await fetchMeta(doi);
     act(store.add({ ...base, title: m.title, ref: { doi, ...m, status: "toread", star: false } }));
     drafts.delete("lib:add");
+    ok = true;
   } catch (e) { toast(e.message + " DOI를 확인해 주세요."); }
   libBusy = false; render();
+  return ok;
 }
 
 async function refillRef(it) {
@@ -2057,6 +2082,421 @@ function refRow(it) {
     open && h("div", { class: "pr-detail" }, detail(it, { ref: true, parents: goalOptions(it.parent), parentLabel: "연결 목표" })));
 }
 
+/* ------------------------------------------------------------------ 생각: 수집함 + 아이디어 보드
+ * 수집함: 떠오른 생각을 어디서든 Ctrl+K(맥은 ⌘K)나 오른쪽 위 전구 버튼으로 적어 두고,
+ *   나중에 오늘 할 일·이번 주 목표·아이디어·미팅 안건·문헌으로 옮기거나 버림.
+ *   항목: kind "note", title(첫 줄), body(나머지 줄)
+ * 아이디어: kind "idea", idea: { stage, body, refs:[문헌 id], papers:[원고 id] }, parent = 마일스톤
+ */
+const IDEA_STAGES = [["seed", "씨앗"], ["explore", "검토 중"], ["active", "진행"], ["parked", "보류"]];
+const ideaStageName = k => (IDEA_STAGES.find(s => s[0] === k) || IDEA_STAGES[0])[1];
+let ideaSel = null;              // 보드에서 펼쳐 본 아이디어
+let ideaDrag = null;             // 끌고 있는 카드
+
+const fresh = () => ({ done: false, doneAt: null, comments: [], created: Date.now() });
+const splitText = text => {
+  const [first, ...rest] = text.trim().split(/\r?\n/);
+  return { title: first.trim(), body: rest.join("\n").trim() };
+};
+const newIdea = (title, body) => ({ ...fresh(), kind: "idea", title, period: "", parent: "",
+  idea: { stage: "seed", body: body || "", refs: [], papers: [] }, stageLog: [{ stage: "seed", at: Date.now() }] });
+
+// 수집함 메모를 목표로 옮김: 둘째 줄부터의 내용과 코멘트는 새 항목의 코멘트로
+function moveNote(n, data, msg) {
+  const comments = (n.comments || []).slice();
+  if (n.body) comments.unshift({ id: rid(), text: n.body, at: n.created || Date.now() });
+  act(store.add({ ...fresh(), title: n.title, period: "", parent: "", ...data, comments, attachments: n.attachments || [] })
+    .then(() => store.remove(n.id)).then(() => toast(msg)));
+}
+function noteToIdea(n) {
+  act(store.update(n.id, { kind: "idea", idea: { stage: "seed", body: n.body || "", refs: [], papers: [] }, stageLog: [{ stage: "seed", at: Date.now() }] })
+    .then(() => toast("아이디어 보드의 '씨앗'에 넣었습니다.")));
+}
+const noteLine = n => n.title + (n.body ? " — " + n.body.replace(/\s*\n\s*/g, " ") : "");
+
+/* ---------- 빠른 메모 창 ---------- */
+let captureDlg = null;
+const CAPTURE_TO = [["inbox", "수집함"], ["today", "오늘 할 일"], ["idea", "아이디어"], ["agenda", "다음 미팅 안건"]];
+function openCapture() {
+  if (state !== "ready") return toast("로그인한 뒤에 쓸 수 있습니다.");
+  if (captureDlg) { captureDlg.querySelector("textarea").focus(); return; }
+  if (document.querySelector("dialog[open]")) return;        // 다른 창이 열려 있으면 그대로 둠
+  let dest = "inbox";
+  const dlg = h("dialog", { class: "dlg capture", "aria-label": "빠른 메모" });
+  captureDlg = dlg;
+  const cleanup = () => { dlg.remove(); if (captureDlg === dlg) captureDlg = null; };
+  const close = () => { dlg.close(); cleanup(); };
+  const save = () => {
+    const text = ta.value.trim();
+    if (!text) return;
+    close();
+    const { title, body } = splitText(text);
+    if (dest === "inbox")
+      act(store.add({ ...fresh(), kind: "note", title, body, period: "", parent: "" }).then(() => toast("수집함에 넣었습니다.")));
+    else if (dest === "today")
+      act(store.add({ ...fresh(), kind: "day", title, period: ymd(new Date()), parent: "",
+        comments: body ? [{ id: rid(), text: body, at: Date.now() }] : [] }).then(() => toast("오늘 할 일에 넣었습니다.")));
+    else if (dest === "idea")
+      act(store.add(newIdea(title, body)).then(() => toast("아이디어 보드의 '씨앗'에 넣었습니다.")));
+    else addToAgenda(title + (body ? " — " + body.replace(/\s*\n\s*/g, " ") : ""));
+  };
+  const ta = h("textarea", { rows: 3, placeholder: "떠오른 생각, 할 일, 물어볼 것…", "aria-label": "메모",
+    onkeydown: e => { if (!typing(e) && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); } } });
+  const seg = h("div", { class: "seg chips" });
+  const drawSeg = () => seg.replaceChildren(...CAPTURE_TO.map(([k, l]) =>
+    h("button", { type: "button", "aria-pressed": String(dest === k), onclick: () => { dest = k; drawSeg(); ta.focus(); } }, l)));
+  drawSeg();
+  dlg.addEventListener("close", cleanup);
+  dlg.append(
+    h("h3", {}, "빠른 메모"),
+    ta,
+    h("div", { class: "cap-row" }, h("span", { class: "cap-k" }, "넣을 곳"), seg),
+    h("div", { class: "dlg-actions" },
+      h("span", { class: "hint" }, "Enter 저장 · Shift+Enter 줄바꿈 · Esc 닫기"),
+      h("button", { class: "btn ghost", type: "button", onclick: close }, "닫기"),
+      h("button", { class: "btn", type: "button", onclick: save }, "저장")));
+  document.body.append(dlg);
+  dlg.showModal();
+  ta.focus();
+}
+// 한글 입력 상태에서도 되도록 글자 대신 키 위치(KeyK)로 확인
+addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.code === "KeyK" || (e.key || "").toLowerCase() === "k")) {
+    e.preventDefault(); openCapture();
+  }
+});
+
+/* ---------- 아이디어 ---------- */
+function setIdeaStage(it, stage) {
+  const cur = byId.get(it.id) || it, I = cur.idea || {};
+  if ((I.stage || "seed") === stage) return;
+  act(store.update(it.id, { idea: { ...I, stage }, stageLog: [...(cur.stageLog || []), { stage, at: Date.now() }] }));
+}
+function ideaToMilestone(it) {
+  if (!confirm(`"${it.title}"을(를) 마일스톤으로 만들까요?\n아이디어는 '진행'으로 옮기고 새 마일스톤에 연결합니다.`)) return;
+  act(store.add({ ...fresh(), kind: "milestone", title: it.title, period: "", parent: "", start: ymd(new Date()), end: "" }).then(r => {
+    const cur = byId.get(it.id) || it, I = cur.idea || {};
+    return store.update(it.id, { parent: r.id, idea: { ...I, stage: "active" }, stageLog: [...(cur.stageLog || []), { stage: "active", at: Date.now() }] });
+  }).then(() => toast("마일스톤을 만들었습니다. 왼쪽 목록에서 마감일을 정해 주세요.")));
+}
+function ideaToPaper(it) {
+  if (!confirm(`"${it.title}"(으)로 원고(작성 중)를 만들까요?`)) return;
+  act(store.add({ ...fresh(), kind: "paper", title: it.title, period: "", parent: it.parent || "",
+    paper: { stage: "draft", journal: "", role: "1저자", submitted: "", authors: "" }, stageLog: [{ stage: "draft", at: Date.now() }] }).then(r => {
+    const cur = byId.get(it.id) || it, I = cur.idea || {};
+    return store.update(it.id, { idea: { ...I, papers: [...(I.papers || []), r.id] } });
+  }).then(() => toast("원고 탭에 '작성 중'으로 만들었습니다.")));
+}
+
+function viewThoughts() {
+  const notes = items.filter(i => i.kind === "note").sort((a, b) => (b.created || 0) - (a.created || 0));
+  const ideas = items.filter(i => i.kind === "idea");
+  const stageOf = i => (i.idea || {}).stage || "seed";
+  const sel = ideaSel && byId.get(ideaSel);
+  if (!sel || sel.kind !== "idea") ideaSel = null;
+  return h("div", {},
+    h("section", {},
+      h("h2", {}, `수집함 ${notes.length}`),
+      adder("an", "+ 떠오른 생각 적기 (Enter) · 어느 탭에서든 Ctrl+K", () => ({ kind: "note", period: "", parent: "", body: "" })),
+      notes.length ? h("ul", { class: "inbox" }, notes.map(noteRow))
+                   : h("p", { class: "empty" }, "비어 있습니다. 정리할 것이 없어요.")),
+    h("section", {},
+      h("h2", {}, `아이디어 ${ideas.length}`),
+      adder("ai", "+ 아이디어 추가 (Enter) → 씨앗", () => newIdea("", "")),
+      h("div", { class: "board" }, IDEA_STAGES.map(([k, label]) => {
+        const list = ideas.filter(i => stageOf(i) === k).sort((a, b) => (b.created || 0) - (a.created || 0));
+        return h("div", { class: `bcol is-${k}`, dataset: { stage: k },
+            ondragover: e => { if (ideaDrag) { e.preventDefault(); e.currentTarget.classList.add("over"); } },
+            ondragleave: e => e.currentTarget.classList.remove("over"),
+            ondrop: e => {
+              e.preventDefault(); e.currentTarget.classList.remove("over");
+              const it = ideaDrag && byId.get(ideaDrag); ideaDrag = null;
+              if (it) setIdeaStage(it, k);
+            } },
+          h("div", { class: "bh" }, h("span", {}, label), h("span", {}, String(list.length))),
+          list.length ? list.map(ideaCard) : h("p", { class: "bempty" }, k === "seed" ? "새 아이디어가 여기로 들어옵니다" : "—"));
+      })),
+      ideaSel && ideaPanel(sel),
+      h("p", { class: "hint" }, "카드를 끌거나 ‹ › 로 단계를 옮기고, 제목을 누르면 내용·관련 문헌·원고·마일스톤을 적을 수 있습니다.")));
+}
+
+function noteRow(n) {
+  const doi = doiOf(n.title + " " + (n.body || ""));
+  const b = (label, fn, cls) => h("button", { type: "button", class: "nb" + (cls ? " " + cls : ""), onclick: fn }, label);
+  return h("li", { class: "note", dataset: { id: n.id } },
+    h("div", { class: "nt" },
+      h("p", {}, linkify(n.title)),
+      n.body && h("p", { class: "nbody" }, linkify(n.body)),
+      h("time", { class: "when", datetime: new Date(n.created || Date.now()).toISOString() }, fmtWhen(n.created || Date.now()))),
+    h("div", { class: "nacts", role: "group", "aria-label": "옮길 곳" },
+      b("오늘 할 일", () => moveNote(n, { kind: "day", period: ymd(new Date()) }, "오늘 할 일로 옮겼습니다.")),
+      b("이번 주 목표", () => moveNote(n, { kind: "week", period: ymd(mondayOf(new Date())) }, "이번 주 목표로 옮겼습니다.")),
+      b("아이디어", () => noteToIdea(n)),
+      b("미팅 안건", () => addToAgenda(noteLine(n), n.id)),
+      doi && b("문헌", async () => { if (await addRef(doi)) act(store.remove(n.id)); }),
+      b("버리기", () => { if (confirm(`"${n.title}" 메모를 버릴까요?`)) act(store.remove(n.id)); }, "drop")));
+}
+
+function ideaCard(it) {
+  const I = it.idea || {}, st = I.stage || "seed", i = Math.max(0, IDEA_STAGES.findIndex(s => s[0] === st));
+  const nR = (I.refs || []).filter(id => byId.has(id)).length, nP = (I.papers || []).filter(id => byId.has(id)).length;
+  const nC = (it.comments || []).length, ms = it.parent && byId.get(it.parent);
+  return h("div", { class: "icard" + (ideaSel === it.id ? " sel" : ""), draggable: "true", dataset: { id: it.id },
+      ondragstart: e => { ideaDrag = it.id; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", it.title); },
+      ondragend: () => { ideaDrag = null; } },
+    h("button", { class: "ic-title", type: "button", "aria-expanded": String(ideaSel === it.id),
+                  onclick: () => { ideaSel = ideaSel === it.id ? null : it.id; render(); } }, it.title || "(제목 없음)"),
+    I.body && h("p", { class: "ic-body" }, I.body),
+    h("div", { class: "ic-meta" },
+      ms && h("span", { class: "chip", title: ms.title }, "↳ " + ms.title),
+      nR > 0 && h("span", {}, `문헌 ${nR}`),
+      nP > 0 && h("span", {}, `원고 ${nP}`),
+      nC > 0 && h("span", {}, `코멘트 ${nC}`),
+      h("span", { class: "pr-step" },
+        h("button", { type: "button", disabled: i === 0, "aria-label": "이전 단계로", onclick: () => setIdeaStage(it, IDEA_STAGES[i - 1][0]) }, "‹"),
+        h("button", { type: "button", disabled: i === IDEA_STAGES.length - 1, "aria-label": "다음 단계로", onclick: () => setIdeaStage(it, IDEA_STAGES[i + 1][0]) }, "›"))));
+}
+
+function ideaPanel(it) {
+  const st = (it.idea || {}).stage || "seed";
+  return h("section", { class: "ipanel", dataset: { id: it.id } },
+    h("div", { class: "pd-head" },
+      h("div", { class: "seg" }, IDEA_STAGES.map(([k, l]) =>
+        h("button", { type: "button", "aria-pressed": String(st === k), onclick: () => setIdeaStage(it, k) }, l))),
+      h("button", { class: "link", type: "button", onclick: () => { ideaSel = null; render(); } }, "닫기")),
+    detail(it, { idea: true, parents: milestoneOptions(it) }));
+}
+
+function ideaFields(it) {
+  const I = it.idea || {};
+  const set = patch => act(store.update(it.id, { idea: { ...((byId.get(it.id) || it).idea || {}), ...patch } }));
+  const linkRow = (label, field, all, empty) => {
+    const ids = I[field] || [], list = ids.map(id => byId.get(id)).filter(Boolean);
+    const rest = all.filter(x => !ids.includes(x.id));
+    return h("div", { class: "linked" },
+      h("span", { class: "lk" }, label),
+      list.map(x => h("span", { class: "chip lchip" },
+        h("button", { type: "button", title: x.title, onclick: () => goTo(x) }, x.title),
+        h("button", { type: "button", class: "x", "aria-label": `${x.title} 연결 끊기`, onclick: () => set({ [field]: ids.filter(id => id !== x.id) }) }, "×"))),
+      all.length
+        ? rest.length > 0 && h("select", { "aria-label": label + " 연결",
+            onchange: e => { const v = e.target.value; if (v) set({ [field]: [...ids, v] }); } },
+            h("option", { value: "" }, "+ 연결"),
+            rest.map(x => h("option", { value: x.id }, x.title)))
+        : h("span", { class: "when" }, empty));
+  };
+  return [
+    h("label", { class: "rv" }, h("span", {}, "내용 · 가설 · 왜 해볼 만한가"),
+      textInput("ib:" + it.id, I.body, v => set({ body: v }), { rows: 4, placeholder: "핵심 질문, 근거가 된 관찰, 필요한 실험… (Ctrl+Enter로 저장)", "aria-label": "아이디어 내용" })),
+    linkRow("관련 문헌", "refs", items.filter(i => i.kind === "ref").sort((a, b) => (b.created || 0) - (a.created || 0)), "문헌 탭에 논문을 넣으면 연결할 수 있습니다"),
+    linkRow("관련 원고", "papers", items.filter(i => i.kind === "paper").sort(byCreated), "원고가 없습니다"),
+    h("div", { class: "rp-actions" },
+      !it.parent && h("button", { class: "btn ghost", type: "button", onclick: () => ideaToMilestone(it) }, "마일스톤으로 만들기"),
+      h("button", { class: "btn ghost", type: "button", onclick: () => ideaToPaper(it) }, "원고로 만들기"))
+  ];
+}
+
+// 마일스톤·원고·문헌을 펼쳤을 때 이어진 아이디어
+function linkedIdeas(it) {
+  if (!["milestone", "paper", "ref"].includes(it.kind)) return null;
+  const list = items.filter(i => i.kind === "idea" && (i.parent === it.id
+    || ((i.idea || {}).refs || []).includes(it.id) || ((i.idea || {}).papers || []).includes(it.id)));
+  if (!list.length) return null;
+  return h("div", { class: "linked" },
+    h("span", { class: "lk" }, `아이디어 ${list.length}`),
+    list.map(i => h("button", { type: "button", class: "chip", onclick: () => goTo(i) }, i.title)));
+}
+
+/* ------------------------------------------------------------------ 미팅 노트
+ * kind "meeting", period = 날짜 (비어 있으면 날짜 미정),
+ * meeting: { with, agenda, notes, decisions, actions: [{ id, text, goal, done }] }
+ * 할 일을 적으면 고른 곳(이번 주·다음 주 주간 목표, 특정 날 일간 목표)에 목표가 바로 생기고 { from: 미팅 id } 로 이어짐.
+ * 할 일의 완료 여부는 연결된 목표를 따라감 (목표를 지웠으면 할 일 자체에 체크).
+ * 같은 이름의 미팅끼리 이어져서, 미팅을 열면 지난번 할 일이 위에 보임.
+ */
+const MEET_DEST = [["week", "이번 주 목표로"], ["nextweek", "다음 주 목표로"], ["day", "일간 목표로 (날짜)"], ["none", "목표 안 만듦"]];
+let meetDest = "week";
+const meetings = () => items.filter(i => i.kind === "meeting");
+const meetingTitles = () => [...new Set(meetings().sort((a, b) => (b.created || 0) - (a.created || 0)).map(i => i.title))];
+const lastWith = title => ((meetings().filter(i => i.title === title).sort((a, b) => (b.created || 0) - (a.created || 0))[0] || {}).meeting || {}).with || "";
+const actionGoal = a => a.goal && byId.get(a.goal);
+const actionDone = a => { const g = actionGoal(a); return g ? !!g.done : !!a.done; };
+const meetWhen = m => m.period ? `${shortYmd(m.period)} (${WD[parseYmd(m.period).getDay()]})` : "날짜 미정";
+
+// 가장 가까운 예정 미팅 (날짜 미정 포함)
+function nextMeeting() {
+  const td = ymd(new Date());
+  return meetings().filter(i => !i.period || i.period >= td)
+                   .sort((a, b) => (a.period || "9999") < (b.period || "9999") ? -1 : (a.period || "9999") > (b.period || "9999") ? 1 : byCreated(a, b))[0];
+}
+// 같은 이름의 바로 전 미팅
+function prevMeeting(m) {
+  const before = i => i.id !== m.id && i.title === m.title && i.period
+    && (!m.period || i.period < m.period || (i.period === m.period && (i.created || 0) < (m.created || 0)));
+  return meetings().filter(before).sort((a, b) => a.period < b.period ? 1 : a.period > b.period ? -1 : (b.created || 0) - (a.created || 0))[0] || null;
+}
+function addToAgenda(text, noteId) {
+  const line = "- " + text.trim();
+  const m = nextMeeting();
+  let p;
+  if (m) {
+    const M = m.meeting || {};
+    p = store.update(m.id, { meeting: { ...M, agenda: (M.agenda ? M.agenda.replace(/\s+$/, "") + "\n" : "") + line } });
+  } else {
+    const title = meetingTitles()[0] || "지도교수 미팅";
+    p = store.add({ ...fresh(), kind: "meeting", title, period: "", parent: "",
+      meeting: { with: lastWith(title), agenda: line, notes: "", decisions: "", actions: [] } });
+  }
+  const where = m ? `${m.title} (${meetWhen(m)})` : "새 미팅 (날짜 미정)";
+  return act(p.then(() => noteId && store.remove(noteId)).then(() => toast(`${where} 안건에 넣었습니다.`)));
+}
+
+function patchActions(m, fn) {
+  const cur = byId.get(m.id) || m, M = cur.meeting || {};
+  return store.update(m.id, { meeting: { ...M, actions: fn(M.actions || []) } });
+}
+async function addAction(m, text, dest, date) {
+  let goal = "";
+  if (dest !== "none") {
+    const t = new Date();
+    const data = dest === "day" ? { kind: "day", period: date || ymd(t) }
+                                : { kind: "week", period: ymd(addDays(mondayOf(t), dest === "nextweek" ? 7 : 0)) };
+    goal = (await store.add({ ...fresh(), title: text, parent: "", from: m.id, ...data })).id;
+  }
+  await patchActions(m, list => [...list, { id: rid(), text, goal, done: false }]);
+}
+function setActionDone(m, a, v) {
+  const g = actionGoal(a);
+  if (g) return act(store.update(g.id, { done: v, doneAt: v ? Date.now() : null }));
+  act(patchActions(m, list => list.map(x => x.id === a.id ? { ...x, done: v } : x)));
+}
+function actionToGoal(m, a) {
+  act(store.add({ ...fresh(), kind: "week", title: a.text, period: ymd(mondayOf(new Date())), parent: "", from: m.id, done: !!a.done })
+    .then(r => patchActions(m, list => list.map(x => x.id === a.id ? { ...x, goal: r.id } : x)))
+    .then(() => toast("이번 주 목표에 넣었습니다.")));
+}
+function removeAction(m, a) {
+  const g = actionGoal(a);
+  if (!confirm(`할 일 "${a.text}"을(를) 지울까요?` + (g ? "\n이미 만든 목표는 그대로 남습니다." : ""))) return;
+  act(patchActions(m, list => list.filter(x => x.id !== a.id)));
+}
+
+function actRow(m, a, o = {}) {
+  const g = actionGoal(a), done = actionDone(a);
+  return h("li", { class: done ? "done" : "" },
+    h("input", { type: "checkbox", checked: done, "aria-label": a.text, onchange: e => setActionDone(m, a, e.target.checked) }),
+    h("span", {}, a.text),
+    o.withMeeting && h("button", { type: "button", class: "chip", title: "미팅 노트 열기", onclick: () => goTo(m) }, `${m.title} · ${meetWhen(m)}`),
+    g ? h("button", { type: "button", class: "chip", title: g.title, onclick: () => goTo(g) },
+          g.kind === "week" ? `→ 주간 W${pad(isoWeek(parseYmd(g.period)))}` : `→ 일간 ${shortYmd(g.period)}`)
+      : !o.readonly && h("button", { type: "button", class: "mini", onclick: () => actionToGoal(m, a) }, "→ 이번 주 목표로"),
+    !o.readonly && h("button", { class: "x", type: "button", "aria-label": "할 일 삭제", onclick: () => removeAction(m, a) }, "삭제"));
+}
+
+function meetingMarkdown(m) {
+  const M = m.meeting || {};
+  const L = [`# ${m.title} · ${m.period || "날짜 미정"}`];
+  if (M.with) L.push(`참석: ${M.with}`);
+  L.push("");
+  const sec = (t, v) => { if (v && v.trim()) L.push(`## ${t}`, v.trim(), ""); };
+  sec("안건", M.agenda); sec("논의", M.notes); sec("결정 사항", M.decisions);
+  const acts = M.actions || [];
+  if (acts.length) L.push("## 할 일", ...acts.map(a => `- [${actionDone(a) ? "x" : " "}] ${a.text}`), "");
+  return L.join("\n").trim();
+}
+
+function meetingFields(m) {
+  const M = m.meeting || {}, acts = M.actions || [];
+  const set = patch => act(store.update(m.id, { meeting: { ...((byId.get(m.id) || m).meeting || {}), ...patch } }));
+  const prev = prevMeeting(m), pActs = prev ? (prev.meeting || {}).actions || [] : [];
+  const box = (f, label, ph, rows = 3) => h("label", { class: "rv" }, h("span", {}, label),
+    textInput(`mt:${m.id}:${f}`, M[f], v => set({ [f]: v }), { rows, placeholder: ph + " (Ctrl+Enter로 저장)", "aria-label": label }));
+  const fk = "ma:" + m.id, dk = "mad:" + m.id;
+  const addNow = () => {
+    const text = (drafts.get(fk) || "").trim();
+    if (!text) return;
+    drafts.delete(fk);
+    act(addAction(m, text, meetDest, drafts.get(dk) || ymd(new Date())));
+  };
+  return [
+    h("div", { class: "fields" },
+      h("label", {}, "날짜", h("input", { type: "date", value: m.period || "",
+        onchange: e => { const v = e.target.value; if (v && v < "1900") return; act(store.update(m.id, { period: v || "" })); } })),
+      h("label", {}, "참석", textInput("mw:" + m.id, M.with, v => set({ with: v }), { class: "edit sm", placeholder: "예: 지도교수, 김OO", "aria-label": "참석자" }))),
+    pActs.length > 0 && h("div", { class: "checks prevact" },
+      h("span", { class: "lk" }, `지난 미팅 할 일 · ${meetWhen(prev)} · ${pActs.filter(actionDone).length}/${pActs.length} 완료`),
+      h("ul", {}, pActs.map(a => actRow(prev, a, { readonly: true })))),
+    box("agenda", "안건", "- 물어볼 것, 보여줄 데이터"),
+    box("notes", "논의 메모", "받은 피드백, 교수님 코멘트", 4),
+    box("decisions", "결정 사항", "- 이렇게 하기로 함"),
+    h("div", { class: "checks macts" },
+      h("span", { class: "lk" }, `할 일 ${acts.filter(actionDone).length}/${acts.length}`),
+      acts.length > 0 && h("ul", {}, acts.map(a => actRow(m, a))),
+      h("div", { class: "ma-add" },
+        h("input", { class: "add small", placeholder: "+ 할 일 (Enter)", "aria-label": "할 일 추가", dataset: { fk }, value: drafts.get(fk) || "",
+          oninput: e => drafts.set(fk, e.target.value),
+          onkeydown: e => { if (!typing(e) && e.key === "Enter") { e.preventDefault(); addNow(); } } }),
+        h("select", { "aria-label": "할 일을 넣을 곳", onchange: e => { meetDest = e.target.value; render(); } },
+          MEET_DEST.map(([v, l]) => h("option", { value: v, selected: meetDest === v }, l))),
+        meetDest === "day" && h("input", { type: "date", "aria-label": "일간 목표 날짜", value: drafts.get(dk) || ymd(new Date()),
+          onchange: e => { if (e.target.value >= "1900") drafts.set(dk, e.target.value); } }),
+        h("button", { class: "btn ghost", type: "button", onclick: addNow }, "추가"))),
+    h("div", { class: "rp-actions" },
+      h("button", { class: "btn ghost", type: "button", onclick: () => navigator.clipboard.writeText(meetingMarkdown(m))
+        .then(() => toast("미팅 노트를 복사했습니다."), () => toast("복사하지 못했습니다.")) }, "노트 복사 (Markdown)"),
+      h("span", { class: "hint" }, "메일이나 메신저로 정리본을 보낼 때"))
+  ];
+}
+
+function viewMeetings() {
+  const td = ymd(new Date()), all = meetings(), titles = meetingTitles();
+  const upcoming = all.filter(i => !i.period || i.period >= td)
+                      .sort((a, b) => (a.period || "9999") < (b.period || "9999") ? -1 : (a.period || "9999") > (b.period || "9999") ? 1 : byCreated(a, b));
+  const past = all.filter(i => i.period && i.period < td).sort((a, b) => a.period < b.period ? 1 : a.period > b.period ? -1 : (b.created || 0) - (a.created || 0));
+  const date = drafts.get("mnew:date") || td;
+  const create = () => {
+    const title = (drafts.get("mnew:title") || "").trim() || titles[0] || "지도교수 미팅";
+    const period = drafts.get("mnew:date") || td;
+    drafts.delete("mnew:title");
+    act(store.add({ ...fresh(), kind: "meeting", title, period, parent: "",
+      meeting: { with: lastWith(title), agenda: "", notes: "", decisions: "", actions: [] } }).then(r => { openIds.add(r.id); render(); }));
+  };
+  const open = all.flatMap(m => ((m.meeting || {}).actions || []).filter(a => !actionDone(a)).map(a => ({ m, a })))
+                  .sort((x, y) => (x.m.period || "9999") < (y.m.period || "9999") ? -1 : 1);
+  const row = m => {
+    const isOpen = openIds.has(m.id), M = m.meeting || {}, acts = M.actions || [];
+    return h("li", { class: "item mrow" + (isOpen ? " open" : ""), dataset: { id: m.id } },
+      h("button", { class: "sline", type: "button", "aria-expanded": String(isOpen), onclick: () => toggleOpen(m.id) },
+        h("span", { class: "when" }, meetWhen(m)),
+        h("b", {}, m.title),
+        m.period === td && h("span", { class: "badge" }, "오늘"),
+        h("span", { class: "sp" }, M.with || ""),
+        acts.length > 0 && h("span", { class: "when" }, `할 일 ${acts.filter(actionDone).length}/${acts.length}`)),
+      isOpen && detail(m, { meeting: true }));
+  };
+  return h("div", {},
+    h("section", { class: "lab-form" },
+      h("h2", {}, "새 미팅"),
+      h("div", { class: "lf-row" },
+        h("input", { type: "date", value: date, "aria-label": "미팅 날짜", onchange: e => { if (e.target.value >= "1900") drafts.set("mnew:date", e.target.value); } }),
+        h("input", { class: "edit", list: "meet-titles", placeholder: titles[0] || "지도교수 미팅", "aria-label": "미팅 이름",
+          dataset: { fk: "mnew:title" }, value: drafts.get("mnew:title") || "",
+          oninput: e => drafts.set("mnew:title", e.target.value),
+          onkeydown: e => { if (!typing(e) && e.key === "Enter") { e.preventDefault(); create(); } } }),
+        h("datalist", { id: "meet-titles" }, titles.map(t => h("option", { value: t }))),
+        h("button", { class: "btn", type: "button", onclick: create }, "만들기")),
+      h("p", { class: "hint" }, "같은 이름의 미팅끼리 이어져서, 미팅을 열면 지난번 할 일이 위에 보입니다. 수집함에서 '미팅 안건'으로 보낸 것은 가장 가까운 예정 미팅에 쌓입니다.")),
+    open.length > 0 && h("section", {},
+      h("h2", {}, `남은 할 일 ${open.length}`),
+      h("div", { class: "checks" }, h("ul", {}, open.map(({ m, a }) => actRow(m, a, { readonly: true, withMeeting: true }))))),
+    h("section", {},
+      h("h2", {}, `예정 ${upcoming.length}`),
+      upcoming.length ? h("ul", { class: "items meets" }, upcoming.map(row)) : h("p", { class: "empty" }, "예정된 미팅이 없습니다.")),
+    past.length > 0 && h("section", {},
+      h("h2", {}, `지난 미팅 ${past.length}`),
+      h("ul", { class: "items meets" }, past.map(row))));
+}
+
 /* ------------------------------------------------------------------ auth */
 async function login() {
   const provider = new GoogleAuthProvider();
@@ -2206,6 +2646,7 @@ function openSettings(section) {
   if (section) { const el = dlg.querySelector(`[data-sec="${section}"]`); if (el) el.scrollIntoView({ block: "start" }); }
 }
 document.getElementById("gear").addEventListener("click", () => openSettings());
+document.getElementById("capture").addEventListener("click", () => openCapture());
 addEventListener("planner:open-settings", e => openSettings(e.detail && e.detail.section));
 
 render();
