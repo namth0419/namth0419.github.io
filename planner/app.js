@@ -1889,6 +1889,16 @@ function exportRefs(list, fmt) {
   toast(`${list.length}편을 ${fmt === "enw" ? "EndNote(.enw)" : "RIS"} 파일로 내려받았습니다.`);
 }
 
+function deleteRefs(list) {
+  if (!list.length) return;
+  const what = list.length === 1 ? `"${list[0].title}"` : `문헌 ${list.length}편`;
+  const att = list.some(i => (i.attachments || []).some(a => a.kind !== "link")) ? " Drive에 올린 PDF는 그대로 남습니다." : "";
+  if (!confirm(`${what}을(를) 삭제할까요? 메모도 함께 지워집니다.${att}`)) return;
+  const ids = list.map(i => i.id);
+  ids.forEach(id => { libSel.delete(id); openIds.delete(id); });
+  act(store.removeMany(ids).then(() => toast(`${list.length}편을 삭제했습니다.`)));
+}
+
 /* ---------- 화면 ---------- */
 function viewLibrary() {
   const all = items.filter(i => i.kind === "ref");
@@ -1932,7 +1942,8 @@ function viewLibrary() {
       h("span", { class: "when" }, `선택 ${selList.length}편`),
       h("label", { class: "chk" }, h("input", { type: "checkbox", checked: libNotes, onchange: e => { libNotes = e.target.checked; } }), "메모·링크 포함"),
       h("button", { class: "btn", type: "button", disabled: !selList.length, onclick: () => exportRefs(selList, "enw") }, "EndNote (.enw)"),
-      h("button", { class: "btn ghost", type: "button", disabled: !selList.length, onclick: () => exportRefs(selList, "ris") }, "RIS")),
+      h("button", { class: "btn ghost", type: "button", disabled: !selList.length, onclick: () => exportRefs(selList, "ris") }, "RIS"),
+      h("button", { class: "btn danger", type: "button", disabled: !selList.length, onclick: () => deleteRefs(selList) }, "선택 삭제")),
     list.length ? h("ul", { class: "reflist" }, list.map(refRow))
                 : h("p", { class: "empty" }, all.length ? "조건에 맞는 문헌이 없습니다." : "아직 문헌이 없습니다. 위에 DOI를 붙여넣어 보세요."));
 }
@@ -1956,8 +1967,10 @@ function refRow(it) {
         pdf && h("a", { href: safeHref(pdf.link), target: "_blank", rel: "noopener noreferrer" }, "PDF ↗"),
         nC > 0 && h("span", {}, `메모 ${nC}`),
         g && h("span", { class: "chip" }, "↳ " + g.title))),
-    h("select", { class: "rr-status", "aria-label": "읽기 상태", onchange: e => setReadStatus(it, e.target.value) },
-      READ.map(([v, l]) => h("option", { value: v, selected: (R.status || "toread") === v }, l))),
+    h("div", { class: "rr-side" },
+      h("select", { class: "rr-status", "aria-label": "읽기 상태", onchange: e => setReadStatus(it, e.target.value) },
+        READ.map(([v, l]) => h("option", { value: v, selected: (R.status || "toread") === v }, l))),
+      h("button", { class: "rr-del", type: "button", "aria-label": `${it.title} 삭제`, title: "삭제", onclick: () => deleteRefs([it]) }, "삭제")),
     open && h("div", { class: "pr-detail" }, detail(it, { ref: true, parents: goalOptions(it.parent), parentLabel: "연결 목표" })));
 }
 

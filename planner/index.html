@@ -14,7 +14,7 @@
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=6"></script>
+<script src="theme-init.js?v=7"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -562,6 +562,12 @@
   .rr-main{min-width:0}
   .rrow .pm a{color:var(--deep)}
   .rrow .pm .chip{font-size:10px}
+  .rr-side{display:flex;align-items:center;gap:6px}
+  .rr-del{all:unset;cursor:pointer;font-family:var(--mono);font-size:10.5px;color:var(--muted);opacity:.55;padding:3px 4px}
+  .rrow:hover .rr-del,.rr-del:focus-visible{opacity:1}
+  .rr-del:hover{color:var(--danger)}
+  .rr-del:focus-visible{outline:2px solid var(--deep)}
+  .lib-export .btn.danger{margin-left:0}
   .rr-status{font:inherit;font-family:var(--mono);font-size:11px;color:var(--ink);background:transparent;border:1px solid var(--rule);border-radius:999px;padding:3px 8px}
   .rrow .pr-detail{grid-column:1/-1}
   .abs summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted)}
@@ -570,7 +576,7 @@
   input.att-link{flex:1 1 220px;margin:0}
   @media (max-width:640px){
     .rrow{grid-template-columns:auto auto minmax(0,1fr)}
-    .rr-status{grid-column:3;justify-self:start}
+    .rr-side{grid-column:3;justify-self:start}
     .lib-export .btn:first-of-type{margin-left:0}
   }
 
@@ -785,7 +791,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=6"></script>
-<script src="season.js?v=6"></script>
+<script type="module" src="app.js?v=7"></script>
+<script src="season.js?v=7"></script>
 </body>
 </html>
