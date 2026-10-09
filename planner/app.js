@@ -440,7 +440,7 @@ function viewGoals() {
   return h("div", {},
     h("div", { class: "stats" }, stat("월간 목표", mGoals), stat("주간 목표", allW), stat("일간 목표", allD)),
 
-    dayList(selDay, `${relDay(selDay)} · ${dayLabel(parseYmd(selDay))}`, dayStrip()),
+    (ensureHolidays(), dayList(selDay, `${relDay(selDay)} · ${dayLabel(parseYmd(selDay))}` + (holText(selDay) ? ` · ${holText(selDay)}` : ""), dayStrip())),
 
     h("section", {},
       h("h2", {}, "월간 목표"),
@@ -504,9 +504,9 @@ function dayStrip() {
     days.map(d => {
       const k = ymd(d), c = counts.get(k);
       return h("button", { type: "button", role: "option", "aria-selected": String(k === selDay), dataset: { d: k },
-          class: "ds" + (k === selDay ? " sel" : "") + (k === todayKey ? " today" : "") + (k < todayKey ? " past" : "")
+          class: "ds" + (k === selDay ? " sel" : "") + (k === todayKey ? " today" : "") + (k < todayKey ? " past" : "") + (holOf(k).length ? " hol" : "")
                + (d.getDay() === 1 ? " mon" : "") + (d.getDay() % 6 === 0 ? " we" : "") + (d.getDate() === 1 ? " first" : ""),
-          title: dayLabel(d) + (c ? ` · 일간 목표 ${c[1]}/${c[0]}` : ""),
+          title: dayLabel(d) + (holText(k) ? ` · ${holText(k)}` : "") + (c ? ` · 일간 목표 ${c[1]}/${c[0]}` : ""),
           onclick: () => pickDay(k) },
         h("span", { class: "wd" }, d.getDate() === 1 ? `${d.getMonth() + 1}월` : WD[d.getDay()]),
         h("span", { class: "dn" }, String(d.getDate())),
@@ -567,7 +567,92 @@ function dayList(key, heading, top) {
       } }, `미완료 ${undone.length}개 → 다음 날로`));
 }
 
+/* ------------------------------------------------------------------ 공휴일
+ * 고른 나라의 공휴일을 Nager.Date(무료, 키 없음)에서 받아 달력·날짜 슬라이더·일간 목표 제목에 표시.
+ * 나라 선택과 받은 목록은 이 브라우저에만 저장 (목록은 30일마다 새로 받음).
+ */
+const HOL_COUNTRIES = [["KR", "대한민국"], ["US", "미국"], ["JP", "일본"], ["CN", "중국"], ["HK", "홍콩"], ["SG", "싱가포르"],
+  ["VN", "베트남"], ["GB", "영국"], ["DE", "독일"], ["FR", "프랑스"], ["NL", "네덜란드"], ["CH", "스위스"], ["CA", "캐나다"], ["AU", "호주"]];
+// 날짜가 고정된 공휴일이 주말과 겹치면 Nager 는 원래 날짜를 빼고 대체일만 주므로, 원래 날짜를 채우고 대체일에 표시를 붙임
+const FIXED_HOL = {
+  KR: { "01-01": "새해", "03-01": "3·1절", "05-05": "어린이날", "06-06": "현충일", "08-15": "광복절", "10-03": "개천절", "10-09": "한글날", "12-25": "크리스마스" },
+  US: { "01-01": "New Year's Day", "06-19": "Juneteenth National Independence Day", "07-04": "Independence Day", "11-11": "Veterans Day", "12-25": "Christmas Day" }
+};
+let holCountries = ["KR"];
+try { const v = JSON.parse(localStorage.getItem("planner-hol-countries")); if (Array.isArray(v)) holCountries = v; } catch (e) {}
+const holData = new Map();           // "KR-2026" → [{date, name}]
+const holLoading = new Set();
+let holidays = new Map();            // "YYYY-MM-DD" → [{cc, name}]
+
+const daysBetweenYmd = (a, b) => Math.round((parseYmd(b) - parseYmd(a)) / 864e5);
+function rebuildHolidays() {
+  holidays = new Map();
+  for (const [key, list] of holData) {
+    const cc = key.slice(0, 2);
+    if (!holCountries.includes(cc)) continue;
+    for (const x of list) {
+      if (!holidays.has(x.date)) holidays.set(x.date, []);
+      holidays.get(x.date).push({ cc, name: x.name });
+    }
+  }
+}
+function normalizeHolidays(cc, year, raw) {
+  const list = raw.filter(x => x.global !== false).map(x => ({ date: x.date, name: cc === "KR" ? x.localName : x.name }));
+  for (const [md, name] of Object.entries(FIXED_HOL[cc] || {})) {
+    const date = `${year}-${md}`;
+    const moved = list.find(x => x.name === name && x.date !== date && Math.abs(daysBetweenYmd(x.date, date)) <= 3);
+    if (moved) moved.name = cc === "KR" ? `대체공휴일 (${name})` : `${name} (observed)`;
+    if (!list.some(x => x.date === date && x.name === name)) list.push({ date, name });
+  }
+  // 같은 날 같은 이름이 겹치면 하나만
+  const seen = new Set();
+  return list.filter(x => { const k = x.date + x.name; if (seen.has(k)) return false; seen.add(k); return true; });
+}
+async function loadHolidayYear(cc, year) {
+  const key = `${cc}-${year}`, lsKey = "planner-hol-" + key;
+  if (holData.has(key) || holLoading.has(key)) return;
+  try {
+    const c = JSON.parse(localStorage.getItem(lsKey));
+    if (c && Date.now() - c.at < 30 * 864e5) { holData.set(key, c.list); return; }
+  } catch (e) {}
+  holLoading.add(key);
+  try {
+    const r = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${cc}`);
+    if (!r.ok) throw new Error(r.status);
+    const list = normalizeHolidays(cc, year, await r.json());
+    holData.set(key, list);
+    try { localStorage.setItem(lsKey, JSON.stringify({ at: Date.now(), list })); } catch (e) {}
+  } catch (e) { holData.set(key, []); }
+  holLoading.delete(key);
+}
+// 보고 있는 해와 앞뒤 해의 공휴일을 준비. 새로 받은 게 있으면 다시 그림
+function ensureHolidays() {
+  const years = new Set([viewY - 1, viewY, viewY + 1, today.getFullYear()]);
+  const need = [];
+  for (const cc of holCountries) for (const y of years) if (!holData.has(`${cc}-${y}`) && !holLoading.has(`${cc}-${y}`)) need.push([cc, y]);
+  const had = holidays.size;
+  rebuildHolidays();
+  if (!need.length) return;
+  Promise.all(need.map(([cc, y]) => loadHolidayYear(cc, y))).then(() => { rebuildHolidays(); if (holidays.size !== had || need.length) render(); });
+}
+const holOf = key => holidays.get(key) || [];
+const holText = key => {
+  const list = holOf(key);
+  return list.map(x => (holCountries.length > 1 ? `${x.cc} ` : "") + x.name).join(", ");
+};
+function holidayPicker() {
+  return h("div", { class: "holpick" },
+    h("span", { class: "dl-k" }, "휴일 표시"),
+    h("div", { class: "seg" }, HOL_COUNTRIES.map(([cc, name]) => h("button", { type: "button", "aria-pressed": String(holCountries.includes(cc)),
+      onclick: () => {
+        holCountries = holCountries.includes(cc) ? holCountries.filter(x => x !== cc) : [...holCountries, cc];
+        try { localStorage.setItem("planner-hol-countries", JSON.stringify(holCountries)); } catch (e) {}
+        render();
+      } }, name))));
+}
+
 function viewCalendar() {
+  ensureHolidays();
   const first = new Date(viewY, viewM, 1), last = new Date(viewY, viewM + 1, 0);
   const todayKey = ymd(today);
   const byDay = new Map();
@@ -593,23 +678,28 @@ function viewCalendar() {
         const d = addDays(mon, k), key = ymd(d);
         const list = (byDay.get(key) || []).sort(byCreated);
         const nd = list.filter(i => i.done).length;
+        const hol = holText(key);
         return h("button", {
             type: "button",
             class: "cal-day" + (d.getMonth() !== viewM ? " out" : "") + (key === todayKey ? " today" : "")
-                 + (key === selDay ? " sel" : "") + (k >= 5 ? " we" : ""),
-            "aria-label": `${dayLabel(d)}, 일간 목표 ${list.length}개`, "aria-pressed": String(key === selDay),
+                 + (key === selDay ? " sel" : "") + (k >= 5 ? " we" : "") + (hol ? " hol" : ""),
+            "aria-label": `${dayLabel(d)}${hol ? ", " + hol : ""}, 일간 목표 ${list.length}개`, "aria-pressed": String(key === selDay),
+            title: hol || null,
             onclick: () => { selDay = key; render(); } },
           h("span", { class: "top-line" },
             h("span", { class: "dn" }, d.getDate()),
             list.length > 0 && h("span", { class: "dc" + (nd === list.length ? " all" : "") }, `${nd}/${list.length}`)),
+          hol && h("span", { class: "hn" }, hol),
           list.slice(0, 3).map(i => h("span", { class: "dt" + (i.done ? " done" : "") }, i.title)),
           list.length > 3 && h("span", { class: "more" }, `+${list.length - 3}`));
       }));
   };
 
+  const hs = holText(selDay);
   return h("div", {},
+    holidayPicker(),
     h("div", { class: "cal" }, head, rows.map(row)),
-    dayList(selDay, dayLabel(parseYmd(selDay)) + " 일간 목표"));
+    dayList(selDay, dayLabel(parseYmd(selDay)) + (hs ? ` · ${hs}` : "") + " 일간 목표"));
 }
 
 function viewGantt() {

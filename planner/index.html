@@ -7,14 +7,14 @@
 <meta name="robots" content="noindex, nofollow">
 <!-- 보안: 이 페이지가 불러올 수 있는 출처를 제한. 스크립트는 이 사이트와 Firebase(Google)만.
      외부 서비스를 새로 쓰게 되면 여기에 주소를 추가해야 합니다. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.crossref.org https://api.datacite.org; frame-src https://namth0419.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.crossref.org https://api.datacite.org https://date.nager.at; frame-src https://namth0419.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Research Planner</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=7"></script>
+<script src="theme-init.js?v=8"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -262,6 +262,17 @@
   .cal-day .dt.done{color:var(--muted);text-decoration:line-through}
   .cal-day .dt.done::before{background:var(--film-4)}
   .cal-day .more{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+  /* ---- holidays ---- */
+  .holpick{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 12px}
+  .holpick .seg{border:none;padding:0;gap:4px}
+  .holpick .seg button{border:1px solid var(--rule)}
+  .holpick .seg button[aria-pressed="true"]{border-color:var(--deep)}
+  .cal-day .hn{display:block;font-size:10.5px;line-height:1.3;color:var(--danger);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-day.hol .dn{color:var(--danger)}
+  .cal-day.hol.today .dn{background:var(--danger);color:#fff}
+  .ds.hol .dn,.ds.hol .wd{color:var(--danger)}
+  .ds.hol.sel .dn,.ds.hol.sel .wd{color:var(--wafer)}
 
   /* ---- gantt ---- */
   .gantt-wrap{overflow-x:auto;margin:0 0 12px;border:1px solid var(--rule);background:var(--card)}
@@ -734,7 +745,7 @@
     .cal-day{min-height:56px;padding:4px 3px}
     .cal-day .top-line{flex-direction:column;align-items:center;gap:1px}
     .cal-day .dc{margin:0}
-    .cal-day .dt,.cal-day .more{display:none}
+    .cal-day .dt,.cal-day .more,.cal-day .hn{display:none}
   }
   @media (max-width:640px){
     .ds .dn{font-size:15px}
@@ -791,7 +802,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=7"></script>
-<script src="season.js?v=7"></script>
+<script type="module" src="app.js?v=8"></script>
+<script src="season.js?v=8"></script>
 </body>
 </html>
