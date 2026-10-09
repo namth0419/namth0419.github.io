@@ -102,6 +102,7 @@ function detail(it, o) {
     o.paper && paperFields(it),
     o.ref && refFields(it),
     o.paper && cvFillField(it),
+    o.paper && revisionTable(it),
     o.sample && sampleFields(it),
     o.idea && ideaFields(it),
     o.meeting && meetingFields(it),
@@ -414,6 +415,7 @@ const textOf = it => [it.title, it.body, ...(it.comments || []).map(c => c.text)
   it.meeting && [it.meeting.with, it.meeting.agenda, it.meeting.notes, it.meeting.decisions, ...(it.meeting.actions || []).map(a => a.text)].join(" "),
   it.ref && [(it.ref.authors || []).map(a => `${a.family} ${a.given}`).join(" "), it.ref.journal, it.ref.year, it.ref.doi].join(" "),
   it.paper && [it.paper.journal, it.paper.authors].join(" "),
+  ...(it.rev || []).map(c => [c.text, c.response, c.where].join(" ")),
   it.sample && [it.sample.process, it.sample.result].join(" "),
   it.review && [it.review.good, it.review.blocked, it.review.next].join(" "),
   ...(it.attachments || []).map(a => a.name)].filter(Boolean).join("\n");

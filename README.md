@@ -39,7 +39,7 @@ planner/index.html          ← 개인용 연구 플래너 화면·스타일 (bu
 planner/js/*.js             ← 플래너 동작. 기능별 파일 (목록과 순서는 planner/js/core.js 머리말)
 planner/season.js           ← 상단 계절 풍경, 계절 포인트 색
 planner/manifest.webmanifest, planner/sw.js, planner/icons/  ← 앱으로 설치 (PWA)
-tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 자동 백업 (Google Apps Script, 본인 계정에 설치)
+tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 백업 + Google 캘린더 연동 (Apps Script, 본인 계정에 설치)
 .github/workflows/          ← push 시 자동 빌드 + 배포
 ```
 
@@ -50,7 +50,7 @@ tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 자동 백업 (Goog
 
 마일스톤 · 월간 · 주간 · 일간 목표를 체크하고 코멘트를 남기는 개인용 페이지입니다.
 탭: **목표**(오늘 + 월간 + 주간) / **달력**(날짜별 일간 목표) / **간트**(마일스톤 시작~마감 막대, 6개월) /
-**원고**(작성 중 → 투고 → 리뷰 → 리비전 → 게재 확정, CV에서 가져오기) / **문헌**(읽은 논문: DOI로 서지 정보 자동 채움,
+**원고**(작성 중 → 투고 → 리뷰 → 리비전 → 게재 확정, CV에서 가져오기, 리비전 대응표 → Response letter) / **문헌**(읽은 논문: DOI로 서지 정보 자동 채움,
 메모·PDF 첨부, EndNote `.enw`·RIS 내보내기) / **실험**(시료 기록) /
 **생각**(수집함 + 아이디어 보드: 씨앗 → 검토 중 → 진행 → 보류, 관련 문헌·원고·마일스톤 연결) /
 **미팅**(지도교수·랩미팅 노트: 안건·논의·결정·할 일. 할 일은 주간·일간 목표로 바로 들어가고, 같은 이름의 다음 미팅에서
@@ -64,7 +64,9 @@ tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 자동 백업 (Goog
 마감은 `.ics` 캘린더 파일로, 전체 데이터는 **내보내기**(JSON 백업)로 받을 수 있습니다.
 매주 월요일 주간 메일과 매일 새벽 자동 백업(본인 Google Drive의 `Research Planner 백업` 폴더, 최근 60개 보관)은
 `tools/weekly-email.gs`(Google Apps Script)를 본인 계정에 설치해서 돌립니다(설치 방법은 파일 맨 위).
-백업 파일은 설정 → 가져오기에 넣으면 그대로 복원됩니다.
+백업 파일은 설정 → 가져오기에 넣으면 그대로 복원됩니다. 같은 스크립트가 한 시간마다 마감일과 미팅을
+Google 캘린더의 `Research Planner` 캘린더에 맞춰 넣어서 휴대폰 캘린더 알림을 받을 수 있습니다
+(Google Cloud 콘솔에서 **Google Calendar API** 사용 설정 필요).
 상단 띠는 동글동글한 섬 풍경 일러스트(`planner/season.js`)입니다. 오른쪽 위 **⚙ 설정**에서 테마, 풍경 켜기/끄기,
 위치(날씨·해/달), 휴일 표시 국가, 가져오기·내보내기, 로그아웃을 한곳에서 바꿉니다.
 계절 색은 날마다 이어서 바뀌고, 절기 이름은 절기 당일에만 나옵니다. 띠 오른쪽 위에서 고른 위치의
