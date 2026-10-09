@@ -39,6 +39,7 @@ planner/index.html          ← 개인용 연구 플래너 화면·스타일 (bu
 planner/js/*.js             ← 플래너 동작. 기능별 파일 (목록과 순서는 planner/js/core.js 머리말)
 planner/season.js           ← 상단 계절 풍경, 계절 포인트 색
 planner/ambient.js          ← 풍경과 같은 날씨·시각·계절로 만드는 배경 소리 (Web Audio 합성, 음원 파일 없음)
+planner/ambient-worklet.js  ← 배경 소리의 잡음·빗방울·물방울 발생기 (오디오 스레드, 되풀이 없음). 고치면 ambient.js 의 WORKLET ?v= 도 올리기
 planner/manifest.webmanifest, planner/sw.js, planner/icons/  ← 앱으로 설치 (PWA)
 tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 백업 + Google 캘린더 연동 (Apps Script, 본인 계정에 설치)
 .github/workflows/          ← push 시 자동 빌드 + 배포
