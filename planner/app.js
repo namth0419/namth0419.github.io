@@ -218,6 +218,7 @@ function bar(done, total) {
 const byCreated = (a, b) => (a.created || 0) - (b.created || 0);
 
 /* ------------------------------------------------------------------ render */
+const postRender = [];            // 그린 직후 실행할 일 (스크롤 위치 복원 등)
 function render() {
   // 다시 그려도 입력 중이던 칸의 포커스와 커서 위치를 유지
   const ae = document.activeElement, fk = ae && ae.dataset && ae.dataset.fk;
@@ -234,6 +235,7 @@ function render() {
       try { if (s != null) el.setSelectionRange(s, e); } catch (_) {}
     }
   }
+  for (const f of postRender.splice(0)) f();
 }
 
 function renderWho() {
@@ -403,7 +405,7 @@ function viewPlanner() {
             h("div", { class: "m" }, `${viewY}년 ${viewM + 1}월`),
             h("button", { class: "nav-btn", type: "button", "aria-label": "다음 달", onclick: () => shift(1) }, "›"),
             h("input", { type: "date", class: "jump", value: selDay, "aria-label": "날짜로 이동", title: "날짜로 이동",
-              onchange: e => { const v = e.target.value; if (v && v >= "1900") setDay(v); } }),
+              onchange: e => { const v = e.target.value; if (v && v >= "1900") pickDay(v); } }),
             !isCurMonth && h("button", { class: "btn ghost", type: "button", onclick: () => {
               viewY = today.getFullYear(); viewM = today.getMonth(); selDay = ymd(today); render(); } }, "이번 달"))
         : h("div", { class: "month-nav" }, h("div", { class: "m solo" }, TITLES[tab])),
@@ -466,23 +468,83 @@ function setDay(key) {
   viewY = d.getFullYear(); viewM = d.getMonth();
   render();
 }
-// 목표 탭의 요일 줄: 하루씩 넘기거나 이번 주 안에서 바로 고름
+// 목표 탭의 날짜 슬라이더: 앞뒤 반년치 날짜를 한 줄로 이어 붙이고 7일씩 보여줌.
+// 밀거나 화살표를 누르면 부드럽게 움직이고 주 단위(월요일)에서 멈춤. 다시 그려도 보던 자리를 유지.
+let stripLeft = null;            // 슬라이더 왼쪽 끝에 보이던 날짜
+let stripGoto = null;            // 다음에 그릴 때 부드럽게 보여줄 날짜
+const pitchOf = track => { const a = track.children[0], b = track.children[1]; return a && b ? b.offsetLeft - a.offsetLeft : 0; };
+function pickDay(key) { stripGoto = key; setDay(key); }
+// 부드럽게 이동. 부드러운 스크롤이 안 되는 환경(동작 줄이기 설정 등)이면 바로 이동
+function glide(track, left) {
+  const from = track.scrollLeft;
+  if (Math.abs(left - from) < 1) return;
+  track.scrollTo({ left, behavior: "smooth" });
+  setTimeout(() => { if (Math.abs(track.scrollLeft - from) < 1) track.scrollLeft = left; }, 600);
+}
+
 function dayStrip() {
-  const sd = parseYmd(selDay), mon = mondayOf(sd), todayKey = ymd(new Date());
-  return h("div", { class: "daystrip" },
-    h("button", { class: "nav-btn", type: "button", "aria-label": "전날", onclick: () => setDay(ymd(addDays(sd, -1))) }, "‹"),
-    h("div", { class: "ds-days" }, [0, 1, 2, 3, 4, 5, 6].map(k => {
-      const d = addDays(mon, k), key = ymd(d);
-      const list = items.filter(i => i.kind === "day" && i.period === key), dn = list.filter(i => i.done).length;
-      return h("button", { type: "button", "aria-pressed": String(key === selDay), "aria-label": `${dayLabel(d)}, 일간 목표 ${list.length}개`,
-          class: "ds" + (key === selDay ? " sel" : "") + (key === todayKey ? " today" : "") + (d.getDay() % 6 === 0 ? " we" : ""),
-          onclick: () => setDay(key) },
-        h("span", { class: "wd" }, WD[d.getDay()]),
+  const todayKey = ymd(new Date());
+  const [lo, hi] = [todayKey, selDay].sort();
+  const start = addDays(mondayOf(parseYmd(lo)), -7 * 26), end = addDays(mondayOf(parseYmd(hi)), 7 * 27 - 1);
+  const counts = new Map();
+  for (const i of items) if (i.kind === "day") {
+    const c = counts.get(i.period) || [0, 0];
+    c[0]++; if (i.done) c[1]++;
+    counts.set(i.period, c);
+  }
+  const days = [];
+  for (let d = start; d <= end; d = addDays(d, 1)) days.push(d);
+  const label = h("span", { class: "ds-label", "aria-live": "polite" });
+  const track = h("div", { class: "ds-track", role: "listbox", "aria-label": "날짜 고르기", tabindex: "0",
+      onkeydown: e => {
+        if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+        e.preventDefault();
+        pickDay(ymd(addDays(parseYmd(selDay), e.key === "ArrowRight" ? 1 : -1)));
+      } },
+    days.map(d => {
+      const k = ymd(d), c = counts.get(k);
+      return h("button", { type: "button", role: "option", "aria-selected": String(k === selDay), dataset: { d: k },
+          class: "ds" + (k === selDay ? " sel" : "") + (k === todayKey ? " today" : "") + (k < todayKey ? " past" : "")
+               + (d.getDay() === 1 ? " mon" : "") + (d.getDay() % 6 === 0 ? " we" : "") + (d.getDate() === 1 ? " first" : ""),
+          title: dayLabel(d) + (c ? ` · 일간 목표 ${c[1]}/${c[0]}` : ""),
+          onclick: () => pickDay(k) },
+        h("span", { class: "wd" }, d.getDate() === 1 ? `${d.getMonth() + 1}월` : WD[d.getDay()]),
         h("span", { class: "dn" }, String(d.getDate())),
-        h("span", { class: "dc" + (list.length && dn === list.length ? " all" : "") }, list.length ? `${dn}/${list.length}` : ""));
-    })),
-    h("button", { class: "nav-btn", type: "button", "aria-label": "다음날", onclick: () => setDay(ymd(addDays(sd, 1))) }, "›"),
-    selDay !== todayKey && h("button", { class: "btn ghost", type: "button", onclick: () => setDay(todayKey) }, "오늘"));
+        h("span", { class: "dots" }, c ? Array.from({ length: Math.min(3, c[0]) }, (_, j) => h("i", { class: j < c[1] ? "on" : "" })) : null));
+    }));
+  let p = 0;                       // 하루 칸의 간격(px)
+  // 왼쪽 끝 위치를 기억하고 위쪽에 보고 있는 달·주차 표시
+  const show = left => {
+    const d = addDays(start, Math.max(0, Math.round(left / p)));
+    stripLeft = ymd(d);
+    const th = addDays(mondayOf(d), 3);
+    label.textContent = `${th.getFullYear()}년 ${th.getMonth() + 1}월 · W${pad(isoWeek(mondayOf(d)))}`;
+  };
+  const go = left => { glide(track, left); show(left); };
+  const slide = n => { if (p) go(track.scrollLeft + n * 7 * p); };
+
+  postRender.push(() => {
+    p = pitchOf(track);
+    if (!p) return;
+    const idx = k => Math.round((parseYmd(k) - start) / 864e5);
+    // 이전에 보던 자리로 바로 돌려놓고, 새로 고른 날이 있으면 그 주로 부드럽게 이동
+    track.scrollLeft = idx(stripLeft || ymd(mondayOf(parseYmd(selDay)))) * p;
+    show(track.scrollLeft);
+    track.addEventListener("scroll", () => show(track.scrollLeft), { passive: true });
+    if (stripGoto) {
+      const target = idx(ymd(mondayOf(parseYmd(stripGoto)))) * p;
+      stripGoto = null;
+      go(target);
+    }
+  });
+
+  return h("div", { class: "daystrip" },
+    h("div", { class: "ds-head" }, label,
+      selDay !== todayKey && h("button", { class: "link", type: "button", onclick: () => pickDay(todayKey) }, "오늘로")),
+    h("div", { class: "ds-row" },
+      h("button", { class: "ds-arrow", type: "button", "aria-label": "이전 주", onclick: () => slide(-1) }, "‹"),
+      track,
+      h("button", { class: "ds-arrow", type: "button", "aria-label": "다음 주", onclick: () => slide(1) }, "›")));
 }
 
 function dayList(key, heading, top) {

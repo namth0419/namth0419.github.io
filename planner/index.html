@@ -14,7 +14,7 @@
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js"></script>
+<script src="theme-init.js?v=3"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -348,21 +348,46 @@
   .search input:focus{outline:none;border-color:var(--deep)}
 
   /* ---- day strip / jump ---- */
-  .daystrip{display:flex;align-items:center;gap:6px;margin:0 0 10px}
-  .ds-days{flex:1;min-width:0;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
-  .ds{
-    all:unset;cursor:pointer;box-sizing:border-box;min-width:0;display:flex;flex-direction:column;align-items:center;
-    padding:5px 0 4px;border:1px solid var(--rule);border-radius:4px;background:var(--card);
+  .daystrip{margin:0 0 12px}
+  .ds-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 6px;padding:0 38px}
+  .ds-label{font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--muted)}
+  .ds-head .link{margin:0}
+  .ds-row{display:flex;align-items:center;gap:6px}
+  .ds-arrow{
+    all:unset;cursor:pointer;flex:none;width:30px;height:30px;border-radius:50%;
+    display:grid;place-items:center;font-size:17px;line-height:1;color:var(--muted);
+    border:1px solid var(--rule);background:var(--card);transition:color .15s,border-color .15s;
   }
-  .ds:hover{border-color:var(--muted)}
-  .ds:focus-visible{outline:2px solid var(--deep)}
+  .ds-arrow:hover{color:var(--ink);border-color:var(--muted)}
+  .ds-arrow:focus-visible{outline:2px solid var(--deep);outline-offset:2px}
+  .ds-track{
+    flex:1;min-width:0;display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 36px) / 7);gap:6px;
+    overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;padding:2px 0;
+  }
+  .ds-track::-webkit-scrollbar{display:none}
+  .ds-track:focus-visible{outline:2px solid var(--deep);outline-offset:3px;border-radius:14px}
+  .ds{
+    all:unset;cursor:pointer;box-sizing:border-box;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;
+    padding:7px 0 6px;border-radius:14px;transition:background .18s,color .18s,box-shadow .18s;
+  }
+  .ds.mon{scroll-snap-align:start}
+  .ds:hover{background:color-mix(in srgb,var(--ink) 6%,transparent)}
+  .ds:focus-visible{outline:2px solid var(--deep);outline-offset:-2px}
   .ds .wd{font-family:var(--mono);font-size:10px;color:var(--muted)}
-  .ds .dn{font-family:var(--display);font-weight:600;font-size:16px;line-height:1.25}
-  .ds .dc{font-family:var(--mono);font-size:9.5px;color:var(--muted);min-height:12px}
-  .ds .dc.all{color:var(--film-4)}
+  .ds .dn{font-family:var(--display);font-weight:600;font-size:17px;line-height:1.25}
+  .ds.past .dn{color:var(--muted)}
   .ds.we .wd{color:var(--film-2)}
-  .ds.today .dn{color:var(--deep);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
-  .ds.sel{border-color:var(--deep);box-shadow:inset 0 0 0 1px var(--deep);background:color-mix(in srgb,var(--deep) 8%,var(--card))}
+  .ds.first .wd{color:var(--deep);font-weight:500}
+  .ds.today{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--deep) 55%,transparent)}
+  .ds.today .dn{color:var(--deep)}
+  .ds.sel{background:var(--deep);box-shadow:none}
+  .ds.sel .wd,.ds.sel .dn{color:var(--wafer)}
+  .ds .dots{display:flex;gap:3px;height:5px;margin-top:2px}
+  .ds .dots i{width:5px;height:5px;border-radius:50%;background:color-mix(in srgb,var(--muted) 50%,transparent)}
+  .ds .dots i.on{background:var(--film-4)}
+  .ds.sel .dots i{background:color-mix(in srgb,var(--wafer) 50%,transparent)}
+  .ds.sel .dots i.on{background:var(--wafer)}
+  @media (prefers-reduced-motion:reduce){.ds-track{scroll-behavior:auto}}
   input.jump{
     font:inherit;font-family:var(--mono);font-size:12px;color:var(--muted);background:transparent;
     border:1px solid var(--rule);border-radius:2px;padding:4px 6px;height:32px;box-sizing:border-box;
@@ -617,9 +642,11 @@
     .cal-day .dt,.cal-day .more{display:none}
   }
   @media (max-width:640px){
-    .ds .dn{font-size:14px}
-    .daystrip{gap:4px}
-    .daystrip .nav-btn{width:28px}
+    .ds .dn{font-size:15px}
+    .ds-row{gap:4px}
+    .ds-arrow{width:26px;height:26px}
+    .ds-head{padding:0 30px}
+    .ds-track{gap:3px;grid-auto-columns:calc((100% - 18px) / 7)}
     input.jump{width:36px;padding:4px 2px;color:transparent}
     .season-place{top:auto;bottom:8px;max-width:calc(100% - 24px)}
     .season-label{max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -669,7 +696,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js"></script>
-<script src="season.js"></script>
+<script type="module" src="app.js?v=3"></script>
+<script src="season.js?v=3"></script>
 </body>
 </html>

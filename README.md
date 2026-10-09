@@ -69,6 +69,8 @@ tools/weekly-email.gs       ← 주간 메일 (Google Apps Script, 본인 계정
   이 저장소는 공개이므로 규칙에 들어가는 개인 이메일은 여기에 적지 않습니다.
 - 보안: 페이지에 CSP(불러올 수 있는 출처 제한)가 걸려 있어서, 새 외부 서비스를 쓰려면 `planner/index.html` 맨 위
   `Content-Security-Policy`에 주소를 추가해야 합니다. 로그아웃하면 브라우저에 저장된 플래너 데이터도 지웁니다.
+- `planner/index.html`의 `app.js?v=3`, `season.js?v=3`, `theme-init.js?v=3`은 캐시 때문에 화면과 코드가
+  서로 다른 버전으로 섞이지 않게 붙인 버전 번호입니다. 플래너 코드를 고칠 때마다 숫자를 하나씩 올리세요.
 - 로컬 미리보기: `python -m http.server 8000` 후 `http://localhost:8000/planner/?demo`
   (로그인 없이 브라우저에만 저장되는 데모 데이터)
 
