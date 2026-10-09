@@ -80,10 +80,12 @@ function firestoreStore(db, uid) {
     add: data => addDoc(col, data),
     update: (id, patch) => updateDoc(doc(col, id), patch),
     remove: id => deleteDoc(doc(col, id)),
-    updateMany: (ids, patch) => {
-      const b = writeBatch(db);
-      ids.forEach(id => b.update(doc(col, id), patch));
-      return b.commit();
+    updateMany: async (ids, patch) => {
+      for (let i = 0; i < ids.length; i += 400) {
+        const b = writeBatch(db);
+        ids.slice(i, i + 400).forEach(id => b.update(doc(col, id), patch));
+        await b.commit();
+      }
     },
     // 가져오기용. 한 번에 쓸 수 있는 개수(500)를 넘지 않게 나눠서 씀
     addMany: async list => {
@@ -152,7 +154,7 @@ const who = document.getElementById("who");
 let state = "loading";           // loading | signedOut | denied | error | ready
 let errorMsg = "";
 let store = null, unsub = null, auth = null;
-let items = [], byId = new Map();
+let items = [], byId = new Map(), trash = [];   // trash: 휴지통 (deletedAt 이 있는 항목)
 const today = new Date();
 let viewY = today.getFullYear(), viewM = today.getMonth();
 const openIds = new Set();       // 펼쳐진 항목
@@ -173,21 +175,28 @@ addEventListener("hashchange", () => {
 });
 
 function setItems(list) {
-  items = list;
-  byId = new Map(list.map(i => [i.id, i]));
+  items = list.filter(i => !i.deletedAt);
+  trash = list.filter(i => i.deletedAt);
+  byId = new Map(items.map(i => [i.id, i]));
   state = "ready";
   render();
   ensureRepeats();
+  purgeTrash();
+  dispatchEvent(new CustomEvent("planner:items"));
+  if (pendingCapture) { pendingCapture = false; openCapture(); }
 }
 const act = p => Promise.resolve(p).catch(e => {
   console.error(e);
   toast(e && e.code === "permission-denied" ? "저장 권한이 없습니다." : "저장하지 못했습니다: " + (e && e.message || e));
 });
 let toastTimer = 0;
-function toast(msg) {
+function toast(msg, action) {
   const el = document.getElementById("toast");
-  el.textContent = msg; el.classList.add("on");
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), 4000);
+  el.replaceChildren(msg);
+  if (action) el.append(h("button", { type: "button", class: "toast-act",
+    onclick: () => { el.classList.remove("on"); action.fn(); } }, action.label));
+  el.classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), action ? 8000 : 4000);
 }
 
 /* ------------------------------------------------------------------ dom helper */
@@ -326,8 +335,8 @@ function openImport() {
         h("ul", { class: "imports" }, [...sources].map(([s, n]) => h("li", {},
           h("span", {}, s), h("span", { class: "n" }, `${n}개`),
           h("button", { class: "btn danger", type: "button", onclick: async () => {
-            if (!confirm(`"${s}"에서 가져온 항목 ${n}개를 모두 삭제할까요? 그 항목에 남긴 체크와 코멘트도 지워집니다.`)) return;
-            await act(store.removeMany(items.filter(i => i.src === s).map(i => i.id)));
+            if (!confirm(`"${s}"에서 가져온 항목 ${n}개를 모두 삭제할까요? ${TRASH_DAYS}일 동안 휴지통에서 되살릴 수 있습니다.`)) return;
+            await moveToTrash(items.filter(i => i.src === s).map(i => i.id), `${n}개를 휴지통으로 옮겼습니다.`);
             fill();
           } }, "모두 삭제"))))));
   };
@@ -346,10 +355,10 @@ function openImport() {
     const count = k => list.filter(r => r.data.kind === k).length;
     const old = items.filter(i => i.src === src);
     const msg = `"${src}": 마일스톤 ${count("milestone")}, 월간 ${count("month")}, 주간 ${count("week")}, 일간 ${count("day")}개를 가져올까요?`
-      + (old.length ? `\n\n같은 계획에서 이미 가져온 항목 ${old.length}개가 있습니다. 계속하면 그 항목을 지우고 새로 넣습니다. 그 항목에 남긴 체크와 코멘트도 지워집니다.` : "");
+      + (old.length ? `\n\n같은 계획에서 이미 가져온 항목 ${old.length}개가 있습니다. 계속하면 그 항목을 휴지통으로 옮기고 새로 넣습니다.` : "");
     if (!confirm(msg)) return;
     try {
-      if (old.length) await store.removeMany(old.map(i => i.id));
+      if (old.length) await store.updateMany(old.map(i => i.id), { deletedAt: Date.now() });
       await store.addMany(list);
     } catch (e) { err.textContent = "저장하지 못했습니다: " + (e.code || e.message); return; }
     dlg.close(); dlg.remove();
@@ -436,6 +445,7 @@ function viewGoals() {
   const nextMonth = (() => { const d = new Date(viewY, viewM + 1, 1); return ymKey(d.getFullYear(), d.getMonth()); })();
 
   return h("div", {},
+    todayBrief(),
     h("div", { class: "stats" }, stat("월간 목표", mGoals), stat("주간 목표", allW), stat("일간 목표", allD)),
 
     (ensureHolidays(), dayList(selDay, `${relDay(selDay)} · ${dayLabel(parseYmd(selDay))}` + (holText(selDay) ? ` · ${holText(selDay)}` : ""), dayStrip())),
@@ -949,8 +959,8 @@ function detail(it, o) {
             o.parents.map(p => h("option", { value: p.id, selected: p.id === it.parent }, p.title)))),
     h("button", { class: "btn danger", type: "button", onclick: () => {
       const att = (it.attachments || []).length ? " 첨부 파일은 Google Drive에 그대로 남습니다." : "";
-      if (confirm(`"${it.title}" 항목을 삭제할까요? 코멘트도 함께 지워집니다.${att}`)) {
-        openIds.delete(it.id); act(store.remove(it.id));
+      if (confirm(`"${it.title}" 항목을 삭제할까요? ${TRASH_DAYS}일 동안 휴지통(설정 → 데이터)에서 되살릴 수 있습니다.${att}`)) {
+        moveToTrash([it.id], `"${it.title}"을(를) 휴지통으로 옮겼습니다.`);
         const tp = it.repeatOf && byId.get(it.repeatOf);   // 반복으로 만든 항목이면 이 기간은 다시 만들지 않음
         if (tp) act(store.update(tp.id, { repeatSkip: [...(tp.repeatSkip || []), it.period] }));
       }
@@ -1278,9 +1288,10 @@ function exportIcs() {
 
 /* ------------------------------------------------------------------ 백업 */
 function exportBackup() {
-  const data = { backup: 1, source: `백업 ${ymd(new Date())}`, exportedAt: new Date().toISOString(), items };
+  const all = [...items, ...trash];
+  const data = { backup: 1, source: `백업 ${ymd(new Date())}`, exportedAt: new Date().toISOString(), items: all };
   download(`research-planner-backup-${ymd(new Date())}.json`, JSON.stringify(data, null, 1), "application/json");
-  toast(`${items.length}개 항목을 백업 파일로 내려받았습니다.`);
+  toast(`${all.length}개 항목을 백업 파일로 내려받았습니다.`);
 }
 
 /* ------------------------------------------------------------------ 검색·태그 */
@@ -2001,10 +2012,8 @@ function deleteRefs(list) {
   if (!list.length) return;
   const what = list.length === 1 ? `"${list[0].title}"` : `문헌 ${list.length}편`;
   const att = list.some(i => (i.attachments || []).some(a => a.kind !== "link")) ? " Drive에 올린 PDF는 그대로 남습니다." : "";
-  if (!confirm(`${what}을(를) 삭제할까요? 메모도 함께 지워집니다.${att}`)) return;
-  const ids = list.map(i => i.id);
-  ids.forEach(id => { libSel.delete(id); openIds.delete(id); });
-  act(store.removeMany(ids).then(() => toast(`${list.length}편을 삭제했습니다.`)));
+  if (!confirm(`${what}을(를) 삭제할까요? ${TRASH_DAYS}일 동안 휴지통에서 되살릴 수 있습니다.${att}`)) return;
+  moveToTrash(list.map(i => i.id), `${list.length}편을 휴지통으로 옮겼습니다.`);
 }
 
 /* ---------- 화면 ---------- */
@@ -2234,7 +2243,7 @@ function noteRow(n) {
       b("아이디어", () => noteToIdea(n)),
       b("미팅 안건", () => addToAgenda(noteLine(n), n.id)),
       doi && b("문헌", async () => { if (await addRef(doi)) act(store.remove(n.id)); }),
-      b("버리기", () => { if (confirm(`"${n.title}" 메모를 버릴까요?`)) act(store.remove(n.id)); }, "drop")));
+      b("버리기", () => moveToTrash([n.id], "메모를 버렸습니다."), "drop")));
 }
 
 function ideaCard(it) {
@@ -2497,6 +2506,136 @@ function viewMeetings() {
       h("ul", { class: "items meets" }, past.map(row))));
 }
 
+/* ------------------------------------------------------------------ 휴지통
+ * 지우면 바로 없애지 않고 deletedAt 을 붙여 30일 동안 휴지통에 둠 (설정 → 데이터 → 휴지통).
+ * 30일이 지난 것은 플래너를 열 때 영구 삭제. 백업 파일에는 휴지통 항목도 들어감.
+ */
+const TRASH_DAYS = 30;
+let trashPurged = false;
+function moveToTrash(ids, msg) {
+  if (!ids.length) return;
+  ids.forEach(id => { openIds.delete(id); libSel.delete(id); });
+  if (ideaSel && ids.includes(ideaSel)) ideaSel = null;
+  return act(store.updateMany(ids, { deletedAt: Date.now() })
+    .then(() => toast(msg || "휴지통으로 옮겼습니다.", { label: "되돌리기", fn: () => restoreItems(ids) })));
+}
+function restoreItems(ids) {
+  return act(store.updateMany(ids, { deletedAt: null }).then(() => toast(ids.length === 1 ? "되살렸습니다." : `${ids.length}개를 되살렸습니다.`)));
+}
+function purgeTrash() {
+  if (trashPurged || !store) return;
+  trashPurged = true;
+  const old = trash.filter(i => Date.now() - i.deletedAt > TRASH_DAYS * 864e5).map(i => i.id);
+  if (old.length) act(store.removeMany(old));
+}
+
+function openTrash() {
+  const dlg = h("dialog", { class: "dlg trash", "aria-label": "휴지통" });
+  const cleanup = () => { removeEventListener("planner:items", fill); dlg.remove(); };
+  const close = () => { dlg.close(); cleanup(); };
+  function fill() {
+    const list = trash.slice().sort((a, b) => b.deletedAt - a.deletedAt);
+    const left = i => Math.max(0, TRASH_DAYS - Math.floor((Date.now() - i.deletedAt) / 864e5));
+    dlg.replaceChildren(
+      h("div", { class: "set-head" }, h("h3", {}, `휴지통 ${list.length}`),
+        h("button", { class: "sp-x", type: "button", "aria-label": "닫기", onclick: close }, "×")),
+      h("p", {}, `지운 항목은 ${TRASH_DAYS}일 동안 여기에 있다가 영구 삭제됩니다. 첨부한 Drive 파일은 지워지지 않습니다.`),
+      list.length
+        ? h("ul", { class: "imports tr-list" }, list.map(i => h("li", {},
+            h("span", { class: "kind" }, KIND_LABEL[i.kind] || i.kind),
+            h("span", { class: "tr-t", title: i.title }, i.title || "(제목 없음)"),
+            h("span", { class: "n" }, `${fmtWhen(i.deletedAt)} · ${left(i)}일 남음`),
+            h("button", { class: "btn ghost", type: "button", onclick: () => restoreItems([i.id]) }, "되살리기"),
+            h("button", { class: "btn danger", type: "button", onclick: () => {
+              if (confirm(`"${i.title}"을(를) 영구 삭제할까요? 되돌릴 수 없습니다.`)) act(store.remove(i.id));
+            } }, "영구 삭제"))))
+        : h("p", { class: "empty" }, "비어 있습니다."),
+      list.length > 0 && h("div", { class: "dlg-actions" },
+        h("button", { class: "btn danger", type: "button", onclick: () => {
+          if (confirm(`휴지통의 ${list.length}개를 모두 영구 삭제할까요? 되돌릴 수 없습니다.`)) act(store.removeMany(list.map(i => i.id)));
+        } }, "휴지통 비우기")));
+  }
+  addEventListener("planner:items", fill);
+  dlg.addEventListener("close", cleanup);
+  fill();
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
+/* ------------------------------------------------------------------ 오늘 요약 (목표 탭 맨 위)
+ * 오늘 할 일·이번 주 진행, 오늘 미팅, 밀린 일간 목표, 수집함, 남은 미팅 할 일, 요일에 맞는 알림(월: 주간 목표, 금~일: 회고)
+ */
+function todayBrief() {
+  const now = new Date(), td = ymd(now), wk = ymd(mondayOf(now)), wd = now.getDay();
+  const dayG = items.filter(i => i.kind === "day" && i.period === td);
+  const weekG = items.filter(i => i.kind === "week" && i.period === wk);
+  const nDone = list => list.filter(i => i.done).length;
+  const late = items.filter(i => i.kind === "day" && !i.done && i.period < td && i.period >= ymd(addDays(now, -14)));
+  const meet = meetings().filter(m => m.period === td);
+  const notes = items.filter(i => i.kind === "note").length;
+  const acts = meetings().flatMap(m => ((m.meeting || {}).actions || []).filter(a => !actionDone(a))).length;
+  const hasReview = items.some(i => i.kind === "review" && i.period === wk && i.review && (i.review.good || i.review.blocked || i.review.next));
+  const go = k => { query = ""; tab = k; history.replaceState(null, "", "#" + k); render(); scrollTo({ top: 0 }); };
+  const line = (tag, body, btn, cls) => h("li", { class: cls || "" }, h("span", { class: "kind" }, tag), h("span", { class: "br-t" }, body), btn);
+  const link = (label, fn) => h("button", { class: "link", type: "button", onclick: fn }, label);
+  const hol = holText(td);
+  const lines = [
+    ...meet.map(m => {
+      const a = (m.meeting || {}).actions || [];
+      return line("미팅", [h("b", {}, m.title), (m.meeting || {}).with ? ` · ${m.meeting.with}` : "",
+        (m.meeting || {}).agenda ? " · 안건 준비됨" : " · 안건 아직 없음"], link("열기", () => goTo(m)));
+    }),
+    late.length > 0 && line("밀린 일", `지난 2주 동안 못 끝낸 일간 목표 ${late.length}개`, link("오늘로 옮기기", () => {
+      if (confirm(`못 끝낸 일간 목표 ${late.length}개를 오늘로 옮길까요?`)) act(store.updateMany(late.map(i => i.id), { period: td }));
+    }), "warn"),
+    wd === 1 && !weekG.length && line("월요일", "이번 주 목표가 아직 없습니다", link("세우러 가기", () => {
+      viewY = now.getFullYear(); viewM = now.getMonth(); render();
+      const el = document.querySelector(".week.now"); if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    })),
+    (wd === 5 || wd === 6 || wd === 0) && !hasReview && line("회고", "이번 주 회고를 아직 안 썼습니다", link("쓰러 가기", () => { revWeek = wk; go("review"); })),
+    notes > 0 && line("수집함", `정리 안 한 메모 ${notes}개`, link("정리하기", () => go("thoughts"))),
+    acts > 0 && line("미팅 할 일", `아직 안 끝난 할 일 ${acts}개`, link("보기", () => go("meetings")))
+  ].filter(Boolean);
+  return h("section", { class: "brief" },
+    h("div", { class: "br-head" },
+      h("b", {}, "오늘"),
+      h("span", {}, dayLabel(now) + (hol ? ` · ${hol}` : "")),
+      h("span", { class: "br-stat" }, `일간 ${nDone(dayG)}/${dayG.length}`, h("i", {}, "·"), `이번 주 ${nDone(weekG)}/${weekG.length}`)),
+    lines.length ? h("ul", {}, lines) : h("p", { class: "br-ok" }, "챙길 일이 따로 없습니다. 오늘 목표에 집중하세요."));
+}
+
+/* ------------------------------------------------------------------ 앱으로 설치 (PWA)
+ * manifest.webmanifest + sw.js. 휴대폰 홈 화면·컴퓨터에 앱처럼 설치하고, 아이콘을 길게 누르면 '빠른 메모'.
+ * sw.js 는 플래너 파일을 항상 새로 받고(네트워크 우선) 연결이 없을 때만 저장해 둔 것을 씀.
+ */
+let pendingCapture = new URLSearchParams(location.search).has("capture");
+if (pendingCapture) {
+  const q = [...new URLSearchParams(location.search)].filter(([k]) => k !== "capture").map(([k, v]) => v ? `${k}=${encodeURIComponent(v)}` : k).join("&");
+  history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+}
+if ("serviceWorker" in navigator && (location.protocol === "https:" || LOCAL))
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(e => console.warn("service worker", e)));
+
+let installPrompt = null;
+addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; dispatchEvent(new CustomEvent("planner:scene")); });
+addEventListener("appinstalled", () => { installPrompt = null; toast("앱으로 설치했습니다."); });
+const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function installRow() {
+  if (standalone()) return h("div", { class: "set-row" }, h("span", {}, "앱"), h("span", { class: "acct" }, "앱으로 실행 중"));
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return h("div", { class: "set-row col" },
+    h("span", {}, "앱으로 설치"),
+    installPrompt
+      ? h("div", { class: "set-row start" }, h("button", { class: "btn", type: "button", onclick: async () => {
+          const p = installPrompt; installPrompt = null;
+          p.prompt(); await p.userChoice.catch(() => {}); dispatchEvent(new CustomEvent("planner:scene"));
+        } }, "이 기기에 설치"))
+      : h("p", { class: "hint" }, ios
+          ? "Safari 아래쪽 공유 버튼(□↑) → '홈 화면에 추가'를 누르세요."
+          : "Chrome 주소창 오른쪽의 설치 아이콘, 또는 메뉴(⋮) → '앱 설치' / '홈 화면에 추가'를 누르세요."),
+    h("p", { class: "hint" }, "홈 화면 아이콘으로 바로 열리고, 아이콘을 길게 누르면 '빠른 메모'가 나옵니다(Android·PC)."));
+}
+
 /* ------------------------------------------------------------------ auth */
 async function login() {
   const provider = new GoogleAuthProvider();
@@ -2539,7 +2678,7 @@ function start() {
   }
   onAuthStateChanged(auth, user => {
     if (unsub) { unsub(); unsub = null; }
-    items = []; byId = new Map(); openIds.clear(); drafts.clear();
+    items = []; byId = new Map(); trash = []; trashPurged = false; openIds.clear(); drafts.clear();
     if (!user) { state = "signedOut"; store = null; render(); return; }
     state = "loading"; render();
     store = firestoreStore(db, user.uid);
@@ -2630,7 +2769,9 @@ function openSettings(section) {
         h("div", { class: "set-row start" },
           h("button", { class: "btn ghost", type: "button", onclick: () => { dlg.close(); cleanup(); openImport(); } }, "가져오기"),
           h("button", { class: "btn ghost", type: "button", onclick: exportBackup }, "내보내기 (백업)"),
-          h("button", { class: "btn ghost", type: "button", onclick: exportIcs }, "캘린더 파일 (.ics)"))),
+          h("button", { class: "btn ghost", type: "button", onclick: exportIcs }, "캘린더 파일 (.ics)"),
+          h("button", { class: "btn ghost", type: "button", onclick: () => { dlg.close(); cleanup(); openTrash(); } }, `휴지통 ${trash.length}`)),
+        installRow()),
       !DEMO && auth && auth.currentUser && h("section", { class: "set-sec" },
         h("h4", {}, "계정"),
         h("div", { class: "set-row" }, h("span", { class: "acct" }, auth.currentUser.email),
@@ -2638,7 +2779,8 @@ function openSettings(section) {
   };
   const onScene = () => { if (dlg.open) fill(); };
   addEventListener("planner:scene", onScene);
-  function cleanup() { removeEventListener("planner:scene", onScene); dlg.remove(); if (settingsDlg === dlg) settingsDlg = null; }
+  addEventListener("planner:items", onScene);
+  function cleanup() { removeEventListener("planner:scene", onScene); removeEventListener("planner:items", onScene); dlg.remove(); if (settingsDlg === dlg) settingsDlg = null; }
   dlg.addEventListener("close", cleanup);
   fill();
   document.body.append(dlg);

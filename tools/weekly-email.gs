@@ -1,9 +1,13 @@
 /**
- * Research Planner · 주간 메일 (Google Apps Script)
+ * Research Planner · 주간 메일 + 자동 백업 (Google Apps Script)
  *
  * 매주 월요일 아침에 플래너(Firestore)를 읽어서
  *   이번 주 목표 · 이번 달 진행 · 다가오는 마감 · 원고 현황 · 지난주 회고
- * 를 메일로 보냅니다. 본인 Google 계정으로 실행되므로 비밀번호나 키를 따로 만들지 않습니다.
+ * 를 메일로 보냅니다. 또 매일 새벽 전체 데이터를 본인 Google Drive 의
+ * "Research Planner 백업" 폴더에 JSON 으로 저장합니다(최근 BACKUP_KEEP 개만 남김).
+ * 백업 파일은 플래너 ⚙ 설정 → 가져오기에 그대로 넣으면 복원됩니다.
+ * 본인 Google 계정으로 실행되므로 비밀번호나 키를 따로 만들지 않습니다.
+ * Drive 권한은 drive.file 이라 이 스크립트가 만든 파일에만 접근합니다.
  *
  * 설치
  *   1. https://script.google.com 에서 "새 프로젝트"
@@ -11,7 +15,8 @@
  *   3. 왼쪽 톱니바퀴(프로젝트 설정) → "appsscript.json 매니페스트 파일 표시" 체크 →
  *      appsscript.json 을 아래 MANIFEST 주석의 내용으로 바꾸기
  *   4. 위쪽 함수 선택에서 setup 을 골라 실행 → 권한 허용 (처음 한 번)
- *      → 시험 메일이 바로 한 통 오고, 이후 매주 월요일 8시에 자동 발송
+ *      → 시험 메일 한 통과 첫 백업이 바로 만들어지고, 이후 매주 월요일 8시 메일 · 매일 4시 백업
+ *   (예전 버전을 쓰던 중이면: 코드와 appsscript.json 을 바꾼 뒤 setup 을 한 번 더 실행)
  *
  * MANIFEST (appsscript.json)
  * {
@@ -20,6 +25,7 @@
  *   "exceptionLogging": "STACKDRIVER",
  *   "oauthScopes": [
  *     "https://www.googleapis.com/auth/datastore",
+ *     "https://www.googleapis.com/auth/drive.file",
  *     "https://www.googleapis.com/auth/script.external_request",
  *     "https://www.googleapis.com/auth/script.send_mail",
  *     "https://www.googleapis.com/auth/script.scriptapp",
@@ -33,19 +39,25 @@ const TZ = "Asia/Seoul";             // 기준 시간대. 미국에 있을 땐 "
 const SEND_HOUR = 8;                 // 월요일 몇 시에 보낼지
 const PROJECT = "namth0419";         // Firebase 프로젝트 ID
 const PLANNER_URL = "https://namth0419.github.io/planner/";
+const BACKUP_HOUR = 4;               // 매일 몇 시에 백업할지
+const BACKUP_KEEP = 60;              // 백업 파일을 최근 몇 개까지 남길지 (매일 → 약 두 달)
+const BACKUP_FOLDER = "Research Planner 백업";
 
 /* ---------- 설치: 매주 월요일 발송 예약 + 시험 메일 ---------- */
 function setup() {
   ScriptApp.getProjectTriggers()
-    .filter(t => t.getHandlerFunction() === "sendWeekly")
+    .filter(t => ["sendWeekly", "backupDaily"].includes(t.getHandlerFunction()))
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger("sendWeekly").timeBased()
     .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(SEND_HOUR).inTimezone(TZ).create();
+  ScriptApp.newTrigger("backupDaily").timeBased()
+    .everyDays(1).atHour(BACKUP_HOUR).inTimezone(TZ).create();
   sendWeekly();
+  backupDaily();
 }
 
-/* ---------- Firestore 읽기 ---------- */
-function loadItems() {
+/* ---------- Firestore 읽기 (all 이 아니면 휴지통 항목은 뺌) ---------- */
+function loadItems(all) {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents:runQuery`;
   const res = UrlFetchApp.fetch(url, {
     method: "post", contentType: "application/json", muteHttpExceptions: true,
@@ -53,8 +65,45 @@ function loadItems() {
     payload: JSON.stringify({ structuredQuery: { from: [{ collectionId: "items", allDescendants: true }] } })
   });
   if (res.getResponseCode() !== 200) throw new Error("플래너 데이터를 읽지 못했습니다: " + res.getContentText());
-  return JSON.parse(res.getContentText()).filter(r => r.document)
+  const list = JSON.parse(res.getContentText()).filter(r => r.document)
     .map(r => Object.assign({ id: r.document.name.split("/").pop() }, fields(r.document.fields || {})));
+  return all ? list : list.filter(i => !i.deletedAt);
+}
+
+/* ---------- 자동 백업: Google Drive 에 JSON (플래너 "가져오기"로 복원) ---------- */
+function drive(path, opt) {
+  const res = UrlFetchApp.fetch("https://www.googleapis.com/" + path, Object.assign({ muteHttpExceptions: true }, opt || {}, {
+    headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken(), "X-Goog-User-Project": PROJECT } }));
+  if (res.getResponseCode() >= 300) throw new Error("Drive 오류 " + res.getResponseCode() + ": " + res.getContentText());
+  const text = res.getContentText();
+  return text ? JSON.parse(text) : {};
+}
+function backupFolder() {
+  const props = PropertiesService.getScriptProperties();
+  const saved = props.getProperty("backupFolder");
+  if (saved) {
+    try { const f = drive(`drive/v3/files/${saved}?fields=id,trashed`); if (!f.trashed) return saved; } catch (e) {}
+  }
+  const f = drive("drive/v3/files?fields=id", { method: "post", contentType: "application/json",
+    payload: JSON.stringify({ name: BACKUP_FOLDER, mimeType: "application/vnd.google-apps.folder" }) });
+  props.setProperty("backupFolder", f.id);
+  return f.id;
+}
+function backupDaily() {
+  const items = loadItems(true);
+  const folder = backupFolder();
+  const now = new Date(), stamp = Utilities.formatDate(now, TZ, "yyyy-MM-dd");
+  const data = { backup: 1, source: `자동 백업 ${stamp}`, exportedAt: now.toISOString(), items };
+  const file = drive("drive/v3/files?fields=id", { method: "post", contentType: "application/json",
+    payload: JSON.stringify({ name: `research-planner-backup-${stamp}.json`, parents: [folder], mimeType: "application/json" }) });
+  drive(`upload/drive/v3/files/${file.id}?uploadType=media`, { method: "patch", contentType: "application/json",
+    payload: Utilities.newBlob(JSON.stringify(data), "application/json").getBytes() });
+  // 오래된 백업은 Drive 휴지통으로
+  const q = encodeURIComponent(`'${folder}' in parents and trashed = false`);
+  const list = drive(`drive/v3/files?q=${q}&orderBy=createdTime desc&pageSize=200&fields=files(id,name)`).files || [];
+  list.filter(f => /^research-planner-backup-/.test(f.name)).slice(BACKUP_KEEP).forEach(f =>
+    drive(`drive/v3/files/${f.id}`, { method: "patch", contentType: "application/json", payload: JSON.stringify({ trashed: true }) }));
+  return items.length;
 }
 function fields(f) { const o = {}; for (const k in f) o[k] = value(f[k]); return o; }
 function value(v) {

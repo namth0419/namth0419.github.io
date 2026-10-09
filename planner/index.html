@@ -12,9 +12,18 @@
 <title>Research Planner</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
+<!-- 앱으로 설치 (manifest.webmanifest, sw.js) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f7f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=13"></script>
+<script src="theme-init.js?v=14"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -729,6 +738,25 @@
   .ma-add input.add{flex:1 1 220px;margin:0}
   .ma-add select{font-size:13px;padding:4px 8px}
 
+  /* ---- 휴지통 ---- */
+  .trash{max-width:640px}
+  .tr-list li{flex-wrap:wrap}
+  .tr-list .tr-t{flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--body);font-size:13.5px;color:var(--ink)}
+  .tr-list .btn.danger{margin-left:0}
+
+  /* ---- 오늘 요약 ---- */
+  .brief{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--film-2);border-radius:3px;padding:10px 14px;margin:0 0 18px}
+  .br-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;font-size:13.5px}
+  .br-head b{font-family:var(--display);font-size:16px}
+  .br-stat{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .br-stat i{font-style:normal;margin:0 6px}
+  .brief ul{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px dotted var(--rule);display:grid;gap:5px}
+  .brief li{display:flex;align-items:baseline;gap:10px;font-size:13.5px;min-width:0}
+  .brief li .br-t{flex:1;min-width:0;overflow-wrap:anywhere}
+  .brief li .link{margin:0;flex:none;color:var(--deep)}
+  .brief li.warn .kind{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,transparent)}
+  .br-ok{margin:6px 0 0;font-size:12.5px;color:var(--muted)}
+
   /* ---- import dialog ---- */
   .dlg{
     border:1px solid var(--rule);background:var(--wafer);color:var(--ink);border-radius:2px;
@@ -811,7 +839,10 @@
     background:var(--ink);color:var(--wafer);padding:9px 14px;border-radius:2px;
     font-family:var(--mono);font-size:12px;max-width:calc(100% - 32px);display:none;
   }
-  .toast.on{display:block}
+  .toast.on{display:flex;align-items:center;gap:14px}
+  .toast-act{all:unset;cursor:pointer;color:var(--film-3);font-weight:500;white-space:nowrap}
+  .toast-act:hover{text-decoration:underline}
+  .toast-act:focus-visible{outline:2px solid var(--film-3)}
   .demo-flag{font-family:var(--mono);font-size:10.5px;color:var(--film-3);border:1px solid currentColor;padding:0 6px;border-radius:2px}
 
   @media (max-width:860px){
@@ -886,7 +917,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=13"></script>
-<script src="season.js?v=13"></script>
+<script type="module" src="app.js?v=14"></script>
+<script src="season.js?v=14"></script>
 </body>
 </html>
