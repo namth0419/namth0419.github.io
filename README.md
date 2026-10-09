@@ -36,7 +36,7 @@ assets/abstracts/           ← 논문 graphical abstract 이미지
 assets/logos/               ← 소속 기관 로고 (선택)
 papers/                     ← 논문 PDF를 여기에
 planner/index.html          ← 개인용 연구 플래너 화면·스타일 (build.py 와 무관, 직접 수정)
-planner/app.js              ← 플래너 동작 (로그인, 저장, 탭들)
+planner/js/*.js             ← 플래너 동작. 기능별 파일 (목록과 순서는 planner/js/core.js 머리말)
 planner/season.js           ← 상단 계절 풍경, 계절 포인트 색
 planner/manifest.webmanifest, planner/sw.js, planner/icons/  ← 앱으로 설치 (PWA)
 tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 자동 백업 (Google Apps Script, 본인 계정에 설치)
@@ -72,7 +72,7 @@ tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 자동 백업 (Goog
 항목에 파일을 첨부하면 본인 Google Drive의 `Research Planner` 폴더에 올라가고, 플래너에는 링크만 저장됩니다
 (권한은 `drive.file`이라 플래너가 올린 파일에만 접근. Google Cloud 콘솔에서 **Google Drive API** 사용 설정 필요).
 로컬에서는 `?demo&date=2026-04-05&hour=10&wx=61`처럼 날짜·현지 시각·날씨 코드를 바꿔 풍경을 미리 볼 수 있습니다.
-**가져오기**로 JSON 계획을 한 번에 넣을 수 있습니다(형식은 `planner/index.html`의 `parsePlan` 주석).
+**가져오기**로 JSON 계획을 한 번에 넣을 수 있습니다(형식은 `planner/js/goals.js`의 `parsePlan` 주석).
 개인 계획 파일은 `_private/`에 두세요. git에서 제외되어 공개 저장소에 올라가지 않습니다.
 홈페이지에는 링크하지 않고, 검색엔진에도 노출되지 않습니다(`noindex`).
 
@@ -82,7 +82,7 @@ tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 자동 백업 (Goog
   이 저장소는 공개이므로 규칙에 들어가는 개인 이메일은 여기에 적지 않습니다.
 - 보안: 페이지에 CSP(불러올 수 있는 출처 제한)가 걸려 있어서, 새 외부 서비스를 쓰려면 `planner/index.html` 맨 위
   `Content-Security-Policy`에 주소를 추가해야 합니다. 로그아웃하면 브라우저에 저장된 플래너 데이터도 지웁니다.
-- `planner/index.html`의 `app.js?v=…`, `season.js?v=…`, `theme-init.js?v=…`은 캐시 때문에 화면과 코드가
+- `planner/index.html`의 `js/*.js?v=…`, `season.js?v=…`, `theme-init.js?v=…`은 캐시 때문에 화면과 코드가
   서로 다른 버전으로 섞이지 않게 붙인 버전 번호입니다. 플래너 코드를 고칠 때마다 숫자를 하나씩 올리세요.
 - 로컬 미리보기: `python -m http.server 8000` 후 `http://localhost:8000/planner/?demo`
   (로그인 없이 브라우저에만 저장되는 데모 데이터)
