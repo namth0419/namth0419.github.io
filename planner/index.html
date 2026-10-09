@@ -14,7 +14,7 @@
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=8"></script>
+<script src="theme-init.js?v=10"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -640,6 +640,28 @@
     .dl-ics{margin-left:0}
   }
 
+  /* ---- settings ---- */
+  .theme-toggle.gear svg{display:block;width:16px;height:16px}
+  .settings{max-width:540px}
+  .set-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 6px}
+  .set-head h3{margin:0}
+  .set-sec{border-top:1px solid var(--rule);padding:12px 0 4px}
+  .settings .set-sec h4{margin:0 0 10px}
+  .set-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin:0 0 12px;font-size:13.5px}
+  .set-row.col{flex-direction:column;align-items:stretch}
+  .set-row.wrap{justify-content:flex-start}
+  .set-row > span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  .set-row > span.acct{font-size:12.5px;color:var(--ink)}
+  .set-now{margin:0;font-size:14px}
+  .settings .hint{margin:0}
+  .settings .sp-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .settings .sp-row input{flex:1 1 200px;font:inherit;font-size:13.5px;padding:6px 10px;height:34px;box-sizing:border-box}
+  .settings .sp-row button{height:34px;box-sizing:border-box}
+  .settings .sp-list{max-height:180px}
+  .seg.chips{border:none;padding:0;gap:4px}
+  .seg.chips button{border:1px solid var(--rule)}
+  .seg.chips button[aria-pressed="true"]{border-color:var(--deep)}
+
   /* ---- import dialog ---- */
   .dlg{
     border:1px solid var(--rule);background:var(--wafer);color:var(--ink);border-radius:2px;
@@ -771,21 +793,11 @@
 <div class="top">
   <a class="home" href="../">← homepage</a>
   <div class="who" id="who"></div>
-  <button class="theme-toggle season-toggle" id="st" type="button" aria-pressed="false" aria-label="계절 풍경 켜기" title="계절 풍경 켜기">
+  <button class="theme-toggle gear" id="gear" type="button" aria-label="설정" title="설정">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15"/><path d="M5 19l8-8"/>
-    </svg>
-  </button>
-  <button class="theme-toggle" id="tt" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
-    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/>
-    </svg>
-    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="4.2"/>
-      <path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/>
+      <circle cx="12" cy="12" r="3.2"/>
+      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>
     </svg>
   </button>
 </div>
@@ -794,15 +806,14 @@
   <div class="frame">
     <canvas aria-hidden="true"></canvas>
     <div class="season-label"></div>
-    <button class="season-place" type="button" aria-haspopup="dialog" aria-expanded="false"></button>
-    <div class="season-pop" role="dialog" aria-label="풍경 위치" hidden></div>
+    <button class="season-place" type="button" aria-haspopup="dialog"></button>
   </div>
 </div>
 
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=8"></script>
-<script src="season.js?v=8"></script>
+<script type="module" src="app.js?v=10"></script>
+<script src="season.js?v=10"></script>
 </body>
 </html>

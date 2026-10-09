@@ -238,15 +238,10 @@ function render() {
   for (const f of postRender.splice(0)) f();
 }
 
+// 오른쪽 위에는 데모 표시만. 가져오기·내보내기·로그아웃은 설정 창에
 function renderWho() {
   who.replaceChildren();
-  if (state === "ready")
-    who.append(h("button", { class: "btn ghost", type: "button", onclick: openImport }, "가져오기"),
-               h("button", { class: "btn ghost", type: "button", title: "모든 항목을 JSON 파일로 백업", onclick: exportBackup }, "내보내기"));
   if (DEMO) who.append(h("span", { class: "demo-flag" }, "DEMO · 로컬 저장"));
-  else if (auth && auth.currentUser)
-    who.append(h("span", {}, auth.currentUser.email),
-               h("button", { class: "btn ghost", type: "button", onclick: logout }, "로그아웃"));
 }
 
 /* ------------------------------------------------------------------ import
@@ -640,15 +635,13 @@ const holText = key => {
   const list = holOf(key);
   return list.map(x => (holCountries.length > 1 ? `${x.cc} ` : "") + x.name).join(", ");
 };
-function holidayPicker() {
+// 달력 위: 지금 표시 중인 나라와 설정으로 가는 링크
+function holidaySummary() {
+  const names = HOL_COUNTRIES.filter(([cc]) => holCountries.includes(cc)).map(([, n]) => n);
   return h("div", { class: "holpick" },
     h("span", { class: "dl-k" }, "휴일 표시"),
-    h("div", { class: "seg" }, HOL_COUNTRIES.map(([cc, name]) => h("button", { type: "button", "aria-pressed": String(holCountries.includes(cc)),
-      onclick: () => {
-        holCountries = holCountries.includes(cc) ? holCountries.filter(x => x !== cc) : [...holCountries, cc];
-        try { localStorage.setItem("planner-hol-countries", JSON.stringify(holCountries)); } catch (e) {}
-        render();
-      } }, name))));
+    h("span", { class: "when" }, names.length ? names.join(", ") : "없음"),
+    h("button", { class: "link", type: "button", onclick: () => openSettings("place") }, "변경"));
 }
 
 function viewCalendar() {
@@ -697,7 +690,7 @@ function viewCalendar() {
 
   const hs = holText(selDay);
   return h("div", {},
-    holidayPicker(),
+    holidaySummary(),
     h("div", { class: "cal" }, head, rows.map(row)),
     dayList(selDay, dayLabel(parseYmd(selDay)) + (hs ? ` · ${hs}` : "") + " 일간 목표"));
 }
@@ -2119,13 +2112,101 @@ function start() {
   });
 }
 
-/* ------------------------------------------------------------------ theme */
-document.getElementById("tt").addEventListener("click", () => {
-  const root = document.documentElement;
-  const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-  root.setAttribute("data-theme", next);
-  try { localStorage.setItem("theme", next); } catch (e) {}
-});
+/* ------------------------------------------------------------------ 설정 창
+ * 오른쪽 위 ⚙ 하나로 테마·계절 풍경·위치·휴일 국가·가져오기/내보내기·로그아웃을 모음.
+ * 위치와 풍경은 season.js 가 window.PlannerScene 으로 열어 둔 기능을 씀.
+ */
+function themeMode() { try { return localStorage.getItem("theme") || "system"; } catch (e) { return "system"; } }
+function applyTheme(mode) {
+  try { if (mode === "system") localStorage.removeItem("theme"); else localStorage.setItem("theme", mode); } catch (e) {}
+  const dark = mode === "dark" || (mode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (themeMode() === "system") applyTheme("system"); });
+
+function toggleHoliday(cc) {
+  holCountries = holCountries.includes(cc) ? holCountries.filter(x => x !== cc) : [...holCountries, cc];
+  try { localStorage.setItem("planner-hol-countries", JSON.stringify(holCountries)); } catch (e) {}
+  render();
+}
+
+let settingsDlg = null;
+function openSettings(section) {
+  if (settingsDlg) { settingsDlg.close(); settingsDlg.remove(); }
+  const dlg = h("dialog", { class: "dlg settings", "aria-label": "설정" });
+  settingsDlg = dlg;
+  let results = null, msg = "";
+  const Sc = () => window.PlannerScene;
+  const seg = (cur, opts, onPick) => h("div", { class: "seg" }, opts.map(([v, l]) =>
+    h("button", { type: "button", "aria-pressed": String(cur === v), onclick: () => { onPick(v); fill(); } }, l)));
+  const doSearch = async () => {
+    const text = (drafts.get("set:q") || "").trim();
+    if (!text || !Sc()) return;
+    msg = "찾는 중…"; results = null; fill();
+    try { results = await Sc().search(text); msg = ""; } catch (e) { msg = "검색하지 못했습니다."; }
+    fill();
+  };
+  const doLocate = async () => {
+    if (!Sc()) return;
+    msg = "현재 위치 확인 중…"; fill();
+    try { await Sc().locate(); msg = ""; results = null; } catch (e) { msg = e.message; }
+    fill();
+  };
+  const fill = () => {
+    const S = Sc();
+    dlg.replaceChildren(
+      h("div", { class: "set-head" }, h("h3", {}, "설정"),
+        h("button", { class: "sp-x", type: "button", "aria-label": "닫기", onclick: () => { dlg.close(); cleanup(); } }, "×")),
+      h("section", { class: "set-sec" },
+        h("h4", {}, "화면"),
+        h("div", { class: "set-row" }, h("span", {}, "테마"),
+          seg(themeMode(), [["light", "라이트"], ["dark", "다크"], ["system", "시스템 따라가기"]], applyTheme)),
+        S && h("div", { class: "set-row" }, h("span", {}, "계절 풍경"),
+          seg(S.isOn() ? "on" : "off", [["on", "켜기"], ["off", "끄기"]], v => S.setOn(v === "on")))),
+      h("section", { class: "set-sec", dataset: { sec: "place" } },
+        h("h4", {}, "지역"),
+        S && h("div", { class: "set-row col" },
+          h("span", {}, "날씨 · 해와 달 위치"),
+          h("p", { class: "set-now" }, h("b", {}, S.place().name), S.weather() ? " · " + S.weather() : ""),
+          h("div", { class: "sp-row" },
+            h("input", { type: "search", placeholder: "도시 이름 (예: 대전광역시, State College)", "aria-label": "도시 검색",
+              dataset: { fk: "set:q" }, value: drafts.get("set:q") || "",
+              oninput: e => drafts.set("set:q", e.target.value),
+              onkeydown: e => { if (!typing(e) && e.key === "Enter") { e.preventDefault(); doSearch(); } } }),
+            h("button", { type: "button", onclick: doSearch }, "검색"),
+            h("button", { type: "button", onclick: doLocate }, "현재 위치")),
+          msg && h("p", { class: "hint" }, msg),
+          results && h("div", { class: "sp-list" }, results.length
+            ? results.map(x => h("button", { type: "button", onclick: () => { S.setPlace({ name: x.name, lat: x.lat, lon: x.lon }); results = null; drafts.delete("set:q"); fill(); } },
+                h("b", {}, x.name), " " + x.detail))
+            : "결과가 없습니다. 영문 이름으로도 찾아보세요."),
+          h("p", { class: "hint" }, "이 위치의 해·달 움직임과 날씨가 풍경에 반영됩니다. 이 브라우저에만 저장되고 날씨 조회에만 쓰입니다.")),
+        h("div", { class: "set-row col" },
+          h("span", {}, "휴일 표시 국가"),
+          h("div", { class: "seg chips" }, HOL_COUNTRIES.map(([cc, name]) => h("button", { type: "button", "aria-pressed": String(holCountries.includes(cc)),
+            onclick: () => { toggleHoliday(cc); fill(); } }, name))))),
+      state === "ready" && h("section", { class: "set-sec" },
+        h("h4", {}, "데이터"),
+        h("div", { class: "set-row wrap" },
+          h("button", { class: "btn ghost", type: "button", onclick: () => { dlg.close(); cleanup(); openImport(); } }, "가져오기"),
+          h("button", { class: "btn ghost", type: "button", onclick: exportBackup }, "내보내기 (백업)"),
+          h("button", { class: "btn ghost", type: "button", onclick: exportIcs }, "캘린더 파일 (.ics)"))),
+      !DEMO && auth && auth.currentUser && h("section", { class: "set-sec" },
+        h("h4", {}, "계정"),
+        h("div", { class: "set-row" }, h("span", { class: "acct" }, auth.currentUser.email),
+          h("button", { class: "btn ghost", type: "button", onclick: logout }, "로그아웃"))));
+  };
+  const onScene = () => { if (dlg.open) fill(); };
+  addEventListener("planner:scene", onScene);
+  function cleanup() { removeEventListener("planner:scene", onScene); dlg.remove(); if (settingsDlg === dlg) settingsDlg = null; }
+  dlg.addEventListener("close", cleanup);
+  fill();
+  document.body.append(dlg);
+  dlg.showModal();
+  if (section) { const el = dlg.querySelector(`[data-sec="${section}"]`); if (el) el.scrollIntoView({ block: "start" }); }
+}
+document.getElementById("gear").addEventListener("click", () => openSettings());
+addEventListener("planner:open-settings", e => openSettings(e.detail && e.detail.section));
 
 render();
 start();
