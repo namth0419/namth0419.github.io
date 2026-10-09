@@ -7,14 +7,14 @@
 <meta name="robots" content="noindex, nofollow">
 <!-- 보안: 이 페이지가 불러올 수 있는 출처를 제한. 스크립트는 이 사이트와 Firebase(Google)만.
      외부 서비스를 새로 쓰게 되면 여기에 주소를 추가해야 합니다. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://api.open-meteo.com https://geocoding-api.open-meteo.com; frame-src https://namth0419.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.crossref.org https://api.datacite.org; frame-src https://namth0419.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Research Planner</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=4"></script>
+<script src="theme-init.js?v=6"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -531,6 +531,49 @@
     .psum .btn{margin-left:0}
   }
 
+  /* ---- library ---- */
+  .lib-add{background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:12px 14px;margin:0 0 14px}
+  .la-row{display:flex;gap:8px}
+  .la-row .edit{flex:1;min-width:0;font-size:14px}
+  .lib-add .hint{margin:6px 0 0}
+  .lib-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px}
+  .seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--rule);border-radius:999px;padding:2px;gap:2px}
+  .seg button{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .seg button[aria-pressed="true"]{background:var(--deep);color:var(--wafer)}
+  .seg button:focus-visible{outline:2px solid var(--deep)}
+  .lib-bar .lib-q{flex:1 1 200px;min-width:0}
+  .lib-bar select{flex:none}
+  .lib-export{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 12px;padding:8px 0;border-top:1px dotted var(--rule);border-bottom:1px dotted var(--rule)}
+  .lib-export .btn:first-of-type{margin-left:auto}
+  .lib-export .btn:disabled{opacity:.4;cursor:default}
+  .chk{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted);cursor:pointer}
+  .chk input{margin:0;accent-color:var(--deep)}
+  .reflist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .rrow{
+    display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:4px 10px;align-items:start;
+    padding:10px 12px;background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--rc,var(--rule));border-radius:3px;
+  }
+  .rs-toread{--rc:var(--muted)} .rs-reading{--rc:var(--film-2)} .rs-done{--rc:var(--film-4)}
+  .rrow.open{border-color:var(--muted);border-left-color:var(--rc)}
+  .rrow .rsel{margin:4px 0 0;accent-color:var(--deep)}
+  .star{all:unset;cursor:pointer;font-size:15px;line-height:1.3;color:var(--muted)}
+  .star.on{color:var(--film-3)}
+  .star:focus-visible{outline:2px solid var(--deep)}
+  .rr-main{min-width:0}
+  .rrow .pm a{color:var(--deep)}
+  .rrow .pm .chip{font-size:10px}
+  .rr-status{font:inherit;font-family:var(--mono);font-size:11px;color:var(--ink);background:transparent;border:1px solid var(--rule);border-radius:999px;padding:3px 8px}
+  .rrow .pr-detail{grid-column:1/-1}
+  .abs summary{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .abs p{margin:6px 0 0;font-family:var(--body);font-size:14px;line-height:1.6;white-space:normal}
+  .detail.form .fields .abs{grid-column:1/-1}
+  input.att-link{flex:1 1 220px;margin:0}
+  @media (max-width:640px){
+    .rrow{grid-template-columns:auto auto minmax(0,1fr)}
+    .rr-status{grid-column:3;justify-self:start}
+    .lib-export .btn:first-of-type{margin-left:0}
+  }
+
   /* ---- lab ---- */
   .lab-form{display:grid;gap:8px;background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:12px 14px}
   .lab-form h2{margin-bottom:2px}
@@ -742,7 +785,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=4"></script>
-<script src="season.js?v=4"></script>
+<script type="module" src="app.js?v=6"></script>
+<script src="season.js?v=6"></script>
 </body>
 </html>
