@@ -2,6 +2,7 @@
  * 계절 풍경 (플래너 상단 띠)
  *   - 계절: 1년 동안 날마다 조금씩 색이 이어서 바뀝니다 (벚꽃 → 신록 → 짙은 초록 → 단풍 → 앙상한 가지).
  *   - 절기: 태양 황경이 15°의 배수를 지나는 그날에만 절기 이름을 보여줍니다.
+ *   - 해·달 위치, 달 모양·기울기, 절기 시각은 Meeus 의 천문 계산식으로 구함 (절기 오차 1분 안팎)
  *   - 해·달: 설정한 위치에서의 실제 위치(방위·고도)를 계산해 그립니다. 일출·일몰, 달의 월령도 실제와 같습니다.
  *   - 날씨: 설정한 위치의 현재 날씨(Open-Meteo, 키 없음)를 받아 구름·비·눈·안개·뇌우를 그립니다.
  *   - 켜고 끄기와 위치는 설정 창(window.PlannerScene)에서. 이 브라우저에만 저장합니다.
@@ -65,43 +66,172 @@
   const TAU = Math.PI * 2, RAD = Math.PI / 180;
   const DEFAULT_PLACE = { name: "대전", lat: 36.3504, lon: 127.3845 };
 
-  /* ---------- 천문 계산: 태양·달의 방위와 고도, 달의 위상 (일반적인 저정밀 공식) ---------- */
-  const J1970 = 2440588, J2000 = 2451545, OBL = RAD * 23.4397;
-  const toDays = date => date.valueOf() / 864e5 - .5 + J1970 - J2000;
-  const ra = (l, b) => Math.atan2(Math.sin(l) * Math.cos(OBL) - Math.tan(b) * Math.sin(OBL), Math.cos(l));
-  const decl = (l, b) => Math.asin(Math.sin(b) * Math.cos(OBL) + Math.cos(b) * Math.sin(OBL) * Math.sin(l));
-  const azim = (H, phi, dec) => Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(dec) * Math.cos(phi));
-  const alti = (H, phi, dec) => Math.asin(Math.sin(phi) * Math.sin(dec) + Math.cos(phi) * Math.cos(dec) * Math.cos(H));
-  const sidereal = (d, lw) => RAD * (280.16 + 360.9856235 * d) - lw;
-  const sunAnomaly = d => RAD * (357.5291 + .98560028 * d);
-  const eclLon = M => M + RAD * (1.9148 * Math.sin(M) + .02 * Math.sin(2 * M) + .0003 * Math.sin(3 * M)) + RAD * 102.9372 + Math.PI;
-  function sunCoords(d) { const L = eclLon(sunAnomaly(d)); return { dec: decl(L, 0), ra: ra(L, 0) }; }
-  function moonCoords(d) {
-    const L = RAD * (218.316 + 13.176396 * d), M = RAD * (134.963 + 13.064993 * d), F = RAD * (93.272 + 13.22935 * d);
-    const l = L + RAD * 6.289 * Math.sin(M), b = RAD * 5.128 * Math.sin(F);
-    return { ra: ra(l, b), dec: decl(l, b), dist: 385001 - 20905 * Math.cos(M) };
+  /* ---------- 천문 계산 (J. Meeus, Astronomical Algorithms 2판) ----------
+   * 태양: VSOP87 요약판(부록 III)의 지구 일심 황경 + FK5·장동·광행차 보정 → 겉보기 황경 (오차 약 1″)
+   * 달:   ELP2000 주요 항(47장: 경도·거리 60항, 위도 30항) + 장동 → 겉보기 위치 (오차 약 10″), 지평 시차 반영
+   * 시각: 역학시 TT = UT + ΔT,  지방 항성시는 겉보기 그리니치 항성시(장동 포함)에서
+   * 고도: 대기 굴절(Sæmundsson) 반영.  절기는 겉보기 황경이 15°의 배수를 지나는 순간 (오차 1분 안팎)
+   * 방위는 남쪽 0°, 서쪽이 +.  달의 limb: 밝은 쪽이 향하는 방향(천정에서 동쪽으로 잰 각, 라디안)
+   */
+  const J2000 = 2451545, AS = RAD / 3600;
+  const norm = x => ((x % 360) + 360) % 360;
+  const jdUT = date => date.valueOf() / 864e5 + 2440587.5;
+  function deltaT(y) {                                  // 초. 2015~2035 는 관측값 근처로 고정
+    if (y >= 2015 && y <= 2035) return 69.2;
+    const t = y - 2000;
+    if (y >= 2005 && y <= 2050) return 62.92 + .32217 * t + .005589 * t * t;
+    const u = (y - 1820) / 100; return -20 + 32 * u * u;
   }
+  const jdTT = date => { const jd = jdUT(date); return jd + deltaT(2000 + (jd - J2000) / 365.25) / 86400; };
+
+  // 지구 일심 황경 L = Σ Lk·τ^k,  Lk = Σ A·cos(B + C·τ)  (단위 1e-8 rad, τ: J2000 부터 율리우스 천년)
+  const VSOP_L = [
+    [175347046, 0, 0, 3341656, 4.6692568, 6283.07585, 34894, 4.6261, 12566.1517, 3497, 2.7441, 5753.3849, 3418, 2.8289, 3.5231,
+     3136, 3.6277, 77713.7715, 2676, 4.4181, 7860.4194, 2343, 6.1352, 3930.2097, 1324, .7425, 11506.7698, 1273, 2.0371, 529.691,
+     1199, 1.1096, 1577.3435, 990, 5.233, 5884.927, 902, 2.045, 26.298, 857, 3.508, 398.149, 780, 1.179, 5223.694,
+     753, 2.533, 5507.553, 505, 4.583, 18849.228, 492, 4.205, 775.523, 357, 2.92, .067, 317, 5.849, 11790.629,
+     284, 1.899, 796.298, 271, .315, 10977.079, 243, .345, 5486.778, 206, 4.806, 2544.314, 205, 1.869, 5573.143,
+     202, 2.458, 6069.777, 156, .833, 213.299, 132, 3.411, 2942.463, 126, 1.083, 20.775, 115, .645, .98,
+     103, .636, 4694.003, 102, .976, 15720.839, 102, 4.267, 7.114, 99, 6.21, 2146.17, 98, .68, 155.42,
+     86, 5.98, 161000.69, 85, 1.3, 6275.96, 85, 3.67, 71430.7, 80, 1.81, 17260.15, 79, 3.04, 12036.46,
+     75, 1.76, 5088.63, 74, 3.5, 3154.69, 74, 4.68, 801.82, 70, .83, 9437.76, 62, 3.98, 8827.39,
+     61, 1.82, 7084.9, 57, 2.78, 6286.6, 56, 4.39, 14143.5, 56, 3.47, 6279.55, 52, .19, 12139.55,
+     52, 1.33, 1748.02, 51, .28, 5856.48, 49, .49, 1194.45, 41, 5.37, 8429.24, 41, 2.4, 19651.05,
+     39, 6.17, 10447.39, 37, 6.04, 10213.29, 37, 2.57, 1059.38, 36, 1.71, 2352.87, 36, 1.78, 6812.77,
+     33, .59, 17789.85, 30, .44, 83996.85, 30, 2.74, 1349.87, 25, 3.16, 4690.48],
+    [628331966747, 0, 0, 206059, 2.678235, 6283.07585, 4303, 2.6351, 12566.1517, 425, 1.59, 3.523, 119, 5.796, 26.298,
+     109, 2.966, 1577.344, 93, 2.59, 18849.23, 72, 1.14, 529.69, 68, 1.87, 398.15, 67, 4.41, 5507.55,
+     59, 2.89, 5223.69, 56, 2.17, 155.42, 45, .4, 796.3, 36, .47, 775.52, 29, 2.65, 7.11,
+     21, 5.34, .98, 19, 1.85, 5486.78, 19, 4.97, 213.3, 17, 2.99, 6275.96, 16, .03, 2544.31,
+     16, 1.43, 2146.17, 15, 1.21, 10977.08, 12, 2.83, 1748.02, 12, 3.26, 5088.63, 12, 5.27, 1194.45,
+     12, 2.08, 4694, 11, .77, 553.57, 10, 1.3, 6286.6, 10, 4.24, 1349.87, 9, 2.7, 242.73,
+     9, 5.64, 951.72, 8, 5.3, 2352.87, 6, 2.65, 9437.76, 6, 4.67, 4690.48],
+    [52919, 0, 0, 8720, 1.0721, 6283.0758, 309, .867, 12566.152, 27, .05, 3.52, 16, 5.19, 26.3,
+     16, 3.68, 155.42, 10, .76, 18849.23, 9, 2.06, 77713.77, 7, .83, 775.52, 5, 4.66, 1577.34,
+     4, 1.03, 7.11, 4, 3.44, 5573.14, 3, 5.14, 796.3, 3, 6.05, 5507.55, 3, 1.19, 242.73,
+     3, 6.12, 529.69, 3, .31, 398.15, 3, 2.28, 553.57, 2, 4.38, 5223.69, 2, 3.75, .98],
+    [289, 5.844, 6283.076, 35, 0, 0, 17, 5.49, 12566.15, 3, 5.2, 155.42, 1, 4.72, 3.52, 1, 5.3, 18849.23, 1, 5.97, 242.73],
+    [114, 3.142, 0, 8, 4.13, 6283.08, 1, 3.84, 12566.15],
+    [1, 3.14, 0]
+  ];
+  function earthLon(tau) {
+    let L = 0;
+    VSOP_L.forEach((s, k) => {
+      let v = 0;
+      for (let i = 0; i < s.length; i += 3) v += s[i] * Math.cos(s[i + 1] + s[i + 2] * tau);
+      L += v * tau ** k;
+    });
+    return L / 1e8;
+  }
+
+  // 장동(주요 4항)과 참 황도경사
+  function nutation(T) {
+    const Om = RAD * (125.04452 - 1934.136261 * T), Ls = RAD * (280.4665 + 36000.7698 * T), Lm = RAD * (218.3165 + 481267.8813 * T);
+    const dpsi = (-17.2 * Math.sin(Om) - 1.32 * Math.sin(2 * Ls) - .23 * Math.sin(2 * Lm) + .21 * Math.sin(2 * Om)) * AS;
+    const deps = (9.2 * Math.cos(Om) + .57 * Math.cos(2 * Ls) + .1 * Math.cos(2 * Lm) - .09 * Math.cos(2 * Om)) * AS;
+    const eps0 = RAD * (23.4392911111 - .0130041667 * T - 1.6389e-7 * T * T + 5.0361e-7 * T ** 3);
+    return { dpsi, eps: eps0 + deps };
+  }
+
+  // 태양의 겉보기 황경(rad)과 거리(AU)
+  function sunApp(jde) {
+    const T = (jde - J2000) / 36525;
+    const theta = earthLon(T / 10) + Math.PI - .09033 * AS;              // 지심 황경 + FK5 보정
+    const M = RAD * (357.52911 + 35999.05029 * T);
+    const R = 1.000140 - .016708 * Math.cos(M) - .000139 * Math.cos(2 * M);
+    const n = nutation(T);
+    return { lam: theta + n.dpsi - 20.4898 / R * AS, R, n };
+  }
+
+  // 달: [D, M, M', F, Σl(1e-6°), Σr(1e-3 km)] 과 [D, M, M', F, Σb(1e-6°)]
+  const MOON_LR = [
+    0,0,1,0,6288774,-20905355, 2,0,-1,0,1274027,-3699111, 2,0,0,0,658314,-2955968, 0,0,2,0,213618,-569925,
+    0,1,0,0,-185116,48888, 0,0,0,2,-114332,-3149, 2,0,-2,0,58793,246158, 2,-1,-1,0,57066,-152138,
+    2,0,1,0,53322,-170733, 2,-1,0,0,45758,-204586, 0,1,-1,0,-40923,-129620, 1,0,0,0,-34720,108743,
+    0,1,1,0,-30383,104755, 2,0,0,-2,15327,10321, 0,0,1,2,-12528,0, 0,0,1,-2,10980,79661,
+    4,0,-1,0,10675,-34782, 0,0,3,0,10034,-23210, 4,0,-2,0,8548,-21636, 2,1,-1,0,-7888,24208,
+    2,1,0,0,-6766,30824, 1,0,-1,0,-5163,-8379, 1,1,0,0,4987,-16675, 2,-1,1,0,4036,-12831,
+    2,0,2,0,3994,-10445, 4,0,0,0,3861,-11650, 2,0,-3,0,3665,14403, 0,1,-2,0,-2689,-7003,
+    2,0,-1,2,-2602,0, 2,-1,-2,0,2390,10056, 1,0,1,0,-2348,6322, 2,-2,0,0,2236,-9884,
+    0,1,2,0,-2120,5751, 0,2,0,0,-2069,0, 2,-2,-1,0,2048,-4950, 2,0,1,-2,-1773,4130,
+    2,0,0,2,-1595,0, 4,-1,-1,0,1215,-3958, 0,0,2,2,-1110,0, 3,0,-1,0,-892,3258,
+    2,1,1,0,-810,2616, 4,-1,-2,0,759,-1897, 0,2,-1,0,-713,-2117, 2,2,-1,0,-700,2354,
+    2,1,-2,0,691,0, 2,-1,0,-2,596,0, 4,0,1,0,549,-1423, 0,0,4,0,537,-1117,
+    4,-1,0,0,520,-1571, 1,0,-2,0,-487,-1739, 2,1,0,-2,-399,0, 0,0,2,-2,-381,-4421,
+    1,1,1,0,351,0, 3,0,-2,0,-340,0, 4,0,-3,0,330,0, 2,-1,2,0,327,0,
+    0,2,1,0,-323,1165, 1,1,-1,0,299,0, 2,0,3,0,294,0, 2,0,-1,-2,0,8752
+  ];
+  const MOON_B = [
+    0,0,0,1,5128122, 0,0,1,1,280602, 0,0,1,-1,277693, 2,0,0,-1,173237, 2,0,-1,1,55413, 2,0,-1,-1,46271,
+    2,0,0,1,32573, 0,0,2,1,17198, 2,0,1,-1,9266, 0,0,2,-1,8822, 2,-1,0,-1,8216, 2,0,-2,-1,4324,
+    2,0,1,1,4200, 2,1,0,-1,-3359, 2,-1,-1,1,2463, 2,-1,0,1,2211, 2,-1,-1,-1,2065, 0,1,-1,-1,-1870,
+    4,0,-1,-1,1828, 0,1,0,1,-1794, 0,0,0,3,-1749, 0,1,-1,1,-1565, 1,0,0,1,-1491, 0,1,1,1,-1475,
+    0,1,1,-1,-1410, 0,1,0,-1,-1344, 1,0,0,-1,-1335, 0,0,3,1,1107, 4,0,0,-1,1021, 4,0,-1,1,833
+  ];
+  function moonApp(jde) {
+    const T = (jde - J2000) / 36525, T2 = T * T, T3 = T2 * T, T4 = T3 * T;
+    const Lp = norm(218.3164477 + 481267.88123421 * T - .0015786 * T2 + T3 / 538841 - T4 / 65194000);
+    const D = norm(297.8501921 + 445267.1114034 * T - .0018819 * T2 + T3 / 545868 - T4 / 113065000);
+    const M = norm(357.5291092 + 35999.0502909 * T - .0001536 * T2 + T3 / 24490000);
+    const Mp = norm(134.9633964 + 477198.8675055 * T + .0087414 * T2 + T3 / 69699 - T4 / 14712000);
+    const F = norm(93.272095 + 483202.0175233 * T - .0036539 * T2 - T3 / 3526000 + T4 / 863310000);
+    const A1 = RAD * (119.75 + 131.849 * T), A2 = RAD * (53.09 + 479264.29 * T), A3 = RAD * (313.45 + 481266.484 * T);
+    const E = 1 - .002516 * T - .0000074 * T2, ecc = m => m === 0 ? 1 : Math.abs(m) === 1 ? E : E * E;
+    let sl = 0, sr = 0, sb = 0;
+    for (let i = 0; i < MOON_LR.length; i += 6) {
+      const a = RAD * (MOON_LR[i] * D + MOON_LR[i + 1] * M + MOON_LR[i + 2] * Mp + MOON_LR[i + 3] * F), e = ecc(MOON_LR[i + 1]);
+      sl += MOON_LR[i + 4] * e * Math.sin(a); sr += MOON_LR[i + 5] * e * Math.cos(a);
+    }
+    for (let i = 0; i < MOON_B.length; i += 5)
+      sb += MOON_B[i + 4] * ecc(MOON_B[i + 1]) * Math.sin(RAD * (MOON_B[i] * D + MOON_B[i + 1] * M + MOON_B[i + 2] * Mp + MOON_B[i + 3] * F));
+    sl += 3958 * Math.sin(A1) + 1962 * Math.sin(RAD * (Lp - F)) + 318 * Math.sin(A2);
+    sb += -2235 * Math.sin(RAD * Lp) + 382 * Math.sin(A3) + 175 * Math.sin(A1 - RAD * F) + 175 * Math.sin(A1 + RAD * F)
+        + 127 * Math.sin(RAD * (Lp - Mp)) - 115 * Math.sin(RAD * (Lp + Mp));
+    const n = nutation(T);
+    return { lam: RAD * (Lp + sl / 1e6) + n.dpsi, beta: RAD * sb / 1e6, dist: 385000.56 + sr / 1000, n };
+  }
+
+  // 황도 → 적도,  적도 → 지평 (겉보기 항성시)
+  const toEq = (lam, beta, eps) => ({
+    ra: Math.atan2(Math.sin(lam) * Math.cos(eps) - Math.tan(beta) * Math.sin(eps), Math.cos(lam)),
+    dec: Math.asin(Math.sin(beta) * Math.cos(eps) + Math.cos(beta) * Math.sin(eps) * Math.sin(lam))
+  });
+  function horizontal(date, lat, lon, eq, n) {
+    const jd = jdUT(date), T = (jd - J2000) / 36525;
+    const gmst = 280.46061837 + 360.98564736629 * (jd - J2000) + .000387933 * T * T - T ** 3 / 38710000;
+    const phi = RAD * lat, H = RAD * (gmst + lon) + n.dpsi * Math.cos(n.eps) - eq.ra;
+    return {
+      az: Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(phi) - Math.tan(eq.dec) * Math.cos(phi)) / RAD,
+      alt: Math.asin(Math.sin(phi) * Math.sin(eq.dec) + Math.cos(phi) * Math.cos(eq.dec) * Math.cos(H)) / RAD,
+      q: Math.atan2(Math.sin(H), Math.tan(phi) * Math.cos(eq.dec) - Math.sin(eq.dec) * Math.cos(H))   // 시차각
+    };
+  }
+  // 대기 굴절(°): 참 고도 → 겉보기 고도. 지평선 아래로 깊어지면 서서히 0으로
+  const refract = alt => alt < -2.5 ? 0 : 1.02 / Math.tan(RAD * (Math.max(alt, -1) + 10.3 / (Math.max(alt, -1) + 5.11))) / 60 * Math.min(1, (alt + 2.5) / 1.5);
+
   function sunPos(date, lat, lon) {
-    const d = toDays(date), c = sunCoords(d), H = sidereal(d, RAD * -lon) - c.ra;
-    return { az: azim(H, RAD * lat, c.dec) / RAD, alt: alti(H, RAD * lat, c.dec) / RAD };
+    const s = sunApp(jdTT(date)), p = horizontal(date, lat, lon, toEq(s.lam, 0, s.n.eps), s.n);
+    return { az: p.az, alt: p.alt + refract(p.alt) };
   }
   function moonPos(date, lat, lon) {
-    const d = toDays(date), c = moonCoords(d), H = sidereal(d, RAD * -lon) - c.ra;
-    return { az: azim(H, RAD * lat, c.dec) / RAD, alt: alti(H, RAD * lat, c.dec) / RAD };
+    const jde = jdTT(date), m = moonApp(jde), s = sunApp(jde);
+    const eq = toEq(m.lam, m.beta, m.n.eps), se = toEq(s.lam, 0, s.n.eps), p = horizontal(date, lat, lon, eq, m.n);
+    let alt = p.alt - Math.asin(6378.14 / m.dist) / RAD * Math.cos(RAD * p.alt);      // 지평 시차
+    alt += refract(alt);
+    // 밝은 가장자리의 위치각(북극에서 동쪽으로) − 시차각 = 천정에서 동쪽으로 잰 각
+    const chi = Math.atan2(Math.cos(se.dec) * Math.sin(se.ra - eq.ra),
+                           Math.sin(se.dec) * Math.cos(eq.dec) - Math.cos(se.dec) * Math.sin(eq.dec) * Math.cos(se.ra - eq.ra));
+    return { az: p.az, alt, limb: chi - p.q };
   }
-  // phase: 0 삭 → .25 상현 → .5 보름 → .75 하현,  fraction: 밝은 부분 비율
+  // phase: 0 삭 → .25 상현 → .5 보름 → .75 하현 (태양과의 황경 차),  fraction: 밝은 부분 비율
   function moonPhase(date) {
-    const d = toDays(date), s = sunCoords(d), m = moonCoords(d), sd = 149598000;
-    const phi = Math.acos(Math.sin(s.dec) * Math.sin(m.dec) + Math.cos(s.dec) * Math.cos(m.dec) * Math.cos(s.ra - m.ra));
-    const inc = Math.atan2(sd * Math.sin(phi), m.dist - sd * Math.cos(phi));
-    const ang = Math.atan2(Math.cos(s.dec) * Math.sin(s.ra - m.ra), Math.sin(s.dec) * Math.cos(m.dec) - Math.cos(s.dec) * Math.sin(m.dec) * Math.cos(s.ra - m.ra));
-    return { fraction: (1 + Math.cos(inc)) / 2, phase: .5 + .5 * inc * (ang < 0 ? -1 : 1) / Math.PI };
+    const jde = jdTT(date), m = moonApp(jde), s = sunApp(jde), R = s.R * 149597870.7;
+    const psi = Math.acos(Math.cos(m.beta) * Math.cos(m.lam - s.lam));
+    const i = Math.atan2(R * Math.sin(psi), m.dist - R * Math.cos(psi));
+    return { fraction: (1 + Math.cos(i)) / 2, phase: norm((m.lam - s.lam) / RAD) / 360 };
   }
-  // 절기용 태양 황경: 위 식은 J2000 기준이라 세차(연 50.3")를 더하고, 2026년 춘분·하지·동지 실제 시각에 맞춰 상수 보정 (2030년까지 오차 30분 이내)
-  const sunLongitude = date => {
-    const d = toDays(date);
-    return ((eclLon(sunAnomaly(d)) / RAD + .0139697 * d / 365.25 + .080) % 360 + 360) % 360;
-  };
+  // 절기용 태양 겉보기 황경 (°)
+  const sunLongitude = date => norm(sunApp(jdTT(date)).lam / RAD);
 
   /* ---------- 24절기 (태양 황경) ---------- */
   const TERMS = [
@@ -512,7 +642,7 @@
   }
 
   function drawMoon(x, y, r, alpha) {
-    const { phase, fraction } = mph;
+    const { fraction } = mph;
     ctx.save(); ctx.globalAlpha = alpha;
     if (night > .3) {                               // 달무리
       const rg = ctx.createRadialGradient(x, y, 0, x, y, r * 5);
@@ -520,13 +650,15 @@
       ctx.fillStyle = rg; circle(ctx, x, y, r * 5);
     }
     ctx.fillStyle = `rgba(200,205,225,${night > .3 ? .16 : .08})`; circle(ctx, x, y, r);   // 어두운 부분
-    let waxing = phase < .5;
-    if (place.lat < 0) waxing = !waxing;            // 남반구는 좌우가 반대
-    const k = Math.cos(phase * TAU);                // 1 삭, -1 보름
+    // 밝은 쪽이 실제로 태양을 향하는 방향으로 돌려서 그림 (초승달·그믐달의 기울기까지).
+    // 화면에서 동쪽은 북반구 왼쪽(남쪽을 봄), 남반구 오른쪽(북쪽을 봄)
+    const east = place.lat < 0 ? 1 : -1, th = moon.limb || 0;
+    const k = 1 - 2 * fraction;                     // 1 삭, -1 보름 (명암 경계 타원의 가로 반지름 비)
+    ctx.translate(x, y); ctx.rotate(Math.atan2(-Math.cos(th), east * Math.sin(th)));
     ctx.fillStyle = "#f6f1db";
     ctx.beginPath();
-    if (waxing) { ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2, false); ctx.ellipse(x, y, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k > 0); }
-    else { ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2, true); ctx.ellipse(x, y, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k < 0); }
+    ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+    ctx.ellipse(0, 0, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k > 0);
     ctx.fill();
     ctx.restore();
   }
