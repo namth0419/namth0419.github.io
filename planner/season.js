@@ -66,6 +66,11 @@
   const KEY = "planner-season", PLACE_KEY = "planner-place", WX_KEY = "planner-weather3";
   const TAU = Math.PI * 2, RAD = Math.PI / 180;
   const DEFAULT_PLACE = { name: "대전", lat: 36.3504, lon: 127.3845 };
+  // 풍경 꾸미기 (설정 창에서 바꿈, 이 브라우저에만 저장)
+  //   trees: 나무 수 배율, species: 나무 종류별 켜기, lines: 별자리 선, milky: 은하수, planet: 행성 크기 배율, speed: 하루 재생에 걸리는 초
+  const OPT_KEY = "planner-scene-opts";
+  const OPT = { trees: 1, species: { maple: true, ginkgo: true, cherry: true, zelkova: true, persimmon: true, cedar: true }, lines: true, milky: true, planet: 1, speed: 60 };
+  try { const o = JSON.parse(localStorage.getItem(OPT_KEY)) || {}; Object.assign(OPT, o, { species: { ...OPT.species, ...(o.species || {}) } }); } catch (e) {}
 
   /* ---------- 천문 계산 (J. Meeus, Astronomical Algorithms 2판) ----------
    * 태양: VSOP87 요약판(부록 III)의 지구 일심 황경 + FK5·장동·광행차 보정 → 겉보기 황경 (오차 약 1″)
@@ -960,7 +965,7 @@
   function drawSkyObjects() {
     const moonLight = moon.alt > 0 ? mph.fraction : 0;
     // 은하수
-    drawMilkyWay(Math.max(0, (night - .75) / .25) * (1 - overcast) * (1 - .85 * moonLight));
+    if (OPT.milky) drawMilkyWay(Math.max(0, (night - .75) / .25) * (1 - overcast) * (1 - .85 * moonLight));
     // 별자리
     const vis = Math.max(0, Math.min(1, (night - .3) / .5)) * (1 - overcast);
     if (vis < .02) return;
@@ -969,10 +974,12 @@
       const o = skyXY({ az: c.az0, alt: c.alt0 }), cosA = Math.cos(c.alt0 * RAD);
       const pos = s => ({ x: o.x + wrap180(s.az - c.az0) * cosA * k, y: o.y - (s.alt - c.alt0) * k });
       const P = Object.fromEntries(c.st.map(s => [s.id, { ...pos(s), s }]));
-      ctx.strokeStyle = `rgba(190,205,255,${.2 * vis * (1 - .5 * moonLight)})`; ctx.lineWidth = .7;
-      ctx.beginPath();
-      for (const [a, b] of c.lines) if (P[a] && P[b]) { ctx.moveTo(P[a].x, P[a].y); ctx.lineTo(P[b].x, P[b].y); }
-      ctx.stroke();
+      if (OPT.lines) {
+        ctx.strokeStyle = `rgba(190,205,255,${.2 * vis * (1 - .5 * moonLight)})`; ctx.lineWidth = .7;
+        ctx.beginPath();
+        for (const [a, b] of c.lines) if (P[a] && P[b]) { ctx.moveTo(P[a].x, P[a].y); ctx.lineTo(P[b].x, P[b].y); }
+        ctx.stroke();
+      }
       for (const id in P) {
         const { x, y, s } = P[id], r = Math.max(.55, 1.9 - .38 * s.mag);
         const tw = .85 + .15 * Math.sin(t / 17 + x);
@@ -1160,7 +1167,7 @@
       const need = p.mag < -3.5 ? -3 : p.mag < -1.5 ? -5 : -7;                  // 밝은 행성일수록 초저녁부터 보임
       const vis = Math.max(0, Math.min(1, (need - sun.alt) / 3)) * (1 - overcast);
       if (vis < .05) continue;
-      const { x, y } = skyXY(p), r = Math.max(1.1, 2.2 - .3 * p.mag) * (h / 110);
+      const { x, y } = skyXY(p), r = Math.max(1.1, 2.2 - .3 * p.mag) * (U / 110) * OPT.planet;
       ctx.save(); ctx.globalAlpha = vis;
       const g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 4); g2.addColorStop(0, rgba(p.col, .45)); g2.addColorStop(1, rgba(p.col, 0));
       ctx.fillStyle = g2; circle(ctx, x, y, r * 4);
@@ -1773,29 +1780,31 @@
     seed = 101;
     const hx = w * .62, hd = .6;
     objs.push({ k: "house", x: hx, y: depthY(hx, hd), s: U * .42 * depthS(hd) });
-    const nb = Math.max(4, Math.round(w / 70));
+    const pool = SPECIES.filter(sp => OPT.species[sp]);       // 켜 둔 활엽수 종류
+    const kind = p => { const r = srnd(); return !pool.length ? "cedar" : !OPT.species.cedar ? "round" : r < p ? "cedar" : "round"; };
+    const nb = Math.max(2, Math.round(w / 70 * OPT.trees));
     for (let i = 0; i < nb; i++) {                  // 강 건너 뒷줄 (작게)
       const x = (i + .2 + srnd() * .6) * w / nb, d = .02 + srnd() * .06;
-      objs.push({ k: srnd() < .45 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.34 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
+      objs.push({ k: kind(.45), x, y: depthY(x, d), s: U * (.34 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
     }
-    const nf = Math.max(3, Math.round(w / 135));
+    const nf = Math.max(2, Math.round(w / 135 * OPT.trees));
     for (let i = 0; i < nf; i++) {                  // 강 이쪽 앞줄
       const x = (i + .15 + srnd() * .7) * w / nf, d = .62 + srnd() * .22;
       if (Math.abs(x - hx) < U * .45) continue;
-      objs.push({ k: srnd() < .35 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.42 + srnd() * .1) * depthS(d), ph: srnd() * TAU,
+      objs.push({ k: kind(.35), x, y: depthY(x, d), s: U * (.42 + srnd() * .1) * depthS(d), ph: srnd() * TAU,
                   fruit: S.leaf > .8 && bump(doy, 250, 70) > .3 && srnd() < .5 });
     }
     if (tallK() > 1.4) {                            // 크게 볼 때는 땅이 넓어지니 강 건너 중간 줄과 강가 줄을 더 심음
-      const nm = Math.round(w / 95);
+      const nm = Math.round(w / 95 * OPT.trees);
       for (let i = 0; i < nm; i++) {
         const x = (i + .1 + srnd() * .8) * w / nm, d = .11 + srnd() * .1;
-        objs.push({ k: srnd() < .4 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.36 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
+        objs.push({ k: kind(.4), x, y: depthY(x, d), s: U * (.36 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
       }
-      const nn = Math.round(w / 240);
+      const nn = Math.round(w / 240 * OPT.trees);
       for (let i = 0; i < nn; i++) {
         const x = (i + .2 + srnd() * .6) * w / nn, d = .5 + srnd() * .06;
         if (Math.abs(x - hx) < U * .55) continue;
-        objs.push({ k: srnd() < .3 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.4 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
+        objs.push({ k: kind(.3), x, y: depthY(x, d), s: U * (.4 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
       }
     }
     const bloomAmt = Math.max(bump(doy, 115, 45), bump(doy, 190, 45) * .8, bump(doy, 255, 25) * .5) * (1 - snowCover);
@@ -1806,9 +1815,9 @@
       objs.push({ k: "flower", x, y: depthY(x, d), s: 2.4 + 3.2 * depthS(d), ph: srnd() * TAU, c: shade(FC[(srnd() * FC.length) | 0]) });
     }
     const rounds = objs.filter(o => o.k === "round");
-    rounds.forEach(o => { o.sp = SPECIES[(hash2(Math.round(o.x * 3), 17) * SPECIES.length) | 0]; o.fruit = false; });
+    rounds.forEach(o => { o.sp = pool[(hash2(Math.round(o.x * 3), 17) * pool.length) | 0]; o.fruit = false; });
     const front = rounds.filter(o => o.y > h * .7).sort((a, b) => b.s - a.s);
-    if (front.length && !front.some(o => o.sp === "persimmon")) front[front.length > 1 ? 1 : 0].sp = "persimmon";   // 앞줄에 감나무 하나
+    if (OPT.species.persimmon && front.length && !front.some(o => o.sp === "persimmon")) front[front.length > 1 ? 1 : 0].sp = "persimmon";   // 앞줄에 감나무 하나
     for (const o of objs) {                         // 활엽수: 종류를 정하고 그해 기온 이력으로 색·잎 양
       if (o.k !== "round") continue;
       const L = treeLook(o);
@@ -2121,6 +2130,14 @@
         .map(x => ({ name: x.name, detail: [x.admin2, x.admin1, x.country].filter(Boolean).join(", "), lat: x.latitude, lon: x.longitude }));
     },
     pheno: () => PH,
+    opts: () => JSON.parse(JSON.stringify(OPT)),
+    setOpt(key, v) {                                // key: "trees" · "species.maple" · "lines" …
+      const [a, b] = key.split(".");
+      if (b) OPT[a][b] = v; else OPT[a] = v;
+      try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) {}
+      if (key === "speed") syncSpeed(); else if (w) { paintBg(); draw(); }
+      notify();
+    },
     locate: () => new Promise((ok, no) => {
       if (!navigator.geolocation) return no(new Error("이 브라우저는 현재 위치를 지원하지 않습니다."));
       navigator.geolocation.getCurrentPosition(
@@ -2303,13 +2320,20 @@
     if (m >= 1430) m = 0;
     playBtn.setAttribute("aria-pressed", "true");
     const stepFn = ts => {
-      m += (ts - last) / 1000 * 50; last = ts;      // 1초에 50분 → 하루 약 29초
+      m += (ts - last) / 1000 * 1440 / OPT.speed; last = ts;   // 하루(1440분)를 OPT.speed 초에
       if (m >= 1440) { m = 1440; stopPlay(); }
       setScrub(dayStart + m * 60e3);
       if (playing) playing = requestAnimationFrame(stepFn);
     };
     playing = requestAnimationFrame(stepFn);
   }
+  const SPEEDS = [30, 60, 120, 300], speedBtn = scrubEl.querySelector(".ss-speed");
+  const speedText = sec => sec < 60 ? `${sec}초` : `${sec / 60}분`;
+  function syncSpeed() { speedBtn.textContent = "하루 " + speedText(OPT.speed); speedBtn.title = `재생 속도: 하루를 ${speedText(OPT.speed)}에 (누르면 바뀜)`; }
+  speedBtn.addEventListener("click", () => {
+    window.PlannerScene.setOpt("speed", SPEEDS[(SPEEDS.indexOf(OPT.speed) + 1) % SPEEDS.length]);
+  });
+  syncSpeed();
   rangeEl.addEventListener("input", () => { stopPlay(); setScrub(dayStart + +rangeEl.value * 60e3); });
   scrubEl.querySelector(".ss-now").addEventListener("click", () => { stopPlay(); setScrub(null); });
   playBtn.addEventListener("click", () => playing ? stopPlay() : startPlay());

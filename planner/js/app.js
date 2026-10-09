@@ -208,6 +208,27 @@ function toggleHoliday(cc) {
   render();
 }
 
+// 설정 → 풍경 꾸미기 (season.js 의 PlannerScene.opts / setOpt)
+const TREE_KINDS = [["maple", "단풍나무"], ["ginkgo", "은행나무"], ["cherry", "벚나무"], ["zelkova", "느티나무"], ["persimmon", "감나무"], ["cedar", "침엽수"]];
+function sceneSection(S) {
+  const o = S.opts(), on = TREE_KINDS.filter(([k]) => o.species[k]).length;
+  const pick = (key, cur, opts) => h("div", { class: "seg" }, opts.map(([v, l]) =>
+    h("button", { type: "button", "aria-pressed": String(cur === v), onclick: () => S.setOpt(key, v) }, l)));
+  const row = (label, el) => h("div", { class: "set-row" }, h("span", {}, label), el);
+  return h("section", { class: "set-sec", dataset: { sec: "scene" } },
+    h("h4", {}, "풍경 꾸미기"),
+    row("나무 수", pick("trees", o.trees, [[.6, "적게"], [1, "보통"], [1.6, "많이"]])),
+    h("div", { class: "set-row col" }, h("span", {}, "나무 종류"),
+      h("div", { class: "seg chips" }, TREE_KINDS.map(([k, l]) => h("button", { type: "button", "aria-pressed": String(o.species[k]),
+        title: o.species[k] && on === 1 ? "한 가지는 남겨 두어야 해요" : "",
+        onclick: () => { if (o.species[k] && on === 1) return; S.setOpt("species." + k, !o.species[k]); } }, l)))),
+    row("별자리 선", pick("lines", o.lines, [[true, "켜기"], [false, "끄기"]])),
+    row("은하수", pick("milky", o.milky, [[true, "켜기"], [false, "끄기"]])),
+    row("행성 크기", pick("planet", o.planet, [[.7, "작게"], [1, "보통"], [1.4, "크게"]])),
+    row("하루 재생 속도", pick("speed", o.speed, [[30, "30초"], [60, "1분"], [120, "2분"], [300, "5분"]])),
+    h("p", { class: "hint" }, "이 브라우저에만 저장됩니다. 하루 재생은 풍경을 크게 볼 때 아래 슬라이더의 ▶로 합니다."));
+}
+
 let settingsDlg = null;
 function openSettings(section) {
   if (settingsDlg) { settingsDlg.close(); settingsDlg.remove(); }
@@ -244,6 +265,7 @@ function openSettings(section) {
         window.PlannerAmbient && h("div", { class: "set-row" }, h("span", {}, "배경 소리"),
           seg(window.PlannerAmbient.isOn() ? "on" : "off", [["on", "켜기"], ["off", "끄기"]], v => window.PlannerAmbient.setOn(v === "on"))),
         S && h("p", { class: "hint" }, "풍경을 누르면 크게, 한 번 더 누르면 전체 화면(배경화면처럼)으로 볼 수 있어요. 배경 소리는 지금 날씨·시각·계절에 맞춰 바람·비·새·풀벌레 같은 실제 자연 녹음을 섞어 들려줍니다.")),
+      S && S.opts && sceneSection(S),
       h("section", { class: "set-sec", dataset: { sec: "place" } },
         h("h4", {}, "지역"),
         S && h("div", { class: "set-row col" },
