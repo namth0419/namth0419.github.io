@@ -876,7 +876,7 @@ function detail(it, o) {
     const cur = byId.get(it.id) || it;
     act(store.update(it.id, { comments: [...(cur.comments || []), { id: rid(), text, at: Date.now() }] }));
   };
-  return h("div", { class: "detail",
+  return h("div", { class: "detail" + (o.paper || o.sample ? " form" : ""),
       ondragover: e => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { e.preventDefault(); e.currentTarget.classList.add("drop"); } },
       ondragleave: e => e.currentTarget.classList.remove("drop"),
       ondrop: e => {
@@ -888,6 +888,7 @@ function detail(it, o) {
       } },
     fields,
     o.paper && paperFields(it),
+    o.paper && cvFillField(it),
     o.sample && sampleFields(it),
     extraFields(it, o),
     checklist(it),
@@ -1239,7 +1240,7 @@ function goTo(it) {
   if (it.kind === "month") { const [y, m] = it.period.split("-").map(Number); viewY = y; viewM = m - 1; setT("goals"); }
   else if (it.kind === "week") { const th = addDays(parseYmd(it.period), 3); viewY = th.getFullYear(); viewM = th.getMonth(); setT("goals"); }
   else if (it.kind === "day") { const d = parseYmd(it.period); viewY = d.getFullYear(); viewM = d.getMonth(); selDay = it.period; setT("calendar"); }
-  else if (it.kind === "paper") setT("papers");
+  else if (it.kind === "paper") { setT("papers"); paperFold.delete((it.paper || {}).stage || "draft"); savePaperFold(); }
   else if (it.kind === "sample") setT("lab");
   else if (it.kind === "review") { revWeek = it.period; setT("review"); }
   openIds.add(it.id);
@@ -1445,37 +1446,75 @@ function cvFillField(p) {
         cvPubs.map((x, k) => h("option", { value: String(k) }, (x === mine ? "✓ " : "") + x.title)))));
 }
 
+// 접어 둔 단계 묶음 (이 브라우저에만 기억). 처음에는 게재 확정·출판을 접어 둠
+let paperFold = new Set(["accepted", "published"]);
+try { const v = JSON.parse(localStorage.getItem("planner-paper-fold")); if (Array.isArray(v)) paperFold = new Set(v); } catch (e) {}
+const savePaperFold = () => { try { localStorage.setItem("planner-paper-fold", JSON.stringify([...paperFold])); } catch (e) {} };
+
 function viewPapers() {
   const papers = items.filter(i => i.kind === "paper");
   const stageOf = p => (p.paper || {}).stage || "draft";
   const lead = p => ["1저자", "공동 1저자"].includes((p.paper || {}).role || "1저자");
   const accepted = papers.filter(p => ["accepted", "published"].includes(stageOf(p)));
-  const stat = (k, v, sub) => h("div", { class: "stat" }, h("div", { class: "k" }, k), h("div", { class: "v" }, v, sub && h("small", {}, sub)));
+  const active = papers.filter(p => ["submitted", "review", "revision"].includes(stageOf(p)));
   const byDue = (a, b) => (a.due || "9999") < (b.due || "9999") ? -1 : (a.due || "9999") > (b.due || "9999") ? 1 : byCreated(a, b);
+  const toGroup = k => {
+    paperFold.delete(k); savePaperFold(); render();
+    const el = document.querySelector(`.pgroup[data-stage="${k}"]`);
+    if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+  };
   return h("div", {},
-    h("div", { class: "stats" },
-      stat("게재 확정·출판", String(accepted.length), `1저자 ${accepted.filter(lead).length}`),
-      stat("투고·리뷰·리비전", String(papers.filter(p => ["submitted", "review", "revision"].includes(stageOf(p))).length)),
-      stat("작성 중", String(papers.filter(p => stageOf(p) === "draft").length))),
-    h("div", { class: "rp-actions" },
+    // 단계별 진행 막대
+    h("div", { class: "pipe" }, STAGES.map(([k, label]) => {
+      const n = papers.filter(p => stageOf(p) === k).length;
+      return h("button", { type: "button", class: `pipe-s st-${k}` + (n ? "" : " zero"), disabled: !n, onclick: () => toGroup(k) },
+        h("b", {}, String(n)), h("span", {}, label));
+    })),
+    h("div", { class: "psum" },
+      h("span", {}, `게재 확정·출판 ${accepted.length}편 (1저자 ${accepted.filter(lead).length})`),
+      h("span", {}, `진행 중 ${active.length}편`),
       h("button", { class: "btn ghost", type: "button", "aria-expanded": String(cvOpen),
                     onclick: () => { cvOpen = !cvOpen; if (cvOpen) cvPubs = null; render(); } }, "CV에서 가져오기")),
     cvPanel(),
-    h("div", { class: "board" }, STAGES.map(([k, label]) => {
+    STAGES.map(([k, label]) => {
       const list = papers.filter(p => stageOf(p) === k).sort(byDue);
-      return h("section", { class: "col" },
-        h("h3", {}, label, h("span", { class: "n" }, String(list.length))),
-        list.length ? h("ul", { class: "pcards" }, list.map(paperCard)) : h("p", { class: "empty" }, "—"));
-    })),
-    // 펼친 원고는 보드 아래에 전체 폭으로
-    papers.filter(p => openIds.has(p.id)).map(p => h("section", { class: "pdetail", dataset: { id: p.id } },
-      h("div", { class: "pd-head" }, h("b", {}, p.title), h("span", { class: "when" }, stageName((p.paper || {}).stage)),
-        h("button", { class: "link", type: "button", onclick: () => toggleOpen(p.id) }, "닫기")),
-      cvFillField(p),
-      detail(p, { paper: true, parents: milestoneOptions(p) }))),
+      if (!list.length) return null;
+      const folded = paperFold.has(k);
+      return h("section", { class: "pgroup", dataset: { stage: k } },
+        h("button", { class: "pg-head", type: "button", "aria-expanded": String(!folded),
+                      onclick: () => { folded ? paperFold.delete(k) : paperFold.add(k); savePaperFold(); render(); } },
+          h("span", { class: "chev" }, folded ? "▸" : "▾"), label, h("span", { class: "n" }, String(list.length))),
+        !folded && h("ul", { class: "plist" }, list.map(paperRow)));
+    }),
     adder("ap", "+ 원고 추가 (Enter)", () => ({ kind: "paper", period: "", parent: "",
       paper: { stage: "draft", journal: "", role: "1저자", submitted: "", authors: "" }, stageLog: [{ stage: "draft", at: Date.now() }] })),
-    h("p", { class: "empty" }, "카드의 ‹ › 로 단계를 옮기고, 제목을 누르면 저널·공저자·마감·체크리스트·파일을 적을 수 있습니다."));
+    h("p", { class: "empty" }, "‹ › 로 단계를 옮기고, 제목을 누르면 저널·공저자·투고일·마감·체크리스트·파일을 적을 수 있습니다."));
+}
+
+function paperRow(p) {
+  const open = openIds.has(p.id), P = p.paper || {}, st = P.stage || "draft";
+  const i = Math.max(0, STAGES.findIndex(x => x[0] === st));
+  const wait = paperWait(p);
+  const nK = (p.checks || []).length, nKd = (p.checks || []).filter(c => c.done).length;
+  const nC = (p.comments || []).length, nA = (p.attachments || []).length;
+  return h("li", { class: `prow st-${st}` + (open ? " open" : ""), dataset: { id: p.id } },
+    h("div", { class: "pr-main" },
+      h("button", { class: "pr-title", type: "button", "aria-expanded": String(open), onclick: () => toggleOpen(p.id) }, p.title),
+      h("div", { class: "pm" },
+        P.journal && h("span", { class: "pj" }, P.journal),
+        P.role && h("span", {}, P.role),
+        wait && h("span", { title: "투고·리뷰는 투고일부터, 리비전은 리비전에 들어간 날부터" }, wait),
+        nK > 0 && h("span", {}, `☑ ${nKd}/${nK}`),
+        nA > 0 && h("span", {}, `첨부 ${nA}`),
+        nC > 0 && h("span", {}, `코멘트 ${nC}`),
+        dueChip(p))),
+    h("div", { class: "pr-step" },
+      h("button", { type: "button", disabled: i === 0, "aria-label": "이전 단계로", title: i > 0 ? stageName(STAGES[i - 1][0]) + "(으)로" : null,
+                    onclick: () => setStage(p, STAGES[i - 1][0]) }, "‹"),
+      h("span", { class: "pr-stage" }, stageName(st)),
+      h("button", { type: "button", disabled: i === STAGES.length - 1, "aria-label": "다음 단계로", title: i < STAGES.length - 1 ? stageName(STAGES[i + 1][0]) + "(으)로" : null,
+                    onclick: () => setStage(p, STAGES[i + 1][0]) }, "›")),
+    open && h("div", { class: "pr-detail" }, detail(p, { paper: true, parents: milestoneOptions(p) })));
 }
 
 // 원고가 얼마나 기다리고 있는지: 투고·리뷰는 투고일부터, 리비전은 리비전에 들어간 날부터
@@ -1491,24 +1530,6 @@ function paperWait(p) {
   return null;
 }
 
-function paperCard(p) {
-  const open = openIds.has(p.id), P = p.paper || {}, st = P.stage || "draft";
-  const i = Math.max(0, STAGES.findIndex(s => s[0] === st));
-  const wait = paperWait(p);
-  const nK = (p.checks || []).length, nKd = (p.checks || []).filter(c => c.done).length;
-  return h("li", { class: "pcard" + (open ? " open" : ""), dataset: { id: p.id } },
-    h("div", { class: "ph" },
-      h("button", { class: "title", type: "button", "aria-expanded": String(open), onclick: () => toggleOpen(p.id) }, p.title),
-      h("span", { class: "mv" },
-        i > 0 && h("button", { type: "button", "aria-label": "이전 단계로", title: stageName(STAGES[i - 1][0]) + "(으)로", onclick: () => setStage(p, STAGES[i - 1][0]) }, "‹"),
-        i < STAGES.length - 1 && h("button", { type: "button", "aria-label": "다음 단계로", title: stageName(STAGES[i + 1][0]) + "(으)로", onclick: () => setStage(p, STAGES[i + 1][0]) }, "›"))),
-    h("div", { class: "pm" },
-      P.journal && h("span", {}, P.journal),
-      P.role && P.role !== "1저자" && h("span", {}, P.role),
-      wait && h("span", { title: "투고·리뷰는 투고일부터, 리비전은 리비전에 들어간 날부터" }, wait),
-      nK > 0 && h("span", {}, `☑ ${nKd}/${nK}`),
-      dueChip(p)));
-}
 
 /* ------------------------------------------------------------------ 실험 기록 */
 function goalOptions(cur) {
