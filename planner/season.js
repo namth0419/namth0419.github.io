@@ -1244,13 +1244,14 @@
    *             (일 최저기온이 처음 5°C 아래로 내려가면 그 전이라도 물들기 시작)
    *   단풍 색:  물드는 동안 맑은 날이 많고 밤이 서늘할수록(영하는 아님) 붉고 선명, 흐리고 따뜻하면 누렇고 탁함
    *   낙엽:     서늘함 누적 125 이후 줄고, 된서리(최저 −2°C 이하)·강풍마다 더 떨어짐
-   * 나무 종류: 단풍나무(빨강), 은행나무(노랑, 늦게 물들고 한꺼번에 짐), 벚나무(봄꽃, 일찍 물듦), 느티나무(주황·갈색)
+   * 나무 종류: 단풍나무(빨강), 은행나무(노랑, 늦게 물들고 한꺼번에 짐), 벚나무(봄꽃, 일찍 물듦), 느티나무(주황·갈색),
+ *   감나무(8월부터 초록 감 → 단풍 따라 주황으로 익음, 잎이 다 져도 감은 가지에 남고 12월 이후엔 까치밥 몇 개만)
    * 남반구·열대처럼 모델이 맞지 않는 곳이나 자료가 없을 때는 날짜 기준(기존 방식)으로 그림.
    */
   const PHENO_KEY = "planner-pheno";
   let PH = null;
-  const SPECIES = ["maple", "maple", "ginkgo", "cherry", "zelkova"];
-  const AUTUMN = { maple: ["#e4553c", "#ff8c62"], ginkgo: ["#f2c12e", "#ffe26a"], cherry: ["#ea7a3c", "#ffb066"], zelkova: ["#d47d3a", "#f4a75e"] };
+  const SPECIES = ["maple", "maple", "ginkgo", "cherry", "zelkova", "persimmon"];
+  const AUTUMN = { maple: ["#e4553c", "#ff8c62"], ginkgo: ["#f2c12e", "#ffe26a"], cherry: ["#ea7a3c", "#ffb066"], zelkova: ["#d47d3a", "#f4a75e"], persimmon: ["#e66a36", "#fba552"] };
   const DULL = ["#b98a50", "#dcb072"];                // 흐리고 따뜻한 가을의 탁한(누런) 색
   const GREEN = { spring: ["#a8cf7f", "#cfe6a8"], summer: ["#3b8550", "#6db46b"] };
   const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -1309,6 +1310,7 @@
       const since = r.bloomDay ? (Date.parse(today) - Date.parse(r.bloomDay)) / 864e5 : -99;
       P.bloom = since < 0 ? (r.dts > 520 ? (r.dts - 520) / 80 * .3 : 0) : since < 4 ? .4 + since * .15 : since < 9 ? 1 : since < 15 ? 1 - (since - 9) / 6 : 0;
       P.color = 0; P.leaf = 1; P.falling = 0; P.redness = .6;
+      P.fruit = m <= 2 ? .15 : 0; P.ripe = 1;                                  // 겨울엔 까치밥 몇 개
       P.info = `생육도일 ${Math.round(r.gdd)} · 벚꽃 누적 ${Math.round(r.dts)}°C` + (r.bloomDay ? ` (개화 ${r.bloomDay.slice(5)})` : "");
     } else {
       const start = r.firstCold ? Math.max(r.cool, 15) : r.cool;
@@ -1318,6 +1320,8 @@
       P.leaf = clamp01(1 - clamp01((r.cool - 125) / 95) - .15 * r.frosts - .04 * r.windy);
       P.falling = P.color > .3 ? clamp01(1 - P.leaf) * P.leaf * 4 : 0;         // 지는 중일 때 낙엽이 날림
       P.buds = 0; P.leafOut = 1; P.summer = 1; P.bloom = 0;
+      P.ripe = clamp01(.15 + P.color * 1.3);
+      P.fruit = m === 12 ? .3 : P.leaf > .3 ? 1 : .45 + P.leaf;
       P.info = `서늘함 누적 ${Math.round(r.cool)} · 단풍 ${Math.round(P.color * 100)}% · 붉은 정도 ${Math.round(P.redness * 100)}%`;
     }
     return P;
@@ -1341,7 +1345,8 @@
     let base = step(green[0], target[0], turn[0]), hi = step(green[1], target[1], turn[1]);
     const bloom = sp === "cherry" ? PH.bloom : 0;
     base = mix(base, "#f4bfcf", bloom); hi = mix(hi, "#fde4ec", bloom);
-    return { leaf: Math.max(leaf, bloom * .9), bloom, buds: PH.buds, base, hi };
+    const fruit = sp === "persimmon" ? PH.fruit : 0, ripe = PH.ripe;
+    return { leaf: Math.max(leaf, bloom * .9), bloom, buds: PH.buds, base, hi, fruit, ripe };
   }
 
   /* ---------- 상태 ---------- */
@@ -1489,7 +1494,7 @@
       circle(g, cx - s * .1 * k, cy - s * .22 * k, s * .1 * k); circle(g, cx + s * .09 * k, cy - s * .27 * k, s * .055 * k);
       g.restore();
       g.globalAlpha = 1;
-      if (o.fruit) { g.fillStyle = TC.fruit; for (const [fx2, fy2] of [[-.15, .02], [.12, -.06], [.03, .12], [.2, .08]]) circle(g, cx + fx2 * s * k, cy + fy2 * s * k, s * .035 + .7); }
+      persimmons(g, o, [[-.2, .02], [.13, -.08], [.02, .13], [.22, .07], [-.08, -.18], [-.25, -.12]].map(([a, b]) => [cx + a * s * k, cy + b * s * k]));
       if (bloomA > .2) {
         g.fillStyle = `rgba(255,255,255,${.85 * bloomA})`;
         seed = Math.round(x * 13) + 1;
@@ -1510,7 +1515,19 @@
         tips.push([ex, ey]);
       }
       if (budsA > .1) { g.fillStyle = rgba(SH("#a9d47a"), budsA); for (const [ex, ey] of tips) circle(g, ex, ey, Math.max(1, s * .035)); }
+      persimmons(g, o, tips.map(([ex, ey]) => [ex, ey + s * .05]));             // 잎이 진 감나무: 가지 끝에 매달린 감
       if (snowCover > .3) { g.fillStyle = `rgba(255,255,255,${snowCover})`; for (const [ex, ey] of tips) ellipse(g, ex, ey - 1, s * .05, s * .025); }
+    }
+  }
+  // 감: 동글납작한 열매 + 꼭지. 덜 익으면 초록, 익을수록 주황
+  function persimmons(g, o, spots) {
+    const n = Math.round((o.fruitAmt || 0) * spots.length);
+    if (!n) return;
+    const r = Math.max(2.1, o.s * .06), col = SH(mix("#8fb24e", "#f28a22", o.ripe || 0));
+    for (const [x, y] of spots.slice(0, n)) {
+      g.fillStyle = col; ellipse(g, x, y, r * 1.1, r * .92);
+      g.fillStyle = "rgba(255,255,255,.35)"; circle(g, x - r * .35, y - r * .3, r * .28);
+      g.fillStyle = SH("#4f6b2e"); ellipse(g, x, y - r * .85, r * .55, r * .22);
     }
   }
   // 층층이 둥근 침엽수
@@ -1666,7 +1683,6 @@
       trunk: shade("#8b5e3c", .55), outline: shade(mix(leafBase, "#1d2b1d", .38)), leaf: shade(leafBase),
       leafD: shade(mix(leafBase, "#1f3326", .22)), leafL: shade(mix(leafHi, "#ffffff", .22)),
       pine: shade(S.pine, .6), pineL: shade(mix(S.pine, "#ffffff", .16), .6), pineO: shade(mix(S.pine, "#0b1a10", .5), .6),
-      fruit: shade(fest && fest.key === "chuseok" ? "#f08a24" : bump(doy, 290, 30) > .4 ? "#e8553a" : "#f2b33d"),   // 추석엔 감
       wall: shade("#f8eedb", .6), wallD: shade("#e6d5b4", .6), roof: shade("#e2745c", .6), roofL: shade("#f0937c", .6),
       chimney: shade("#c9775f", .6), door: shade("#a06d48", .6), glass: shade("#9fc3d8", .6), houseO: shade("#7a5442", .6),
       stem: shade("#5f9b4e"), flowerC: shade("#ffe07a")
@@ -1694,15 +1710,21 @@
       if (Math.abs(x - hx) < h * .3) continue;
       objs.push({ k: "flower", x, y: depthY(x, d), s: 2.4 + 3.2 * depthS(d), ph: srnd() * TAU, c: shade(FC[(srnd() * FC.length) | 0]) });
     }
+    const rounds = objs.filter(o => o.k === "round");
+    rounds.forEach(o => { o.sp = SPECIES[(hash2(Math.round(o.x * 3), 17) * SPECIES.length) | 0]; o.fruit = false; });
+    const front = rounds.filter(o => o.y > h * .7).sort((a, b) => b.s - a.s);
+    if (front.length && !front.some(o => o.sp === "persimmon")) front[front.length > 1 ? 1 : 0].sp = "persimmon";   // 앞줄에 감나무 하나
     for (const o of objs) {                         // 활엽수: 종류를 정하고 그해 기온 이력으로 색·잎 양
       if (o.k !== "round") continue;
-      o.sp = SPECIES[(hash2(Math.round(o.x * 3), 17) * SPECIES.length) | 0];
       const L = treeLook(o);
       if (!L) continue;
-      o.leafAmt = L.leaf; o.bloomAmt = L.bloom; o.budsAmt = L.buds;
+      o.leafAmt = L.leaf; o.bloomAmt = L.bloom; o.budsAmt = L.buds; o.fruitAmt = L.fruit; o.ripe = L.ripe;
       o.pal = { outline: shade(mix(L.base, "#1d2b1d", .38)), leaf: shade(L.base), leafD: shade(mix(L.base, "#1f3326", .22)), leafL: shade(mix(L.hi, "#ffffff", .22)) };
     }
-    if (fest && fest.key === "chuseok") objs.forEach(o => { if (o.k === "round") o.fruit = true; });
+    for (const o of rounds) if (o.sp === "persimmon" && o.fruitAmt == null) {   // 계절 자료가 없으면 날짜로 대강
+      o.fruitAmt = doy > 225 ? (doy > 335 ? .3 : 1) : doy < 50 ? .15 : 0; o.ripe = Math.max(0, Math.min(1, (doy - 245) / 45));
+    }
+    if (fest && fest.key === "chuseok") rounds.forEach(o => { if (o.sp === "persimmon") { o.fruitAmt = 1; o.ripe = Math.max(o.ripe || 0, .7); } });
     objs.sort((a, b) => a.y - b.y);
     seed = 77;
     sparkles = RIV.frozen ? [] : Array.from({ length: Math.round(w / 40) }, () => ({ x: srnd() * w, f: .2 + srnd() * .6, ph: srnd() * TAU, len: 3 + srnd() * 5 }));
