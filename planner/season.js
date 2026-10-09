@@ -381,7 +381,7 @@
   // 빛의 색만 (밝기 1로 맞춤)
   const tint = c => { const m = Math.max(c[0], c[1], c[2]) || 1; return toHex(c.map(v => v / m)); };
 
-  let sunTint = "#fff6d8", cloudTint = "#ffffff", cloudLit = 1, trailTint = "#ffffff", AER = aerosolOf(null);
+  let skyMed = 1, sunTint = "#fff6d8", cloudTint = "#ffffff", cloudLit = 1, trailTint = "#ffffff", AER = aerosolOf(null);
   // 하늘 격자를 계산해서 작은 캔버스에 그린 뒤 부드럽게 늘려 붙임
   const skyGrid = document.createElement("canvas");
   function paintSky(g, grey) {
@@ -395,25 +395,50 @@
       const alt = Math.max(.6, (horizonY() - y) / (horizonY() - h * .07) * 62);
       const L = skyRadiance(dirOf(az, alt), s, A), k = (j * cols + i) * 3;
       img[k] = L[0]; img[k + 1] = L[1]; img[k + 2] = L[2];
-      lums.push(lum(L));
+    }
+    // 여러 번 흩어진 빛(근사): 한 번 흩어진 빛만 계산하면 해가 진 뒤 머리 위가 주황, 반대쪽 하늘은 새까맣게 나옴.
+    // 실제로는 여러 번 흩어진 빛과 오존 흡수로 하늘 전체가 파랗게 채워지므로, 하늘 평균 밝기에 비례하는 푸른 빛을 고르게 더함
+    // (해가 낮을수록 비중이 큼: 낮 10% → 해 진 뒤 40%)
+    const mean = [0, 1, 2].map(ch => { let t = 0; for (let q = ch; q < img.length; q += 3) t += img[q]; return t / (cols * rows); });
+    const msW = .1 + .3 * Math.max(0, Math.min(1, (4 - sun.alt) / 8)), BLUE = [.42, .62, 1], mL = lum(mean) * msW / lum(BLUE);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const k = (j * cols + i) * 3, lowK = 1 + .35 * j / (rows - 1);           // 지평선 쪽이 조금 더 밝음
+      for (let ch = 0; ch < 3; ch++) img[k + ch] += BLUE[ch] * mL * lowK;
+      lums.push(lum([img[k], img[k + 1], img[k + 2]]));
     }
     // 노출: 하늘 밝기의 중간값에 맞춤(해 주변 눈부신 곳은 하얗게 날아감).
     // 해가 지평선 아래로 내려갈수록 전체를 어둡게 (사람 눈이 적응하는 정도만큼)
     lums.sort((a, b) => a - b);
     const dark = Math.pow(Math.min(1, Math.max(.06, (sun.alt + 12) / 14)), 1.3);
-    const expo = .6 / (lums[lums.length >> 1] || 1);
+    skyMed = lums[lums.length >> 1] || 1;
+    const expo = .6 / skyMed;
     skyGrid.width = cols; skyGrid.height = rows;
     const gg = skyGrid.getContext("2d"), id = gg.createImageData(cols, rows);
+    // 노을 보정 세기: 노을(해 고도 +6° ~ −4°)과 '블루 아워'(−2° ~ −6° 근처에서 가장 짙은 파랑)
+    const clear = 1 - overcast, blueHr = Math.exp(-(((sun.alt + 3.5) / 3.5) ** 2)) * clear;
+    const tw = Math.max(Math.min(1, dusk * 1.4) * (1 - night) * clear, blueHr * .85), sxf = skyXY(sun).x / w;
     const season = S.sky, nightC = NIGHT, moonSky = moon.alt > 0 ? mph.fraction * Math.min(1, moon.alt / 15) * .35 : 0;
     for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
       const k = (j * cols + i) * 3, q = (j * cols + i) * 4;
-      let c = [0, 1, 2].map(ch => (1 - Math.exp(-img[k + ch] * expo)) * dark);
-      // 그림 같은 느낌: 채도 조금 올리고, 낮에는 계절 하늘색을 살짝 섞음
-      const m = lum(c); c = c.map(v => Math.max(0, m + (v - m) * (1.3 + .15 * dusk)));
+      // 밝기만 눌러 담고(1 − e^−x) 빛깔의 비율은 그대로 둠 → 해 쪽 지평선의 주황, 머리 위의 파랑이 하얗게 바래지 않음.
+      // 너무 밝아 한 채널이 넘치면 그만큼만 하얗게 (해 둘레 눈부심)
+      const raw = [img[k], img[k + 1], img[k + 2]], Lr = lum(raw) * expo, Lt = 1 - Math.exp(-Lr);
+      let c = raw.map(v => Lr > 0 ? v * expo * Lt / Lr : 0);
+      const over = Math.max(...c);
+      if (over > 1) c = c.map(v => v / over + (1 - v / over) * Math.min(1, (over - 1) * .35));
+      c = c.map(v => v * dark);
+      // 그림 같은 느낌: 채도 살짝 올리고, 낮에는 계절 하늘색을 살짝 섞음
+      const m = lum(c); c = c.map(v => Math.max(0, m + (v - m) * (1.3 - .1 * dusk)));
       let hx = toHex(c);
       const f = j / (rows - 1);
       hx = mix(hx, mix(season[0], season[1], f), .2 * (1 - dusk) * (1 - night));          // 계절 하늘색 (동물의 숲 느낌)
       hx = mix(hx, "#ffffff", .07 * (1 - night));                                       // 살짝 파스텔
+      if (tw > .01) {                                   // 노을 보정 (여러 번 흩어진 빛): 해 쪽 지평선은 넓게 주황, 머리 위는 짙은 파랑-보라
+        const xf = (i + .5) / cols, alt = Math.max(.6, (1 - (j + .5) / rows) * horizonY() / (horizonY() - h * .07) * 62);
+        const near = Math.exp(-((((xf - sxf) * 240) / 75) ** 2));
+        hx = mix(hx, mix("#ff8a4c", "#ffc77a", .5 * near), tw * Math.exp(-alt / 11) * (.25 + .75 * near) * .75);
+        hx = mix(hx, mix("#3d4c9e", "#7a6cbc", f), Math.max(tw * .5, blueHr * .85) * Math.pow(1 - f, 1.2));
+      }
       hx = mix(hx, mix(nightC[0], nightC[1], f), Math.pow(night, 1.4));
       hx = mix(hx, mix("#2c3b6e", "#4a5d92", f), moonSky * night);                      // 달 밝은 밤은 하늘도 조금 밝음
       hx = mix(hx, grey, overcast * (.7 + .3 * f));
@@ -426,10 +451,13 @@
     const hz = gg.getImageData(cols / 2 | 0, rows - 1, 1, 1).data, tp = gg.getImageData(cols / 2 | 0, 0, 1, 1).data;
     g.fillStyle = hex([hz[0], hz[1], hz[2]]); g.fillRect(0, horizonY(), w, h - horizonY());
     // 햇빛 색: 해 원반(땅 근처), 구름(3 km), 비행운(10 km)
-    const T0 = sunTransmit(s, A, 50), T1 = sunTransmit(s, A, 1.5e3), T3 = sunTransmit(s, A, 3e3), T10 = sunTransmit(s, A, 10e3);
-    lowLit = Math.min(1, lum(T1) * 1.6); lowTint = lum(T1) > 0 ? tint(T1) : "#ffffff"; highLit = Math.min(1, lum(T10) * 1.6);
+    // 구름에 닿는 빛의 밝기는 '지금 하늘 밝기'에 견줌 (눈이 하늘 밝기에 맞춰 적응하므로, 해 진 뒤 하늘이 어두워지면 물든 구름이 도드라짐).
+    // 낮에는 높은 구름에 닿는 햇빛이 하늘 밝기의 약 60배. 땅을 스쳐 오는 빛은 대기에서 1° 남짓 휘므로 그만큼 해를 올려서 계산
+    const up = a => dirOf(sun.az, sun.alt + a), rel = T => Math.min(1, lum(T) / skyMed / 55);
+    const T0 = sunTransmit(s, A, 50), T1 = sunTransmit(up(.5), A, 1.5e3), T3 = sunTransmit(up(.7), A, 3e3), T10 = sunTransmit(up(1.1), A, 10e3);
+    lowLit = rel(T1); lowTint = lum(T1) > 0 ? tint(T1) : "#ffffff"; highLit = rel(T10);
     sunTint = lum(T0) > 0 ? tint(T0) : "#ff9a6a";
-    cloudLit = Math.min(1, lum(T3) * 1.6);
+    cloudLit = rel(T3);
     cloudTint = lum(T3) > 0 ? tint(T3) : "#ffffff";
     trailTint = lum(T10) > 0 ? tint(T10) : "#ffffff";
     return [hex([tp[0], tp[1], tp[2]]), hex([hz[0], hz[1], hz[2]])];
@@ -983,16 +1011,43 @@
 
   /* 층별 구름: 낮은 구름(뭉게구름, 기존), 중간 구름(양떼구름: 작은 솜뭉치 무리), 높은 구름(새털구름: 붓으로 쓱 그은 결)
    * 색은 그 높이까지 대기를 지나온 햇빛 색 → 노을 땐 높은 구름이 먼저·오래 물들고 낮은 구름은 어두운 실루엣 */
-  let altoC = [], cirrusC = [], lowTint = "#ffffff", lowLit = 1, highLit = 1;
+  let altoC = [], cirrusC = [], veilC = [], lowTint = "#ffffff", lowLit = 1, highLit = 1;
   function buildLayerClouds() {
     const cm = W && W.cm != null ? W.cm / 100 : fx.cloud * .4, ch = W && W.ch != null ? W.ch / 100 : fx.cloud * .3;
     seed = 31;
     const nA = Math.round(cm * 5) + (cm > .12 ? 1 : 0), nCi = Math.round(ch * 6) + (ch > .12 ? 1 : 0);
     if (altoC.length !== nA) altoC = Array.from({ length: nA }, () => ({ x: srnd() * (w + 160) - 80, y: h * (.07 + srnd() * .16), cols: 4 + (srnd() * 4 | 0), rows: 2 + (srnd() * 2 | 0), s: U * (.016 + srnd() * .008), v: .02 + srnd() * .02, ph: srnd() * 9 }));
+    // 엷은 면구름(권층운): 높은 구름이 하늘을 많이 덮으면 위쪽 하늘에 결 따라 긴 붓자국을 깔아 둠
+    const nV = ch > .35 ? Math.round((ch - .35) / .65 * w / 22) + 4 : 0;
+    seed = 37;
+    if (veilC.length !== nV) veilC = Array.from({ length: nV }, () => {
+      const y = horizonY() * (.06 + .8 * Math.pow(srnd(), .8));
+      return { x: srnd() * (w + 300) - 150, y, len: w * (.12 + srnd() * .3), th: U * (.03 + srnd() * .07) * (.6 + y / horizonY()), tilt: (srnd() - .5) * h * .03, a: .1 + srnd() * .12, v: .03 + srnd() * .03 };
+    });
+    seed = 33;
     if (cirrusC.length !== nCi) cirrusC = Array.from({ length: nCi }, () => ({ x: srnd() * (w + 200) - 100, y: h * (.04 + srnd() * .16), len: w * (.08 + srnd() * .14), curl: (srnd() - .5) * h * .05, n: 3 + (srnd() * 3 | 0), v: .05 + srnd() * .05, ph: srnd() * 9 }));
   }
   function drawLayerClouds() {
     const dim = 1 - night * .85;
+    if (veilC.length) {                               // 엷은 면구름: 해 질 녘엔 해 쪽은 주황, 위로 갈수록 분홍, 반대쪽은 연보라로 물듦
+      const glow = Math.min(1, dusk * 1.4 + (sun.alt < 0 ? .5 : 0)) * highLit;
+      const sx = skyXY(sun).x, hy = horizonY();
+      ctx.save(); ctx.lineCap = "round";
+      for (const c of veilC) {
+        c.x += c.v * (1 + fx.wind * .4); if (c.x > w + 150) c.x = -c.len - 150;
+        const mx = c.x + c.len / 2, near = Math.exp(-(((mx - sx) / (w * .4)) ** 2)), low = c.y / hy;
+        let col = mix("#f4f2f6", mix(mix(trailTint, "#ff86a8", .45 * (1 - low)), "#b9a3d6", .6 * (1 - near)), glow * (.55 + .45 * Math.max(near, low)));
+        col = mix(col, "#3a4366", night * (1 - highLit * .5) * .85);
+        ctx.strokeStyle = col;
+        for (const [wd, al] of [[1, .55], [.45, 1]]) {   // 넓고 옅게 한 번, 가운데를 조금 진하게 한 번
+          ctx.globalAlpha = Math.min(.6, c.a * al * Math.max(dim, highLit * .8) * (1 + 1.3 * glow));   // 물들면 더 진하게
+          ctx.lineWidth = c.th * wd;
+          ctx.beginPath(); ctx.moveTo(c.x, c.y);
+          ctx.quadraticCurveTo(c.x + c.len * .5, c.y + c.tilt, c.x + c.len, c.y - c.tilt * .3); ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
     if (cirrusC.length) {                             // 새털구름 (높은 하늘: 해가 진 뒤에도 잠깐 물듦)
       const col = mix(mix("#ffffff", trailTint, Math.min(1, dusk * 1.3 + (sun.alt < 0 ? .6 : 0)) * highLit), "#3a4366", night * (1 - highLit * .5) * .85);
       ctx.strokeStyle = col; ctx.lineCap = "round";
@@ -1433,7 +1488,10 @@
     dusk = Math.max(0, 1 - Math.abs(sun.alt - 1.5) / 8) * (1 - night * .6);
     fx = weatherFx(W);
     temp = W ? W.temp : null;
-    overcast = Math.min(.92, fx.cloud * .55 + (fx.rain || fx.snow ? .3 : 0) + fx.storm * .2 + fx.fog * .2);
+    // 하늘을 얼마나 가리나: 낮은 구름은 거의 불투명, 중간 구름은 꽤, 높은 새털·면구름(권운·권층운)은 햇빛이 대부분 통과.
+    // (예보의 '흐림'은 높은 구름만 100% 여도 나오므로 높이별 구름 양으로 계산)
+    const opq = W && W.cl != null && W.cm != null && W.ch != null ? 1 - (1 - .95 * W.cl / 100) * (1 - .75 * W.cm / 100) * (1 - .2 * W.ch / 100) : fx.cloud;
+    overcast = Math.min(.92, opq * .55 + (fx.rain || fx.snow ? .3 : 0) + fx.storm * .2 + fx.fog * .2);
     const winter = bump(doy, 20, 40);
     snowCover = fx.snow > 0 ? Math.min(1, .55 + fx.snow * .25) : winter * (temp != null && temp <= 0 ? .55 : temp == null ? .25 : .1);
     frost = temp != null && temp <= 2 && sun.alt < 20;
@@ -1998,8 +2056,9 @@
   }
 
   /* ---------- 글자: 절기(그날만), 위치·날씨 ---------- */
+  const thinOnly = () => W && W.code === 3 && W.cl != null && W.cm != null && W.cl + W.cm < 25 && W.ch > 40;   // 높은 구름만 덮인 '흐림'
   const weatherText = () => wxState === "loading" ? "날씨 불러오는 중" : wxState === "error" ? "날씨를 못 불러옴"
-                          : W ? `${Math.round(W.temp)}° ${WX_TEXT(W.code)}` : "";
+                          : W ? `${Math.round(W.temp)}° ${thinOnly() ? "옅은 구름" : WX_TEXT(W.code)}` : "";
   const notify = () => dispatchEvent(new CustomEvent("planner:scene"));
   function updateUi(term) {
     if (term !== undefined) {
@@ -2146,6 +2205,17 @@
   });
   syncSound();
 
+  if (PREVIEW) window.PlannerScene._sky = alt => {                  // 로컬 점검용: 해 고도별 하늘 밝기(중간값)와 높은 구름에 닿는 햇빛
+    const sd = dirOf(sun.az, alt), L = [];
+    for (let j = 0; j < 12; j++) for (let i = 0; i < 30; i++) {
+      const a2 = Math.max(.6, (12 - j - .5) / 12 * 62);
+      L.push(lum(skyRadiance(dirOf(((i + .5) / 30 - .5) * 240, a2), sd, AER)));
+    }
+    L.sort((x, y) => x - y);
+    const at = (az, a2) => { const r = skyRadiance(dirOf(az, a2), sd, AER); return [+(lum(r) / L[180]).toFixed(2), tint(r)]; };
+    return { hz: [-84, -40, 0, 40, 84].map(az => [az, at(az, 1.5), at(az, 8), at(az, 25)]), zen: at(0, 80), alt, med: L[180], T10: lum(sunTransmit(sd, AER, 10e3)), T3: lum(sunTransmit(sd, AER, 3e3)), tint: tint(sunTransmit(sd, AER, 10e3)) };
+  };
+  if (PREVIEW) window.PlannerScene._dbg = () => ({ skyMed, T10: lum(sunTransmit(dirOf(sun.az, sun.alt), AER, 10e3)), sun, dusk, night, overcast, highLit, lowLit, cloudLit, trailTint, sunTint, cloudTint, lowTint });   // 로컬 점검용
   /* ---------- 루프 ---------- */
   function refresh() { if (w) { paintBg(); draw(); } else compute(); }   // 안 보일 때도 글자는 갱신
   function frame(ts) {
@@ -2169,7 +2239,7 @@
     w = Math.round(W0 / z); h = Math.round(H0 / z); U = Math.min(h, 128); pxr = dpr * W0 / w;
     cvs.width = Math.round(W0 * dpr); cvs.height = Math.round(H0 * dpr);
     if (!grain) grain = makeGrain();
-    parts = []; clouds = []; altoC = []; cirrusC = [];
+    parts = []; clouds = []; altoC = []; cirrusC = []; veilC = [];
     paintBg();
     for (let i = 0; i < 120; i++) { t++; spawn(); step(); }   // 처음부터 날씨가 화면에 퍼져 있도록
     draw();
