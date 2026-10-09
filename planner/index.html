@@ -14,7 +14,7 @@
 <link rel="icon" href="../assets/favicon-32.png" sizes="32x32" type="image/png">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=10"></script>
+<script src="theme-init.js?v=11"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -264,7 +264,9 @@
   .cal-day .more{font-family:var(--mono);font-size:10px;color:var(--muted)}
 
   /* ---- holidays ---- */
-  .holpick{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 12px}
+  .holpick{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;margin:0 0 12px}
+  .holpick .when{font-size:11px;color:var(--ink)}
+  .holpick .link{margin:0}
   .holpick .seg{border:none;padding:0;gap:4px}
   .holpick .seg button{border:1px solid var(--rule)}
   .holpick .seg button[aria-pressed="true"]{border-color:var(--deep)}
@@ -645,11 +647,11 @@
   .settings{max-width:540px}
   .set-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 6px}
   .set-head h3{margin:0}
-  .set-sec{border-top:1px solid var(--rule);padding:12px 0 4px}
+  .set-sec{border-top:1px solid var(--rule);padding:14px 0 2px;margin:0}
   .settings .set-sec h4{margin:0 0 10px}
   .set-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin:0 0 12px;font-size:13.5px}
   .set-row.col{flex-direction:column;align-items:stretch}
-  .set-row.wrap{justify-content:flex-start}
+  .set-row.start{justify-content:flex-start}
   .set-row > span{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
   .set-row > span.acct{font-size:12.5px;color:var(--ink)}
   .set-now{margin:0;font-size:14px}
@@ -813,7 +815,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=10"></script>
-<script src="season.js?v=10"></script>
+<script type="module" src="app.js?v=11"></script>
+<script src="season.js?v=11"></script>
 </body>
 </html>

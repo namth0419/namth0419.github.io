@@ -2154,7 +2154,7 @@ function openSettings(section) {
   };
   const fill = () => {
     const S = Sc();
-    dlg.replaceChildren(
+    dlg.replaceChildren(...[
       h("div", { class: "set-head" }, h("h3", {}, "설정"),
         h("button", { class: "sp-x", type: "button", "aria-label": "닫기", onclick: () => { dlg.close(); cleanup(); } }, "×")),
       h("section", { class: "set-sec" },
@@ -2187,14 +2187,14 @@ function openSettings(section) {
             onclick: () => { toggleHoliday(cc); fill(); } }, name))))),
       state === "ready" && h("section", { class: "set-sec" },
         h("h4", {}, "데이터"),
-        h("div", { class: "set-row wrap" },
+        h("div", { class: "set-row start" },
           h("button", { class: "btn ghost", type: "button", onclick: () => { dlg.close(); cleanup(); openImport(); } }, "가져오기"),
           h("button", { class: "btn ghost", type: "button", onclick: exportBackup }, "내보내기 (백업)"),
           h("button", { class: "btn ghost", type: "button", onclick: exportIcs }, "캘린더 파일 (.ics)"))),
       !DEMO && auth && auth.currentUser && h("section", { class: "set-sec" },
         h("h4", {}, "계정"),
         h("div", { class: "set-row" }, h("span", { class: "acct" }, auth.currentUser.email),
-          h("button", { class: "btn ghost", type: "button", onclick: logout }, "로그아웃"))));
+          h("button", { class: "btn ghost", type: "button", onclick: logout }, "로그아웃")))].filter(Boolean));
   };
   const onScene = () => { if (dlg.open) fill(); };
   addEventListener("planner:scene", onScene);
