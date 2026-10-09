@@ -63,7 +63,7 @@
   const ctx = cvs.getContext("2d");
   const termChip = band.querySelector(".season-label");
   const placeBtn = band.querySelector(".season-place");
-  const KEY = "planner-season", PLACE_KEY = "planner-place", WX_KEY = "planner-weather2";
+  const KEY = "planner-season", PLACE_KEY = "planner-place", WX_KEY = "planner-weather3";
   const TAU = Math.PI * 2, RAD = Math.PI / 180;
   const DEFAULT_PLACE = { name: "대전", lat: 36.3504, lon: 127.3845 };
 
@@ -878,7 +878,7 @@
    * 중심 쪽은 노르스름하게, 나머지는 푸르스름하게. 밝은 곳엔 작은 별가루를 뿌림. 지평선 근처는 대기에 흐려짐.
    */
   const mwCv = document.createElement("canvas");
-  let mwDust = [], mwBuiltAt = 0;
+  let mwDust = [], mwBuiltAt = 0, mwFor = 0;
   function hash2(i, j) { let n = Math.imul(i, 374761393) + Math.imul(j, 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; }
   function vnoise(x, y, period) {
     const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, P = i => ((i % period) + period) % period;
@@ -946,7 +946,8 @@
   }
   function drawMilkyWay(vis) {
     if (vis < .02) return;
-    if (!mwBuiltAt || Date.now() - mwBuiltAt > 2 * 60e3 || mwCv.width !== Math.ceil(w / 2)) buildMilkyWay(now());
+    const tn = now().getTime(), moved = Math.abs(tn - mwFor) > 4 * 60e3 && Date.now() - mwBuiltAt > 250;   // 미리보기로 시각을 옮기면 다시 그림
+    if (!mwBuiltAt || Date.now() - mwBuiltAt > 2 * 60e3 || moved || mwCv.width !== Math.ceil(w / 2)) { buildMilkyWay(now()); mwFor = tn; }
     ctx.save();
     ctx.globalCompositeOperation = "screen"; ctx.globalAlpha = vis;
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
@@ -1408,7 +1409,7 @@
 
   /* ---------- 상태 ---------- */
   let on, w = 0, h = 0, U = 128, dpr = 1, pxr = 1, cssW = 0, cssH = 0, raf = 0, last = 0, t = 0, painted = 0, flash = 0;
-  let place = DEFAULT_PLACE, W = null, wxState = "idle", wxTimer = 0;
+  let place = DEFAULT_PLACE, W = null, Wnow = null, scrub = null, wxState = "idle", wxTimer = 0;
   let S = KF[0], doy = 0, sun = { az: 0, alt: 30 }, moon = { az: 0, alt: -10 }, mph = { fraction: .5, phase: .25 };
   let night = 0, dusk = 0, fx = weatherFx(null), overcast = 0, snowCover = 0, frost = false, temp = null;
   const skyL = document.createElement("canvas"), landL = document.createElement("canvas");
@@ -1419,7 +1420,9 @@
 
   const q = new URLSearchParams(location.search);
   const PREVIEW = ["localhost", "127.0.0.1"].includes(location.hostname) && (q.has("date") || q.has("hour") || q.has("wx"));
-  function now() {
+  // 지금 시각 (하루 미리보기 슬라이더로 고른 시각이 있으면 그 시각)
+  const now = () => scrub != null ? new Date(scrub) : nowReal();
+  function nowReal() {
     if (!PREVIEW) return new Date();
     // 미리보기 날짜·시각은 설정한 위치의 현지 시각으로 해석
     const off = W && W.offset != null ? W.offset : Math.round(place.lon / 15) * 60;
@@ -1434,7 +1437,24 @@
   const rnd = Math.random;
 
   /* ---------- 날씨 받아오기 ---------- */
+  // 받아 온 날씨는 Wnow, 화면에 쓰는 날씨는 W (미리보기 중이면 그 시각의 시간별 예보)
   async function loadWeather(force) {
+    await fetchWeather(force);
+    Wnow = W;
+    if (scrub != null) W = weatherAt(scrub);
+    if (mode !== "band") buildDay();                 // 슬라이더 바탕(시간별 예보)도 새로
+  }
+  function weatherAt(ms) {                          // 그 시각의 시간별 예보 (숫자는 앞뒤 시각 사이를 이어서)
+    const B = Wnow, R = B && B.hr;
+    if (!R || !R.t || !R.t.length) return B;
+    const s = ms / 1e3;
+    let i = R.t.findIndex(x => x > s) - 1;
+    if (i < 0) i = s < R.t[0] ? 0 : R.t.length - 2;
+    const f = Math.max(0, Math.min(1, (s - R.t[i]) / ((R.t[i + 1] - R.t[i]) || 1)));
+    const at = k => { const a = R[k] && R[k][i], b = R[k] && R[k][i + 1]; return a == null ? b : b == null ? a : a + (b - a) * f; };
+    return { ...B, code: R.code[f < .5 ? i : i + 1] ?? B.code, temp: at("temp"), cloud: at("cloud"), cl: at("cl"), cm: at("cm"), ch: at("ch"), wind: at("wind"), rh: at("rh"), vis: at("vis") };
+  }
+  async function fetchWeather(force) {
     if (PREVIEW && q.has("wx")) {
       const n = k => q.has(k) ? +q.get(k) : null;
       W = { code: +q.get("wx"), temp: n("temp") ?? 10, cloud: +q.get("wx") >= 3 ? 90 : 20, wind: 10, offset: Math.round(place.lon / 15) * 60,
@@ -1450,7 +1470,7 @@
       // 지상 날씨 + 순항 고도(250 hPa) 기온·습도·바람, 그리고 대기질(에어로졸 광학 두께·황사)
       const u = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}`
               + `&current=temperature_2m,weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,relative_humidity_2m,visibility`
-              + `&hourly=temperature_2m,temperature_250hPa,relative_humidity_250hPa,wind_speed_250hPa,wind_direction_250hPa&past_days=2&forecast_days=1&timeformat=unixtime&timezone=auto`;
+              + `&hourly=temperature_2m,weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,relative_humidity_2m,visibility,temperature_250hPa,relative_humidity_250hPa,wind_speed_250hPa,wind_direction_250hPa&past_days=2&forecast_days=2&timeformat=unixtime&timezone=auto`;
       const aq = fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${place.lat}&longitude=${place.lon}&current=aerosol_optical_depth,dust`)
         .then(r => r.ok ? r.json() : null).catch(() => null);
       const r = await fetch(u);
@@ -1463,7 +1483,9 @@
       W = { code: c.weather_code, temp: c.temperature_2m, cloud: c.cloud_cover, wind: c.wind_speed_10m, offset: (j.utc_offset_seconds || 0) / 60,
             rh: c.relative_humidity_2m, vis: c.visibility, cl: c.cloud_cover_low, cm: c.cloud_cover_mid, ch: c.cloud_cover_high, aod: a.aerosol_optical_depth ?? null, dust: a.dust ?? null,
             t250: at("temperature_250hPa"), rh250: at("relative_humidity_250hPa"), ws250: at("wind_speed_250hPa"), wd250: at("wind_direction_250hPa"),
-            iceScore: iceScoreOf(H) };
+            iceScore: iceScoreOf(H),
+            hr: { t: H.time, code: H.weather_code, temp: H.temperature_2m, cloud: H.cloud_cover, cl: H.cloud_cover_low, cm: H.cloud_cover_mid,
+                  ch: H.cloud_cover_high, wind: H.wind_speed_10m, rh: H.relative_humidity_2m, vis: H.visibility } };
       wxState = "ok";
       try { localStorage.setItem(WX_KEY, JSON.stringify({ key, at: Date.now(), data: W })); } catch (e) {}
     } catch (e) {
@@ -2081,7 +2103,7 @@
   function setPlace(p) {
     place = p;
     try { localStorage.setItem(PLACE_KEY, JSON.stringify(p)); } catch (e) {}
-    W = null;
+    W = Wnow = null;
     PH = null;
     loadWeather(true).then(loadPheno).then(refresh);
     refresh();
@@ -2149,11 +2171,14 @@
       else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
       wake(false); band.classList.remove("idle");
     }
+    if (m === "band") { stopPlay(); if (scrub != null) setScrub(null); }
+    else { buildDay(); syncScrub(); }
     if (on) resize();
     if (m === "tall") band.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
   function tickClock() {
-    const d = new Date(), H = d.getHours(), M = String(d.getMinutes()).padStart(2, "0");
+    // 미리보기 중이면 고른 시각 (그 지역 시각을 이 기기 시계 숫자로 옮겨서)
+    const d = scrub != null ? new Date(scrub + (offMin() + new Date().getTimezoneOffset()) * 60e3) : new Date(), H = d.getHours(), M = String(d.getMinutes()).padStart(2, "0");
     const tm = clockEl.querySelector(".ck-time"), ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const txt = `${H % 12 || 12}:${M}`;
     if (tm.dataset.v !== txt) {
@@ -2164,7 +2189,7 @@
     const L = lunarDate(ymd), day = "일월화수목금토"[d.getDay()];
     clockEl.querySelector(".ck-date").textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${day}요일` + (L ? ` · 음력 ${L.leap ? "윤" : ""}${L.m}월 ${L.d}일` : "");
     const wt = weatherText();
-    clockEl.querySelector(".ck-wx").textContent = place.name + (wt ? " · " + wt : "");
+    clockEl.querySelector(".ck-wx").textContent = (scrub != null ? "미리보기 · " : "") + place.name + (wt ? " · " + wt : "");
   }
   cvs.addEventListener("click", () => {
     if (mode === "band") setMode("tall");
@@ -2215,7 +2240,82 @@
     const at = (az, a2) => { const r = skyRadiance(dirOf(az, a2), sd, AER); return [+(lum(r) / L[180]).toFixed(2), tint(r)]; };
     return { hz: [-84, -40, 0, 40, 84].map(az => [az, at(az, 1.5), at(az, 8), at(az, 25)]), zen: at(0, 80), alt, med: L[180], T10: lum(sunTransmit(sd, AER, 10e3)), T3: lum(sunTransmit(sd, AER, 3e3)), tint: tint(sunTransmit(sd, AER, 10e3)) };
   };
+  if (PREVIEW) window.PlannerScene._paintMs = ms => { scrub = ms; W = weatherAt(ms); const t0 = performance.now(); paintBg(); draw(); return performance.now() - t0; };   // 로컬 점검용
   if (PREVIEW) window.PlannerScene._dbg = () => ({ skyMed, T10: lum(sunTransmit(dirOf(sun.az, sun.alt), AER, 10e3)), sun, dusk, night, overcast, highLit, lowLit, cloudLit, trailTint, sunTint, cloudTint, lowTint });   // 로컬 점검용
+  /* ---------- 하루 미리보기: 슬라이더로 오늘 0시~24시를 훑어봄 ----------
+   * 고른 시각의 해·달·별 위치와 하늘색을 계산하고, 날씨는 그 시각의 시간별 예보(구름 높이별 양, 비·눈, 기온, 바람)를 씀.
+   * 슬라이더 바탕은 그날 하루의 하늘빛(해 고도로)과 구름·비 예보로 칠함. ▶ 는 하루를 약 30초에 재생, '지금'은 현재 시각으로.
+   */
+  const scrubEl = band.querySelector(".season-scrub"), rangeEl = scrubEl.querySelector(".ss-range");
+  const timeEl = scrubEl.querySelector(".ss-time"), playBtn = scrubEl.querySelector(".ss-play");
+  let dayStart = 0, sunEv = [], playing = 0, scrubT = 0, paintAt = 0;
+  const offMin = () => Wnow && Wnow.offset != null ? Wnow.offset : -nowReal().getTimezoneOffset();
+  function fmt(ms) {
+    const d = new Date(ms + offMin() * 60e3), H = d.getUTCHours();
+    return `${H < 12 ? "오전" : "오후"} ${H % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+  }
+  const skyTone = a => a < -12 ? "#1c2444" : a < -6 ? mix("#1c2444", "#3e4a8c", (a + 12) / 6) : a < -1 ? mix("#3e4a8c", "#b0678a", (a + 6) / 5)
+    : a < 1 ? mix("#b0678a", "#e8835a", (a + 1) / 2) : a < 6 ? mix("#e8835a", "#f2c27a", (a - 1) / 5) : mix("#a9d6f0", "#6fb3e6", Math.min(1, (a - 6) / 30));
+  function buildDay() {                              // 그 지역의 오늘 자정, 일출·일몰, 슬라이더 바탕
+    const off = offMin(), loc = new Date(nowReal().getTime() + off * 60e3);
+    dayStart = Date.UTC(loc.getUTCFullYear(), loc.getUTCMonth(), loc.getUTCDate()) - off * 60e3;
+    const alts = [];
+    for (let m = 0; m <= 1440; m += 10) alts.push(sunPos(new Date(dayStart + m * 60e3), place.lat, place.lon).alt);
+    sunEv = [];
+    for (let i = 1; i < alts.length; i++) {          // 해 윗가장자리가 지평선에 닿는 때 (고도 −0.833°)
+      const a = alts[i - 1] + .833, b = alts[i] + .833;
+      if (a * b < 0) sunEv.push({ m: (i - 1 + a / (a - b)) * 10, up: b > 0 });
+    }
+    const stops = [];
+    for (let m = 0; m <= 1440; m += 30) {
+      const al = alts[m / 10], Wh = weatherAt(dayStart + m * 60e3);
+      let c = skyTone(al);
+      if (Wh) {                                      // 낮은·중간 구름이 많거나 비·눈이 오면 회색빛
+        const wet = Wh.code >= 51 ? .45 : 0, dim = ((Wh.cl || 0) + .7 * (Wh.cm || 0)) / 170;
+        c = mix(c, al > 0 ? "#9aa3ae" : "#353b4c", Math.min(.75, wet + .5 * dim));
+      }
+      stops.push(`${c} ${(m / 14.4).toFixed(1)}%`);
+    }
+    rangeEl.style.setProperty("--ss-grad", `linear-gradient(90deg,${stops.join(",")})`);
+    rangeEl.title = sunEv.map(e => `${e.up ? "일출" : "일몰"} ${fmt(dayStart + e.m * 60e3)}`).join(" · ");
+  }
+  function syncScrub() {
+    const t = scrub != null ? scrub : nowReal().getTime(), m = (t - dayStart) / 60e3;
+    if (document.activeElement !== rangeEl || playing) rangeEl.value = Math.round(m);
+    const ev = sunEv.find(e => Math.abs(e.m - m) <= 8);
+    timeEl.textContent = fmt(t) + (ev ? (ev.up ? " 일출" : " 일몰") : "");
+    band.classList.toggle("scrubbing", scrub != null);
+  }
+  function setScrub(ms) {
+    scrub = ms;
+    W = ms == null ? Wnow : weatherAt(ms);
+    syncScrub();
+    if (scrubT) return;                              // 그리기는 초당 15번 정도로 (하늘 계산이 무거움)
+    scrubT = setTimeout(() => requestAnimationFrame(() => {
+      scrubT = 0; paintAt = performance.now();
+      if (w) { paintBg(); draw(); } else compute();
+      if (mode === "full") tickClock();
+    }), Math.max(0, 66 - (performance.now() - paintAt)));
+  }
+  function stopPlay() { if (playing) cancelAnimationFrame(playing); playing = 0; playBtn.setAttribute("aria-pressed", "false"); }
+  function startPlay() {
+    let m = ((scrub != null ? scrub : nowReal().getTime()) - dayStart) / 60e3, last = performance.now();
+    if (m >= 1430) m = 0;
+    playBtn.setAttribute("aria-pressed", "true");
+    const stepFn = ts => {
+      m += (ts - last) / 1000 * 50; last = ts;      // 1초에 50분 → 하루 약 29초
+      if (m >= 1440) { m = 1440; stopPlay(); }
+      setScrub(dayStart + m * 60e3);
+      if (playing) playing = requestAnimationFrame(stepFn);
+    };
+    playing = requestAnimationFrame(stepFn);
+  }
+  rangeEl.addEventListener("input", () => { stopPlay(); setScrub(dayStart + +rangeEl.value * 60e3); });
+  scrubEl.querySelector(".ss-now").addEventListener("click", () => { stopPlay(); setScrub(null); });
+  playBtn.addEventListener("click", () => playing ? stopPlay() : startPlay());
+  scrubEl.addEventListener("click", e => e.stopPropagation());
+  setInterval(() => { if (mode !== "band" && scrub == null) syncScrub(); }, 30e3);
+
   /* ---------- 루프 ---------- */
   function refresh() { if (w) { paintBg(); draw(); } else compute(); }   // 안 보일 때도 글자는 갱신
   function frame(ts) {
