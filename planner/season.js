@@ -596,8 +596,9 @@
     star(x + sway, top, r, "#ffd94a");
   }
   function decorateRound(o, sway) {
-    if (!fest || fest.key !== "christmas" || S.leaf < .05) return;
-    const { x, y, s } = o, k = .62 + .38 * Math.max(S.leaf, S.bloom * .9), cx = x + sway, cy = y - s * .72;
+    const la = o.leafAmt != null ? o.leafAmt : Math.max(S.leaf, S.bloom * .9);
+    if (!fest || fest.key !== "christmas" || la < .05) return;
+    const { x, y, s } = o, k = .62 + .38 * la, cx = x + sway, cy = y - s * .72;
     for (let i = 0; i < 6; i++) { const a = Math.PI * (.15 + .7 * i / 5); bulb(cx - Math.cos(a) * s * .34 * k, cy + Math.sin(a) * s * .12 * k - s * .05, i + (x | 0), Math.max(.8, s * .02)); }
   }
   function pumpkin(x, y, r, face) {
@@ -1235,6 +1236,114 @@
     return temp != null && temp <= -6 ? .5 : 0;           // 기온 기록이 없으면 지금 기온으로만 대강
   }
 
+  /* ---------- 나무의 계절: 그해 기온 이력으로 계산 (생물계절 모델) ----------
+   * 일별 최고·최저·평균기온, 일조시간, 바람 (Open-Meteo: 최근 92일은 예보 API, 그 이전은 과거 기상 API)을 하루 한 번 받아서
+   *   새순·잎:  생육도일 GDD = Σ max(0, 일평균 − 5°C) (1월 1일부터). 100 에서 새순, 350 이면 잎이 다 자람
+   *   벚꽃:     2월 1일부터 일 최고기온 누적이 600°C 가 되는 날 개화 ("600도 법칙"), 4일쯤 만개, 열흘 남짓 지나면 짐
+   *   단풍:     8월 1일부터 서늘함 누적 Σ max(0, 17°C − 일평균). 14 에서 물들기 시작, 90 즈음 절정
+   *             (일 최저기온이 처음 5°C 아래로 내려가면 그 전이라도 물들기 시작)
+   *   단풍 색:  물드는 동안 맑은 날이 많고 밤이 서늘할수록(영하는 아님) 붉고 선명, 흐리고 따뜻하면 누렇고 탁함
+   *   낙엽:     서늘함 누적 125 이후 줄고, 된서리(최저 −2°C 이하)·강풍마다 더 떨어짐
+   * 나무 종류: 단풍나무(빨강), 은행나무(노랑, 늦게 물들고 한꺼번에 짐), 벚나무(봄꽃, 일찍 물듦), 느티나무(주황·갈색)
+   * 남반구·열대처럼 모델이 맞지 않는 곳이나 자료가 없을 때는 날짜 기준(기존 방식)으로 그림.
+   */
+  const PHENO_KEY = "planner-pheno";
+  let PH = null;
+  const SPECIES = ["maple", "maple", "ginkgo", "cherry", "zelkova"];
+  const AUTUMN = { maple: ["#e4553c", "#ff8c62"], ginkgo: ["#f2c12e", "#ffe26a"], cherry: ["#ea7a3c", "#ffb066"], zelkova: ["#d47d3a", "#f4a75e"] };
+  const DULL = ["#b98a50", "#dcb072"];                // 흐리고 따뜻한 가을의 탁한(누런) 색
+  const GREEN = { spring: ["#a8cf7f", "#cfe6a8"], summer: ["#3b8550", "#6db46b"] };
+  const clamp01 = x => Math.max(0, Math.min(1, x));
+  const ymdUTC = ms => new Date(ms).toISOString().slice(0, 10);
+
+  async function loadPheno() {
+    const date = now(), off = W && W.offset != null ? W.offset : -date.getTimezoneOffset();
+    const today = ymdUTC(date.getTime() + off * 60e3), y = +today.slice(0, 4), m = +today.slice(5, 7);
+    const start = m >= 8 ? `${y}-08-01` : `${y}-01-01`;
+    const key = `${(+place.lat).toFixed(2)},${(+place.lon).toFixed(2)},${start},${today}`;
+    try { const c = JSON.parse(localStorage.getItem(PHENO_KEY)); if (c && c.key === key) { PH = phenology(c.days, today); return; } } catch (e) {}
+    const D = "temperature_2m_max,temperature_2m_min,temperature_2m_mean,sunshine_duration,wind_speed_10m_max";
+    const ll = `latitude=${place.lat}&longitude=${place.lon}`, days = new Map();
+    const take = j => (j && j.daily && j.daily.time || []).forEach((d, i) => {
+      const v = k => j.daily[k][i];
+      if (v("temperature_2m_max") != null) days.set(d, { tx: v("temperature_2m_max"), tn: v("temperature_2m_min"), tm: v("temperature_2m_mean"), sun: (v("sunshine_duration") || 0) / 3600, wind: v("wind_speed_10m_max") || 0 });
+    });
+    try {
+      const recent = Date.now() - Date.parse(today) < 3 * 864e5;            // 미리보기로 과거 날짜를 보면 과거 자료만
+      const cut = ymdUTC(Date.parse(today) - (recent ? 88 : 0) * 864e5);
+      if (start < cut) {
+        const r = await fetch(`https://archive-api.open-meteo.com/v1/archive?${ll}&start_date=${start}&end_date=${cut}&daily=${D}&timezone=auto`);
+        if (r.ok) take(await r.json());
+      }
+      if (recent) {
+        const r = await fetch(`https://api.open-meteo.com/v1/forecast?${ll}&daily=${D}&past_days=92&forecast_days=1&timezone=auto`);
+        if (r.ok) take(await r.json());
+      }
+    } catch (e) {}
+    const list = [...days].filter(([d]) => d >= start && d <= today).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, v]) => ({ d, ...v }));
+    if (list.length < 10) { PH = null; return; }
+    try { localStorage.setItem(PHENO_KEY, JSON.stringify({ key, days: list })); } catch (e) {}
+    PH = phenology(list, today);
+  }
+
+  function phenology(days, today) {
+    if (place.lat < 23 || place.lat > 62) return null;                       // 남반구·열대·고위도는 날짜 기준
+    const m = +today.slice(5, 7), r = { gdd: 0, dts: 0, bloomDay: null, cool: 0, firstCold: null, sunSum: 0, coolNights: 0, colorDays: 0, frosts: 0, windy: 0 };
+    for (const v of days) {
+      if (m < 8) {                                                            // 봄~여름
+        r.gdd += Math.max(0, v.tm - 5);
+        if (v.d >= today.slice(0, 4) + "-02-01") { r.dts += Math.max(0, v.tx); if (!r.bloomDay && r.dts >= 600) r.bloomDay = v.d; }
+      } else {                                                                // 가을~초겨울
+        r.cool += Math.max(0, 17 - v.tm);
+        if (!r.firstCold && v.tn < 5) r.firstCold = v.d;
+        if (r.cool > 10 || r.firstCold) { r.colorDays++; r.sunSum += v.sun; if (v.tn > 0 && v.tn < 9) r.coolNights++; }
+        if (v.tn <= -2) r.frosts++;
+        if (v.wind >= 40) r.windy++;
+      }
+    }
+    const P = { model: true };
+    if (m < 8) {
+      P.buds = clamp01((r.gdd - 60) / 80) * (1 - clamp01((r.gdd - 200) / 120));
+      P.leafOut = clamp01((r.gdd - 100) / 250);
+      P.summer = clamp01((r.gdd - 350) / 700);                                // 여름으로 갈수록 짙은 초록
+      const since = r.bloomDay ? (Date.parse(today) - Date.parse(r.bloomDay)) / 864e5 : -99;
+      P.bloom = since < 0 ? (r.dts > 520 ? (r.dts - 520) / 80 * .3 : 0) : since < 4 ? .4 + since * .15 : since < 9 ? 1 : since < 15 ? 1 - (since - 9) / 6 : 0;
+      P.color = 0; P.leaf = 1; P.falling = 0; P.redness = .6;
+      P.info = `생육도일 ${Math.round(r.gdd)} · 벚꽃 누적 ${Math.round(r.dts)}°C` + (r.bloomDay ? ` (개화 ${r.bloomDay.slice(5)})` : "");
+    } else {
+      const start = r.firstCold ? Math.max(r.cool, 15) : r.cool;
+      P.color = clamp01((start - 14) / 76);
+      const sunny = r.colorDays ? r.sunSum / r.colorDays : 6, cool = r.colorDays ? r.coolNights / r.colorDays : .5;
+      P.redness = clamp01(-.2 + .07 * sunny + .65 * cool);                    // 맑고 서늘한 밤 → 붉고 선명
+      P.leaf = clamp01(1 - clamp01((r.cool - 125) / 95) - .15 * r.frosts - .04 * r.windy);
+      P.falling = P.color > .3 ? clamp01(1 - P.leaf) * P.leaf * 4 : 0;         // 지는 중일 때 낙엽이 날림
+      P.buds = 0; P.leafOut = 1; P.summer = 1; P.bloom = 0;
+      P.info = `서늘함 누적 ${Math.round(r.cool)} · 단풍 ${Math.round(P.color * 100)}% · 붉은 정도 ${Math.round(P.redness * 100)}%`;
+    }
+    return P;
+  }
+
+  // 나무 한 그루의 잎 양·꽃·색 (종류별로 조금씩 다르게)
+  function treeLook(o) {
+    const sp = o.sp;
+    if (!PH) return null;
+    let col = PH.color, leaf = PH.leaf;
+    if (sp === "cherry") { col = clamp01(PH.color * 1.35 + .05); leaf = clamp01(PH.leaf - .15); }
+    if (sp === "ginkgo") { col = clamp01((PH.color - .2) * 1.5); leaf = PH.leaf > .35 ? 1 : PH.leaf / .35; }
+    if (sp === "zelkova") col = clamp01(PH.color * .95);
+    if (PH.leafOut < 1) leaf = Math.min(leaf, PH.leafOut);
+    const green = GREEN.spring.map((c, i) => mix(c, GREEN.summer[i], PH.summer));
+    const target = sp === "maple" ? AUTUMN.maple.map((c, i) => mix(DULL[i], c, PH.redness)) : sp === "ginkgo" ? AUTUMN.ginkgo
+                 : AUTUMN[sp].map((c, i) => mix(DULL[i], c, .4 + .6 * PH.redness));
+    // 초록 → 노랑 → 목표색 순서로 (초록과 빨강을 바로 섞으면 갈색으로 탁해짐)
+    const k = clamp01(col * 1.2), turn = target.map(c => mix(c, "#ecc84c", .55));
+    const step = (g2, t2, u) => k < .5 ? mix(g2, u, k * 2) : mix(u, t2, (k - .5) * 2);
+    let base = step(green[0], target[0], turn[0]), hi = step(green[1], target[1], turn[1]);
+    const bloom = sp === "cherry" ? PH.bloom : 0;
+    base = mix(base, "#f4bfcf", bloom); hi = mix(hi, "#fde4ec", bloom);
+    return { leaf: Math.max(leaf, bloom * .9), bloom, buds: PH.buds, base, hi };
+  }
+
   /* ---------- 상태 ---------- */
   let on, w = 0, h = 0, dpr = 1, raf = 0, last = 0, t = 0, painted = 0, flash = 0;
   let place = DEFAULT_PLACE, W = null, wxState = "idle", wxTimer = 0;
@@ -1361,27 +1470,28 @@
     g.fillStyle = TC.trunk;
     g.beginPath(); g.moveTo(x - s * .075, y); g.quadraticCurveTo(x - s * .05, y - s * .25, x - s * .045, y - s * .5);
     g.lineTo(x + s * .045, y - s * .5); g.quadraticCurveTo(x + s * .05, y - s * .25, x + s * .075, y); g.closePath(); g.fill();
-    const leaf = Math.max(S.leaf, S.bloom * .9);
+    const P = o.pal || TC, leaf = o.leafAmt != null ? o.leafAmt : Math.max(S.leaf, S.bloom * .9);   // 종류별 색·잎 양 (treeLook)
+    const bloomA = o.bloomAmt != null ? o.bloomAmt : S.bloom, budsA = o.budsAmt != null ? o.budsAmt : S.buds;
     const cx = x + sway, cy = y - s * .72;
     if (leaf > .05) {
       const k = .62 + .38 * leaf;
       g.globalAlpha = Math.min(1, leaf * 1.5);
-      g.fillStyle = TC.outline;
+      g.fillStyle = P.outline;
       for (const [bx, by, r] of BLOBS) circle(g, cx + bx * s * k, cy + by * s * k, r * s * k + 1.1);
-      g.fillStyle = TC.leafD;
+      g.fillStyle = P.leafD;
       for (const [bx, by, r] of BLOBS) circle(g, cx + bx * s * k, cy + by * s * k, r * s * k);
       g.save();
       g.beginPath(); for (const [bx, by, r] of BLOBS) { g.moveTo(cx + bx * s * k + r * s * k, cy + by * s * k); g.arc(cx + bx * s * k, cy + by * s * k, r * s * k, 0, TAU); }
       g.clip();
-      g.fillStyle = TC.leaf;
+      g.fillStyle = P.leaf;
       for (const [bx, by, r] of BLOBS) circle(g, cx + bx * s * k, cy + (by - .07) * s * k, r * s * k * .93);
-      g.fillStyle = TC.leafL;
+      g.fillStyle = P.leafL;
       circle(g, cx - s * .1 * k, cy - s * .22 * k, s * .1 * k); circle(g, cx + s * .09 * k, cy - s * .27 * k, s * .055 * k);
       g.restore();
       g.globalAlpha = 1;
       if (o.fruit) { g.fillStyle = TC.fruit; for (const [fx2, fy2] of [[-.15, .02], [.12, -.06], [.03, .12], [.2, .08]]) circle(g, cx + fx2 * s * k, cy + fy2 * s * k, s * .035 + .7); }
-      if (S.bloom > .2) {
-        g.fillStyle = `rgba(255,255,255,${.85 * S.bloom})`;
+      if (bloomA > .2) {
+        g.fillStyle = `rgba(255,255,255,${.85 * bloomA})`;
         seed = Math.round(x * 13) + 1;
         for (let i = 0; i < 8; i++) circle(g, cx + (srnd() - .5) * s * .6 * k, cy + (srnd() - .6) * s * .45 * k, s * .028 + .45);
       }
@@ -1399,7 +1509,7 @@
         g.beginPath(); g.moveTo(x, by); g.quadraticCurveTo(x + d * s * len * .3, by - s * .12, ex, ey); g.stroke();
         tips.push([ex, ey]);
       }
-      if (S.buds > .1) { g.fillStyle = rgba(SH("#a9d47a"), S.buds); for (const [ex, ey] of tips) circle(g, ex, ey, Math.max(1, s * .035)); }
+      if (budsA > .1) { g.fillStyle = rgba(SH("#a9d47a"), budsA); for (const [ex, ey] of tips) circle(g, ex, ey, Math.max(1, s * .035)); }
       if (snowCover > .3) { g.fillStyle = `rgba(255,255,255,${snowCover})`; for (const [ex, ey] of tips) ellipse(g, ex, ey - 1, s * .05, s * .025); }
     }
   }
@@ -1584,6 +1694,14 @@
       if (Math.abs(x - hx) < h * .3) continue;
       objs.push({ k: "flower", x, y: depthY(x, d), s: 2.4 + 3.2 * depthS(d), ph: srnd() * TAU, c: shade(FC[(srnd() * FC.length) | 0]) });
     }
+    for (const o of objs) {                         // 활엽수: 종류를 정하고 그해 기온 이력으로 색·잎 양
+      if (o.k !== "round") continue;
+      o.sp = SPECIES[(hash2(Math.round(o.x * 3), 17) * SPECIES.length) | 0];
+      const L = treeLook(o);
+      if (!L) continue;
+      o.leafAmt = L.leaf; o.bloomAmt = L.bloom; o.budsAmt = L.buds;
+      o.pal = { outline: shade(mix(L.base, "#1d2b1d", .38)), leaf: shade(L.base), leafD: shade(mix(L.base, "#1f3326", .22)), leafL: shade(mix(L.hi, "#ffffff", .22)) };
+    }
     if (fest && fest.key === "chuseok") objs.forEach(o => { if (o.k === "round") o.fruit = true; });
     objs.sort((a, b) => a.y - b.y);
     seed = 77;
@@ -1636,8 +1754,8 @@
     drop(fx.snow * .9, () => { const d = .5 + rnd() * .8; return { k: "snow", x: x0(), y: -4, d, r: (fx.snow > 1 ? 1.1 : .8) * (1 + d), vy: .35 + d * .45, ph: rnd() * TAU }; });
     const calm = fx.rain < 1.5 && fx.snow < 1 && !fx.storm;
     if (calm) {
-      drop(.35 * S.bloom * (fx.rain ? .5 : 1), () => { const d = .5 + rnd() * .8; return { k: "petal", x: x0() - 30, y: -4, d, vy: .45 + d * .35, rot: rnd() * TAU, spin: (rnd() - .5) * .12, ph: rnd() * TAU, c: rnd() < .5 ? "#f8cfdc" : "#ef9fb8" }; });
-      drop(.25 * bump(doy, 300, 22), () => { const d = .5 + rnd() * .8; return { k: "leaf", x: x0(), y: -6, d, vy: .5 + d * .4, rot: rnd() * TAU, spin: (rnd() - .5) * .1, ph: rnd() * TAU, c: ["#d65f2c", "#f2a83f", "#b8451f", "#e07d34"][rnd() * 4 | 0] }; });
+      drop(.35 * (PH ? PH.bloom * .7 : S.bloom) * (fx.rain ? .5 : 1), () => { const d = .5 + rnd() * .8; return { k: "petal", x: x0() - 30, y: -4, d, vy: .45 + d * .35, rot: rnd() * TAU, spin: (rnd() - .5) * .12, ph: rnd() * TAU, c: rnd() < .5 ? "#f8cfdc" : "#ef9fb8" }; });
+      drop(PH ? .4 * PH.falling : .25 * bump(doy, 300, 22), () => { const d = .5 + rnd() * .8; return { k: "leaf", x: x0(), y: -6, d, vy: .5 + d * .4, rot: rnd() * TAU, spin: (rnd() - .5) * .1, ph: rnd() * TAU, c: ["#d65f2c", "#f2a83f", "#b8451f", "#e07d34"][rnd() * 4 | 0] }; });
     }
     const count = k => parts.reduce((n, p) => n + (p.k === k), 0);
     const dry = !fx.rain && !fx.snow && !fx.storm;
@@ -1856,7 +1974,7 @@
     }
     const wt = weatherText();
     placeBtn.textContent = place.name + (wt ? " · " + wt : "");
-    placeBtn.title = "위치 바꾸기 (설정)";
+    placeBtn.title = "위치 바꾸기 (설정)" + (PH && PH.info ? "\n나무: " + PH.info : "");
     notify();
   }
   // 풍경 위 위치 표시를 누르면 설정 창의 위치 항목을 엶
@@ -1866,7 +1984,8 @@
     place = p;
     try { localStorage.setItem(PLACE_KEY, JSON.stringify(p)); } catch (e) {}
     W = null;
-    loadWeather(true).then(refresh);
+    PH = null;
+    loadWeather(true).then(loadPheno).then(refresh);
     refresh();
   }
   // 설정 창(app.js)에서 쓰는 기능
@@ -1881,6 +2000,7 @@
       return (r.results || []).sort((a, b) => (b.population || 0) - (a.population || 0))
         .map(x => ({ name: x.name, detail: [x.admin2, x.admin1, x.country].filter(Boolean).join(", "), lat: x.latitude, lon: x.longitude }));
     },
+    pheno: () => PH,
     locate: () => new Promise((ok, no) => {
       if (!navigator.geolocation) return no(new Error("이 브라우저는 현재 위치를 지원하지 않습니다."));
       navigator.geolocation.getCurrentPosition(
@@ -1917,8 +2037,8 @@
     if (!on || document.hidden) return;
     resize();
     raf = requestAnimationFrame(frame);
-    loadWeather(false).then(refresh);              // 20분 안에 받은 날씨가 있으면 그것을 씀
-    wxTimer = setInterval(() => loadWeather(false).then(refresh), 20 * 60e3);
+    loadWeather(false).then(loadPheno).then(refresh);   // 20분 안에 받은 날씨가 있으면 그것을 씀. 나무 자료는 하루 한 번
+    wxTimer = setInterval(() => loadWeather(false).then(loadPheno).then(refresh), 20 * 60e3);
   }
 
   addEventListener("resize", () => { if (on) resize(); });
