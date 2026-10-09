@@ -38,8 +38,8 @@ papers/                     ← 논문 PDF를 여기에
 planner/index.html          ← 개인용 연구 플래너 화면·스타일 (build.py 와 무관, 직접 수정)
 planner/js/*.js             ← 플래너 동작. 기능별 파일 (목록과 순서는 planner/js/core.js 머리말)
 planner/season.js           ← 상단 계절 풍경, 계절 포인트 색
-planner/ambient.js          ← 풍경과 같은 날씨·시각·계절로 만드는 배경 소리 (Web Audio 합성, 음원 파일 없음)
-planner/ambient-worklet.js  ← 배경 소리의 잡음·빗방울·물방울 발생기 (오디오 스레드, 되풀이 없음). 고치면 ambient.js 의 WORKLET ?v= 도 올리기
+planner/ambient.js          ← 풍경과 같은 날씨·시각·계절에 맞춰 자연 녹음을 섞어 트는 배경 소리
+planner/sounds/             ← 배경 소리 녹음 (이음매 없이 반복되게 잘라 둔 m4a, 출처는 아래 '배경 소리 녹음 출처')
 planner/manifest.webmanifest, planner/sw.js, planner/icons/  ← 앱으로 설치 (PWA)
 tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 백업 + Google 캘린더 연동 (Apps Script, 본인 계정에 설치)
 .github/workflows/          ← push 시 자동 빌드 + 배포
@@ -88,7 +88,7 @@ Google 캘린더의 `Research Planner` 캘린더에 맞춰 넣어서 휴대폰 �
 항목에 파일을 첨부하면 본인 Google Drive의 `Research Planner` 폴더에 올라가고, 플래너에는 링크만 저장됩니다
 (권한은 `drive.file`이라 플래너가 올린 파일에만 접근. Google Cloud 콘솔에서 **Google Drive API** 사용 설정 필요).
 풍경을 누르면 세로로 크게, 한 번 더 누르면 전체 화면이 됩니다. 전체 화면은 라이브 배경화면처럼 시계·날짜(음력)·날씨를 크게 띄우고, 가만히 두면 버튼과 커서를 숨기며 화면이 꺼지지 않게 합니다(Esc·작게 버튼으로 돌아감). 크게 볼수록 장면을 확대해 그려서 나무·해가 늘어나지 않고, 땅이 넓어진 만큼 나무 줄을 더 심습니다.
-**배경 소리**(풍경의 🔈 버튼이나 설정)를 켜면 지금 날씨·시각·계절에 맞춘 소리를 그 자리에서 합성합니다: 풍속에 따른 바람과 돌풍, 강수 세기에 따른 빗소리·빗방울, 번개 뒤 거리만큼 늦게 오는 천둥, 눈이 쌓이면 먹먹해지는 소리, 얼면 멈추는 강물, 새벽에 가장 많은 새소리와 까치, 기온으로 빠르기가 정해지는 풀벌레(돌베어 법칙), 초여름 밤 개구리, 한여름 매미, 바람 부는 날 풍경, 설날 불꽃·크리스마스 썰매 방울. 다른 탭을 보고 있어도 1분마다 날씨·시각을 따라갑니다.
+**배경 소리**(풍경의 🔈 버튼이나 설정)를 켜면 지금 날씨·시각·계절에 맞춰 실제 자연 녹음을 섞어 틉니다: 풍속에 따라 산들바람 → 숲속 강풍, 강수 세기만큼 빗소리, 번개 뒤 거리만큼 늦게 오는 천둥, 눈이 쌓이면 먹먹해지는 소리, 얼면 멈추는 강물, 낮의 새소리와 해 뜰 무렵 새벽 합창, 기온으로 빠르기가 정해지는 풀벌레(돌베어 법칙), 초여름 밤 개구리, 한여름 매미. 풍경·썰매 방울·불꽃만 합성. 녹음은 필요한 것만 소리를 켰을 때 받아 옵니다(전부 약 6 MB).
 로컬에서는 `?demo&date=2026-04-05&hour=10&wx=61`처럼 날짜·현지 시각·날씨 코드를 바꿔 풍경을 미리 볼 수 있습니다.
 **가져오기**로 JSON 계획을 한 번에 넣을 수 있습니다(형식은 `planner/js/goals.js`의 `parsePlan` 주석).
 개인 계획 파일은 `_private/`에 두세요. git에서 제외되어 공개 저장소에 올라가지 않습니다.
@@ -100,7 +100,7 @@ Google 캘린더의 `Research Planner` 캘린더에 맞춰 넣어서 휴대폰 �
   이 저장소는 공개이므로 규칙에 들어가는 개인 이메일은 여기에 적지 않습니다.
 - 보안: 페이지에 CSP(불러올 수 있는 출처 제한)가 걸려 있어서, 새 외부 서비스를 쓰려면 `planner/index.html` 맨 위
   `Content-Security-Policy`에 주소를 추가해야 합니다. 로그아웃하면 브라우저에 저장된 플래너 데이터도 지웁니다.
-- `planner/index.html`의 `js/*.js?v=…`, `season.js?v=…`, `ambient.js?v=…`, `theme-init.js?v=…`은 캐시 때문에 화면과 코드가
+- `planner/index.html`의 `js/*.js?v=…`, `season.js?v=…`, `ambient.js?v=…`(녹음을 바꾸면 ambient.js 의 `VER` 도), `theme-init.js?v=…`은 캐시 때문에 화면과 코드가
   서로 다른 버전으로 섞이지 않게 붙인 버전 번호입니다. 플래너 코드를 고칠 때마다 숫자를 하나씩 올리세요.
 - 로컬 미리보기: `python -m http.server 8000` 후 `http://localhost:8000/planner/?demo`
   (로그인 없이 브라우저에만 저장되는 데모 데이터)
@@ -415,6 +415,24 @@ GitHub Pages는 정적 호스팅이라 **서버 로그를 볼 수 없습니다.*
 날짜를 고정하고 싶으면 `"April 2026"` 처럼 직접 적으세요.
 
 ---
+
+## 배경 소리 녹음 출처
+
+`planner/sounds/`의 녹음은 위키미디어 공용(Wikimedia Commons)의 공개 라이선스 녹음을 잘라(구간 선택·잡음 대역 필터·이음매 교차 페이드·크기 맞춤) AAC로 바꾼 것입니다.
+CC BY-SA 녹음을 고친 파일은 같은 CC BY-SA 라이선스를 따릅니다.
+
+| 파일 | 원본 | 만든 사람 | 라이선스 |
+|---|---|---|---|
+| wind-light | [Windy day (Gravity Sound).wav](https://commons.wikimedia.org/wiki/File:Windy_day_(Gravity_Sound).wav) | Gravity Sound | CC BY 4.0 |
+| wind-strong | [Wind in Swedish pine forest at 25 mps.ogg](https://commons.wikimedia.org/wiki/File:Wind_in_Swedish_pine_forest_at_25_mps.ogg) | W.carter | CC BY-SA 4.0 |
+| rain | [Rain on leaves (Gravity Sound).wav](https://commons.wikimedia.org/wiki/File:Rain_on_leaves_(Gravity_Sound).wav) | Gravity Sound | CC BY 4.0 |
+| thunder-1~3 | [Summer thunderstorm in the woods.ogg](https://commons.wikimedia.org/wiki/File:Summer_thunderstorm_in_the_woods.ogg) | Serg Childed | CC BY-SA 4.0 |
+| stream | [2024-07-26 Molln (Oberösterreich) Bachlauf plätschert](https://commons.wikimedia.org/wiki/File:2024-07-26_Molln_(Ober%C3%B6sterreich)_Bachlauf_pl%C3%A4tschert_(Krumme_Steyerling_bei_Piesslingerstra%C3%9Fe).wav) | DrTrumpet | CC0 |
+| birds-day | [Bourne woods Birdsong 2020-05-02 0804.mp3](https://commons.wikimedia.org/wiki/File:Bourne_woods_Birdsong_2020-05-02_0804.mp3) | Robert EA Harvey | CC BY-SA 4.0 |
+| birds-dawn | [Dawn chorus at Glencairnie big bungalow Craigmore DM.ogg](https://commons.wikimedia.org/wiki/File:Dawn_chorus_at_Glencairnie_big_bungalow_Craigmore_DM.ogg) | DivyaCM | CC BY 4.0 |
+| crickets | [Field cricket Gryllus pennsylvanicus.ogg](https://commons.wikimedia.org/wiki/File:Field_cricket_Gryllus_pennsylvanicus.ogg) | Thatcher | CC BY-SA 3.0 |
+| frogs | [Frogs croak calling chorus at night.ogg](https://commons.wikimedia.org/wiki/File:Frogs_croak_calling_chorus_at_night.ogg) | JogiAsad | CC BY-SA 4.0 |
+| cicada | [Cicada 20200619.wav](https://commons.wikimedia.org/wiki/File:Cicada_20200619.wav) | Shyamal | CC0 |
 
 ## 링크 공유 미리보기
 

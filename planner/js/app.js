@@ -243,7 +243,7 @@ function openSettings(section) {
           seg(S.isOn() ? "on" : "off", [["on", "켜기"], ["off", "끄기"]], v => S.setOn(v === "on"))),
         window.PlannerAmbient && h("div", { class: "set-row" }, h("span", {}, "배경 소리"),
           seg(window.PlannerAmbient.isOn() ? "on" : "off", [["on", "켜기"], ["off", "끄기"]], v => window.PlannerAmbient.setOn(v === "on"))),
-        S && h("p", { class: "hint" }, "풍경을 누르면 크게, 한 번 더 누르면 전체 화면(배경화면처럼)으로 볼 수 있어요. 배경 소리는 지금 날씨·시각·계절에 맞춰 바람·비·새·풀벌레 소리를 만들어 냅니다.")),
+        S && h("p", { class: "hint" }, "풍경을 누르면 크게, 한 번 더 누르면 전체 화면(배경화면처럼)으로 볼 수 있어요. 배경 소리는 지금 날씨·시각·계절에 맞춰 바람·비·새·풀벌레 같은 실제 자연 녹음을 섞어 들려줍니다.")),
       h("section", { class: "set-sec", dataset: { sec: "place" } },
         h("h4", {}, "지역"),
         S && h("div", { class: "set-row col" },
