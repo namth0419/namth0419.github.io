@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=29"></script>
+<script src="theme-init.js?v=35"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -854,6 +854,49 @@
   .sp-note{margin:0;color:var(--muted);font-size:11.5px;line-height:1.5}
   .season-label b{font-family:var(--display);font-weight:700;margin-right:5px}
   .season-toggle svg{display:block}
+  /* 풍경 크게 보기: 누르면 띠 → 크게 → 전체 화면(라이브 배경화면) */
+  .season canvas{cursor:zoom-in}
+  .season.tall .frame{height:clamp(260px,62vh,560px)}
+  .season.full .frame{position:fixed;inset:0;z-index:1000;height:auto;border:0;border-radius:0;background:#0e1430}
+  .season.full canvas{border-radius:0;cursor:default}
+  html.scene-full{overflow:hidden}
+  .season.full .season-label{top:calc(14px + env(safe-area-inset-top));left:calc(16px + env(safe-area-inset-left))}
+  .season.full .season-place{top:calc(14px + env(safe-area-inset-top));bottom:auto;right:calc(16px + env(safe-area-inset-right));max-width:50%}
+  .season-label,.season-place,.season-ctl{transition:opacity .6s}
+  .season.full.idle{cursor:none}
+  .season.full.idle canvas{cursor:none}
+  .season.full.idle .season-label,.season.full.idle .season-place,.season.full.idle .season-ctl{opacity:0;pointer-events:none}
+  .season-ctl{position:absolute;right:10px;bottom:10px;z-index:2;display:flex;align-items:center;gap:6px}
+  .season.full .season-ctl{right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom))}
+  .sc-btn{
+    all:unset;cursor:pointer;display:grid;place-items:center;width:28px;height:28px;border-radius:999px;color:var(--ink);
+    background:color-mix(in srgb,var(--wafer) 78%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    border:1px solid color-mix(in srgb,var(--rule) 70%,transparent);
+  }
+  .sc-btn:hover{border-color:var(--muted)}
+  .sc-btn:focus-visible{outline:2px solid var(--deep)}
+  .sc-btn svg{width:15px;height:15px}
+  .sc-sound .on{display:none}
+  .sc-sound[aria-pressed="true"] .on{display:inline}
+  .sc-sound[aria-pressed="true"] .off{display:none}
+  .sc-sound[aria-pressed="true"]{color:var(--film-2)}
+  .sc-vol{width:76px;accent-color:var(--film-2);display:none}
+  .season.sound:is(.tall,.full) .sc-vol{display:block}
+  .season:not(.tall):not(.full) .sc-full,.season:not(.tall):not(.full) .sc-close,.season.full .sc-full{display:none}
+  .season:not(.tall):not(.full):not(.sound) .season-ctl{display:none}
+  .season:not(.tall):not(.full) .season-ctl{bottom:8px;right:8px}
+  .season:not(.tall):not(.full) .sc-btn{width:24px;height:24px}
+  .season-clock{display:none}
+  .season.full .season-clock{
+    display:block;position:absolute;z-index:1;pointer-events:none;color:#fff;
+    left:calc(clamp(18px,4vw,56px) + env(safe-area-inset-left));bottom:calc(clamp(18px,6vh,64px) + env(safe-area-inset-bottom));
+    text-shadow:0 1px 2px rgba(20,30,50,.35),0 2px 18px rgba(20,30,50,.3);
+  }
+  .ck-time{font-family:var(--display);font-weight:700;font-size:clamp(52px,10vw,120px);line-height:1;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+  .ck-time small{font-size:.28em;font-weight:600;letter-spacing:0;margin-right:.35em;vertical-align:.25em}
+  .ck-date{font-size:clamp(15px,1.6vw,20px);font-weight:600;margin-top:.5em}
+  .ck-wx{font-family:var(--mono);font-size:clamp(11.5px,1.1vw,13.5px);margin-top:.35em;opacity:.92}
+  .ck-wx:empty{display:none}
   .season-toggle[aria-pressed="true"]{color:var(--film-2);border-color:color-mix(in srgb,var(--film-2) 55%,transparent)}
 
   /* ---- gate / toast ---- */
@@ -904,6 +947,8 @@
     .season-place{top:auto;bottom:8px;max-width:calc(100% - 24px)}
     .season-label{max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .season-pop{top:calc(100% + 6px)}
+    .season:not(.tall):not(.full) .season-ctl,.season.tall .season-ctl{top:8px;bottom:auto;right:8px}
+    .season.tall .frame{height:clamp(240px,58vh,520px)}
   }
   @media (max-width:420px){
     .stats{grid-template-columns:1fr}
@@ -943,6 +988,21 @@
     <canvas aria-hidden="true"></canvas>
     <div class="season-label"></div>
     <button class="season-place" type="button" aria-haspopup="dialog"></button>
+    <div class="season-clock" aria-hidden="true"><div class="ck-time"></div><div class="ck-date"></div><div class="ck-wx"></div></div>
+    <div class="season-ctl">
+      <button class="sc-btn sc-sound" type="button" aria-pressed="false" aria-label="배경 소리" title="배경 소리 (날씨·시각·계절 따라)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path class="on" d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/>
+        </svg>
+      </button>
+      <input class="sc-vol" type="range" min="0" max="1" step="0.05" aria-label="소리 크기">
+      <button class="sc-btn sc-full" type="button" aria-label="전체 화면" title="전체 화면 (배경화면처럼)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <button class="sc-btn sc-close" type="button" aria-label="작게 보기" title="작게 보기 (Esc)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -950,15 +1010,16 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 플래너 코드: 이 순서대로 실행 (js/core.js 머리말 참고). 고칠 때마다 v= 숫자를 모두 올리기 -->
-<script defer src="js/core.js?v=29"></script>
-<script defer src="js/goals.js?v=29"></script>
-<script defer src="js/items.js?v=29"></script>
-<script defer src="js/papers.js?v=29"></script>
-<script defer src="js/lab.js?v=29"></script>
-<script defer src="js/library.js?v=29"></script>
-<script defer src="js/thoughts.js?v=29"></script>
-<script defer src="js/meetings.js?v=29"></script>
-<script defer src="js/app.js?v=29"></script>
-<script src="season.js?v=29"></script>
+<script defer src="js/core.js?v=35"></script>
+<script defer src="js/goals.js?v=35"></script>
+<script defer src="js/items.js?v=35"></script>
+<script defer src="js/papers.js?v=35"></script>
+<script defer src="js/lab.js?v=35"></script>
+<script defer src="js/library.js?v=35"></script>
+<script defer src="js/thoughts.js?v=35"></script>
+<script defer src="js/meetings.js?v=35"></script>
+<script defer src="js/app.js?v=35"></script>
+<script src="ambient.js?v=35"></script>
+<script src="season.js?v=35"></script>
 </body>
 </html>

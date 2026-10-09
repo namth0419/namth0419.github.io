@@ -6,6 +6,7 @@
  *   - 해·달: 설정한 위치에서의 실제 위치(방위·고도)를 계산해 그립니다. 일출·일몰, 달의 월령도 실제와 같습니다.
  *   - 날씨: 설정한 위치의 현재 날씨(Open-Meteo, 키 없음)를 받아 구름·비·눈·안개·뇌우를 그립니다.
  *   - 켜고 끄기와 위치는 설정 창(window.PlannerScene)에서. 이 브라우저에만 저장합니다.
+ *   - 풍경을 누르면 크게 → 한 번 더 누르면 전체 화면(라이브 배경화면: 시계·날짜·날씨). 배경 소리는 ambient.js 가 이 장면 상태로 만듦
  *   - 그림: 동글동글한 섬 풍경 (휘어진 지평선, 강, 둥근 나무, 작은 집, 꽃). 나무와 꽃은 바람에 살랑임
  *   - 로컬 미리보기(localhost 에서만): ?date=2026-04-05&hour=10&wx=61&temp=12
  *       wx: 날씨 코드(0 맑음, 3 흐림, 45 안개, 61 비, 65 폭우, 71 눈, 75 폭설, 95 뇌우)
@@ -454,7 +455,7 @@
     const rate = force ? 1 : 1 / (30 * 150);                                                     // 평균 2분 반에 한 대
     if (rnd() > rate) return;
     const dir = rnd() < .5 ? 1 : -1, y = h * (.1 + rnd() * .2);
-    planes.push({ x: dir > 0 ? -20 : w + 20, y, dir, vy: (rnd() - .5) * .04, v: w / (30 * (55 + rnd() * 35)), s: h * .04, trail: [], c: contrailMode() });
+    planes.push({ x: dir > 0 ? -20 : w + 20, y, dir, vy: (rnd() - .5) * .04, v: w / (30 * (55 + rnd() * 35)), s: U * .04, trail: [], c: contrailMode() });
   }
   function stepPlanes() {
     // 높은 하늘 바람(불어오는 방향 wd)에 실려 흘러감. 화면에서 동쪽은 북반구 왼쪽, 남반구 오른쪽
@@ -646,14 +647,15 @@
     const k = fest.key;
     if (k === "newyear" && night > .4) {             // 불꽃놀이
       if ((rnd() < .035 || !fireworks.length) && fireworks.length < 6)
-        fireworks.push({ x: w * (.15 + rnd() * .7), y: h * (.12 + rnd() * .2), age: 0, c: LIGHTS[rnd() * LIGHTS.length | 0], n: 18 + (rnd() * 10 | 0), v: 1 + rnd() * .6 });
+        fireworks.push({ x: w * (.15 + rnd() * .7), y: h * (.12 + rnd() * .2), age: 0, c: LIGHTS[rnd() * LIGHTS.length | 0], n: 18 + (rnd() * 10 | 0), v: 1 + rnd() * .6 }),
+          amb("pop", (fireworks[fireworks.length - 1].x / w) * 1.6 - .8);
       ctx.save(); ctx.globalCompositeOperation = "lighter";
       fireworks = fireworks.filter(f => {
         f.age++;
         const life = 55, a = 1 - f.age / life;
         for (let i = 0; i < f.n; i++) {
           const ang = i / f.n * TAU, d = f.v * (.65 + .35 * ((i * 7) % 5) / 4) * f.age * .55 * (1 - f.age / (life * 2.2));
-          const px = f.x + Math.cos(ang) * d * h * .03, py = f.y + Math.sin(ang) * d * h * .03 + f.age * f.age * .002 * h * .03;
+          const px = f.x + Math.cos(ang) * d * U * .03, py = f.y + Math.sin(ang) * d * U * .03 + f.age * f.age * .002 * U * .03;
           ctx.fillStyle = rgba(f.c, Math.max(0, a) * .35); circle(ctx, px, py, 2.6);          // 번짐
           ctx.fillStyle = rgba(mix(f.c, "#ffffff", .4), Math.max(0, a)); circle(ctx, px, py, 1.3);
         }
@@ -663,7 +665,7 @@
     }
     if (k === "seollal" && night < .5) {             // 방패연 두 개
       for (const [fx2, fy2, c, i] of [[.24, .18, "#e5483b", 0], [.72, .12, "#3d5fb8", 1]]) {
-        const x = w * fx2 + Math.sin(t / 45 + i * 2) * 6, y = h * fy2 + Math.sin(t / 33 + i) * 3, s = h * .07, tilt = Math.sin(t / 50 + i) * .12;
+        const x = w * fx2 + Math.sin(t / 45 + i * 2) * 6, y = h * fy2 + Math.sin(t / 33 + i) * 3, s = U * .07, tilt = Math.sin(t / 50 + i) * .12;
         ctx.strokeStyle = "rgba(90,90,90,.5)"; ctx.lineWidth = .6;
         ctx.beginPath(); ctx.moveTo(x, y + s * .5); ctx.quadraticCurveTo(x + (fx2 < .5 ? 30 : -30), y + h * .3, x + (fx2 < .5 ? 60 : -60), h * .62); ctx.stroke();
         ctx.save(); ctx.translate(x, y); ctx.rotate(tilt);
@@ -675,7 +677,7 @@
     }
     if (k === "children" && night < .6) {            // 풍선
       ["#ff6b6b", "#ffd93d", "#6bcBff", "#8be08a", "#c79bff"].forEach((c, i) => {
-        const y = h - ((t * .35 + i * 31) % (h + 40)), x = w * (.12 + i * .19) + Math.sin(t / 28 + i) * 8, r = h * .045;
+        const y = h - ((t * .35 + i * 31) % (h + 40)), x = w * (.12 + i * .19) + Math.sin(t / 28 + i) * 8, r = U * .045;
         ctx.strokeStyle = "rgba(80,80,80,.45)"; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(x, y + r * 1.2); ctx.quadraticCurveTo(x - 3, y + r * 2.2, x + 1, y + r * 3.2); ctx.stroke();
         ctx.fillStyle = c; ellipse(ctx, x, y, r * .85, r);
         ctx.fillStyle = "rgba(255,255,255,.5)"; ellipse(ctx, x - r * .3, y - r * .35, r * .18, r * .25);
@@ -683,8 +685,8 @@
     }
     if (k === "halloween" && (night > .2 || dusk > .3)) {   // 박쥐 (밤하늘에서도 보이게 보랏빛 테두리)
       for (let i = 0; i < 4; i++) {
-        const x = ((t * (.7 + i * .12) + i * 173) % (w + 60)) - 30, y = h * (.14 + .08 * i % .3) + Math.sin(t / 20 + i * 3) * h * .04;
-        const s = h * .036, flap = Math.sin(t / 3 + i) * .6;
+        const x = ((t * (.7 + i * .12) + i * 173) % (w + 60)) - 30, y = h * (.14 + .08 * i % .3) + Math.sin(t / 20 + i * 3) * U * .04;
+        const s = U * .036, flap = Math.sin(t / 3 + i) * .6;
         const bat = () => {
           ctx.beginPath(); ctx.ellipse(x, y, s * .25, s * .35, 0, 0, TAU);
           for (const d of [-1, 1]) {
@@ -698,10 +700,10 @@
       }
     }
     if (k === "christmas" && (fest.main || PREVIEW)) { // 24~25일: 산타 썰매가 가끔 지나감
-      if (!sleigh && (rnd() < 1 / (30 * 35) || (PREVIEW && q.has("sleigh")))) sleigh = { x: -40, y: h * (.1 + rnd() * .12), v: w / (30 * 16) };
+      if (!sleigh && (rnd() < 1 / (30 * 35) || (PREVIEW && q.has("sleigh")))) { sleigh = { x: -40, y: h * (.1 + rnd() * .12), v: w / (30 * 16) }; amb("bells", 16); }
       if (sleigh) {
         sleigh.x += sleigh.v;
-        const { x, y } = sleigh, s = h * .05, bob = Math.sin(t / 6) * 1.5;
+        const { x, y } = sleigh, s = U * .05, bob = Math.sin(t / 6) * 1.5;
         ctx.fillStyle = "rgba(255,240,170,.8)";
         for (let i = 1; i < 8; i++) circle(ctx, x - s * (1.2 + i * .9), y + Math.sin(t / 8 + i) * 2, Math.max(.4, 1.2 - i * .13));   // 반짝이 꼬리
         ctx.fillStyle = night > .4 ? "#2a2238" : "#6b4a2f";                                                            // 순록 두 마리
@@ -725,9 +727,9 @@
     ctx.strokeStyle = "rgba(90,70,60,.55)"; ctx.lineWidth = .8;
     ctx.beginPath(); for (let x = -5; x <= w + 5; x += 8) ctx.lineTo(x, y0 + Math.sin(x / w * Math.PI) * sag); ctx.stroke();
     for (let i = 0; i < n; i++) {
-      const x = w * (i + .5) / n, y = y0 + Math.sin(x / w * Math.PI) * sag + h * .045, r = h * .035, c = cols[i % cols.length];
+      const x = w * (i + .5) / n, y = y0 + Math.sin(x / w * Math.PI) * sag + U * .045, r = U * .035, c = cols[i % cols.length];
       if (night > .2) { const g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 3); g2.addColorStop(0, rgba(c, .4 * night)); g2.addColorStop(1, rgba(c, 0)); ctx.fillStyle = g2; circle(ctx, x, y, r * 3); }
-      ctx.beginPath(); ctx.moveTo(x, y - r * 1.25); ctx.lineTo(x, y - h * .045); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y - r * 1.25); ctx.lineTo(x, y - U * .045); ctx.stroke();
       ctx.fillStyle = mix(c, "#ffffff", night > .2 ? .25 : 0);
       for (let k = 0; k < 5; k++) { const a = Math.PI * (.15 + .7 * k / 4); ellipse(ctx, x - Math.cos(a) * r * .55, y - Math.sin(a) * r * .5 + r * .2, r * .32, r * .55); }
       ctx.fillStyle = "#f4e3b5"; ctx.fillRect(x - r * .5, y + r * .55, r, r * .25);
@@ -986,7 +988,7 @@
     const cm = W && W.cm != null ? W.cm / 100 : fx.cloud * .4, ch = W && W.ch != null ? W.ch / 100 : fx.cloud * .3;
     seed = 31;
     const nA = Math.round(cm * 5) + (cm > .12 ? 1 : 0), nCi = Math.round(ch * 6) + (ch > .12 ? 1 : 0);
-    if (altoC.length !== nA) altoC = Array.from({ length: nA }, () => ({ x: srnd() * (w + 160) - 80, y: h * (.07 + srnd() * .16), cols: 4 + (srnd() * 4 | 0), rows: 2 + (srnd() * 2 | 0), s: h * (.016 + srnd() * .008), v: .02 + srnd() * .02, ph: srnd() * 9 }));
+    if (altoC.length !== nA) altoC = Array.from({ length: nA }, () => ({ x: srnd() * (w + 160) - 80, y: h * (.07 + srnd() * .16), cols: 4 + (srnd() * 4 | 0), rows: 2 + (srnd() * 2 | 0), s: U * (.016 + srnd() * .008), v: .02 + srnd() * .02, ph: srnd() * 9 }));
     if (cirrusC.length !== nCi) cirrusC = Array.from({ length: nCi }, () => ({ x: srnd() * (w + 200) - 100, y: h * (.04 + srnd() * .16), len: w * (.08 + srnd() * .14), curl: (srnd() - .5) * h * .05, n: 3 + (srnd() * 3 | 0), v: .05 + srnd() * .05, ph: srnd() * 9 }));
   }
   function drawLayerClouds() {
@@ -997,7 +999,7 @@
       for (const c of cirrusC) {
         c.x += c.v * (1 + fx.wind * .5); if (c.x > w + c.len) c.x = -c.len * 1.2;
         for (let i = 0; i < c.n; i++) {
-          const oy = (i - c.n / 2) * h * .012, ox = i * c.len * .06;
+          const oy = (i - c.n / 2) * U * .012, ox = i * c.len * .06;
           ctx.globalAlpha = (.28 + .1 * Math.sin(c.ph + i)) * Math.max(dim, highLit * .8) * (1 - overcast * .5);
           ctx.lineWidth = 1.2 + (i % 2) * 1.2;
           ctx.beginPath(); ctx.moveTo(c.x + ox, c.y + oy);
@@ -1209,7 +1211,7 @@
     ctx.save();
     for (let i = 0; i < 14; i++) {
       const x = ((i * 97 + t * .15 * (1 + (i % 3) * .3)) % (w + 120)) - 60, f = (i % 4) / 4;
-      const y = arcY(x, RIV.r1 - (RIV.r1 - RIV.r2) * f) - h * .02, r = h * (.07 + (i % 3) * .025);
+      const y = arcY(x, RIV.r1 - (RIV.r1 - RIV.r2) * f) - U * .02, r = U * (.07 + (i % 3) * .025);
       ctx.globalAlpha = .38 * m; ctx.fillStyle = col; ellipse(ctx, x, y, r * 2.4, r * .6);
     }
     const g2 = ctx.createLinearGradient(0, h * .45, 0, h); g2.addColorStop(0, rgba(col, 0)); g2.addColorStop(.35, rgba(col, .38 * m)); g2.addColorStop(1, rgba(col, .15 * m));
@@ -1350,7 +1352,7 @@
   }
 
   /* ---------- 상태 ---------- */
-  let on, w = 0, h = 0, dpr = 1, raf = 0, last = 0, t = 0, painted = 0, flash = 0;
+  let on, w = 0, h = 0, U = 128, dpr = 1, pxr = 1, cssW = 0, cssH = 0, raf = 0, last = 0, t = 0, painted = 0, flash = 0;
   let place = DEFAULT_PLACE, W = null, wxState = "idle", wxTimer = 0;
   let S = KF[0], doy = 0, sun = { az: 0, alt: 30 }, moon = { az: 0, alt: -10 }, mph = { fraction: .5, phase: .25 };
   let night = 0, dusk = 0, fx = weatherFx(null), overcast = 0, snowCover = 0, frost = false, temp = null;
@@ -1600,8 +1602,8 @@
 
   /* ---------- 배경: 하늘층과 땅층(땅, 강, 풀). 나무·집·꽃은 흔들리니까 매번 그림 ---------- */
   function setup(c) {
-    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
-    const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); return g;
+    c.width = cvs.width; c.height = cvs.height;
+    const g = c.getContext("2d"); g.setTransform(pxr, 0, 0, pxr, 0, 0); return g;
   }
 
   function paintBg() {
@@ -1664,7 +1666,7 @@
     // 풀 무늬
     seed = 55;
     g.strokeStyle = rgba(shade(mix(S.hill[1], "#24402a", .3)), .5 * (1 - snowCover * .85)); g.lineCap = "round";
-    for (let i = 0; i < w / 5; i++) {
+    for (let i = 0; i < w / 5 * tallK(); i++) {
       const x = srnd() * w, d = .03 + srnd() * .97, y = depthY(x, d), z = 1.6 + 2.6 * depthS(d);
       if (inRiver(x, y)) continue;
       g.lineWidth = .7 + .5 * d;
@@ -1673,7 +1675,7 @@
     if (frost) {
       g.fillStyle = "rgba(255,255,255,.6)";
       seed = 7;
-      for (let i = 0; i < w / 4; i++) { const x = srnd() * w, y = depthY(x, srnd()); if (!inRiver(x, y)) circle(g, x, y, .7); }
+      for (let i = 0; i < w / 4 * tallK(); i++) { const x = srnd() * w, y = depthY(x, srnd()); if (!inRiver(x, y)) circle(g, x, y, .7); }
     }
     yGround = x => depthY(x, .55 + Math.random() * .4);
 
@@ -1690,24 +1692,37 @@
     objs = [];
     seed = 101;
     const hx = w * .62, hd = .6;
-    objs.push({ k: "house", x: hx, y: depthY(hx, hd), s: h * .42 * depthS(hd) });
+    objs.push({ k: "house", x: hx, y: depthY(hx, hd), s: U * .42 * depthS(hd) });
     const nb = Math.max(4, Math.round(w / 70));
     for (let i = 0; i < nb; i++) {                  // 강 건너 뒷줄 (작게)
       const x = (i + .2 + srnd() * .6) * w / nb, d = .02 + srnd() * .06;
-      objs.push({ k: srnd() < .45 ? "cedar" : "round", x, y: depthY(x, d), s: h * (.34 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
+      objs.push({ k: srnd() < .45 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.34 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
     }
     const nf = Math.max(3, Math.round(w / 135));
     for (let i = 0; i < nf; i++) {                  // 강 이쪽 앞줄
       const x = (i + .15 + srnd() * .7) * w / nf, d = .62 + srnd() * .22;
-      if (Math.abs(x - hx) < h * .45) continue;
-      objs.push({ k: srnd() < .35 ? "cedar" : "round", x, y: depthY(x, d), s: h * (.42 + srnd() * .1) * depthS(d), ph: srnd() * TAU,
+      if (Math.abs(x - hx) < U * .45) continue;
+      objs.push({ k: srnd() < .35 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.42 + srnd() * .1) * depthS(d), ph: srnd() * TAU,
                   fruit: S.leaf > .8 && bump(doy, 250, 70) > .3 && srnd() < .5 });
+    }
+    if (tallK() > 1.4) {                            // 크게 볼 때는 땅이 넓어지니 강 건너 중간 줄과 강가 줄을 더 심음
+      const nm = Math.round(w / 95);
+      for (let i = 0; i < nm; i++) {
+        const x = (i + .1 + srnd() * .8) * w / nm, d = .11 + srnd() * .1;
+        objs.push({ k: srnd() < .4 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.36 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
+      }
+      const nn = Math.round(w / 240);
+      for (let i = 0; i < nn; i++) {
+        const x = (i + .2 + srnd() * .6) * w / nn, d = .5 + srnd() * .06;
+        if (Math.abs(x - hx) < U * .55) continue;
+        objs.push({ k: srnd() < .3 ? "cedar" : "round", x, y: depthY(x, d), s: U * (.4 + srnd() * .08) * depthS(d), ph: srnd() * TAU, fruit: false });
+      }
     }
     const bloomAmt = Math.max(bump(doy, 115, 45), bump(doy, 190, 45) * .8, bump(doy, 255, 25) * .5) * (1 - snowCover);
     const FC = ["#f7a1b5", "#ffd36e", "#ffffff", "#b9a6ff", "#ff9f80"];
-    for (let i = 0; i < Math.round(w / 16 * bloomAmt); i++) {
+    for (let i = 0; i < Math.round(w / 16 * bloomAmt * tallK()); i++) {
       const x = srnd() * w, d = .68 + srnd() * .3;
-      if (Math.abs(x - hx) < h * .3) continue;
+      if (Math.abs(x - hx) < U * .3) continue;
       objs.push({ k: "flower", x, y: depthY(x, d), s: 2.4 + 3.2 * depthS(d), ph: srnd() * TAU, c: shade(FC[(srnd() * FC.length) | 0]) });
     }
     const rounds = objs.filter(o => o.k === "round");
@@ -1731,14 +1746,15 @@
 
     // 별
     seed = 3;
-    stars = Array.from({ length: Math.round(w / 7) }, () => ({ x: srnd() * w, y: srnd() * h * .45, r: .4 + srnd() * .9, ph: srnd() * TAU }));
+    stars = Array.from({ length: Math.round(w * h / 900) }, () => ({ x: srnd() * w, y: srnd() * h * .45, r: .4 + srnd() * .9, ph: srnd() * TAU }));
     seed = 9;
     const lowAmt = W && W.cl != null ? W.cl / 100 : fx.cloud;
     const nC = Math.round(lowAmt * 7 + (fx.rain || fx.snow ? 3 : 0) + (lowAmt > .05 ? 1 : 0));
     buildLayerClouds();
     if (clouds.length !== nC) clouds = Array.from({ length: nC }, () =>
-      ({ x: srnd() * (w + 200) - 100, y: h * (.1 + srnd() * .22), s: h * (.14 + srnd() * .1) * (1 + overcast * .5), v: .03 + srnd() * .05 }));
+      ({ x: srnd() * (w + 200) - 100, y: h * (.1 + srnd() * .22), s: Math.sqrt(h * U) * (.14 + srnd() * .1) * (1 + overcast * .5), v: .03 + srnd() * .05 }));
     painted = Date.now();
+    amb("update", ambState());
   }
 
   function drawMoon(x, y, r, alpha) {
@@ -1768,12 +1784,12 @@
   /* ---------- 움직이는 것: 실제 날씨 + 계절 생물 ---------- */
   function spawn() {
     spawnPlane(PREVIEW && q.has("plane") && !planes.length);
-    if (parts.length > 300) return;
+    if (parts.length > 300 * tallK()) return;
     const wind = fx.wind;
     const drop = (rate, make) => { for (let r = rate; r > 0; r -= 1) if (rnd() < r) parts.push(make()); };
     const x0 = () => rnd() * (w + 120) - 60 - wind * 30;
-    drop(fx.rain * 1.6, () => { const d = .5 + rnd() * .8; return { k: "rain", x: x0() + 30, y: -12, d, len: (fx.rain > 1 ? 10 : 7) * d, vy: (fx.rain > 1 ? 7 : 5) * d }; });
-    drop(fx.snow * .9, () => { const d = .5 + rnd() * .8; return { k: "snow", x: x0(), y: -4, d, r: (fx.snow > 1 ? 1.1 : .8) * (1 + d), vy: .35 + d * .45, ph: rnd() * TAU }; });
+    drop(fx.rain * 1.6, () => { const d = .5 + rnd() * .8; return { k: "rain", x: x0() + 30, y: -12, d, len: (fx.rain > 1 ? 10 : 7) * d * fall(), vy: (fx.rain > 1 ? 7 : 5) * d * fall() }; });
+    drop(fx.snow * .9, () => { const d = .5 + rnd() * .8; return { k: "snow", x: x0(), y: -4, d, r: (fx.snow > 1 ? 1.1 : .8) * (1 + d), vy: (.35 + d * .45) * fall(), ph: rnd() * TAU }; });
     const calm = fx.rain < 1.5 && fx.snow < 1 && !fx.storm;
     if (calm) {
       drop(.35 * (PH ? PH.bloom * .7 : S.bloom) * (fx.rain ? .5 : 1), () => { const d = .5 + rnd() * .8; return { k: "petal", x: x0() - 30, y: -4, d, vy: .45 + d * .35, rot: rnd() * TAU, spin: (rnd() - .5) * .12, ph: rnd() * TAU, c: rnd() < .5 ? "#f8cfdc" : "#ef9fb8" }; });
@@ -1798,6 +1814,7 @@
       const bx = w * (.15 + rnd() * .7), pts = [[bx, 0]];
       for (let y = 0; y < h * .6; y += h * .1) pts.push([pts[pts.length - 1][0] + (rnd() - .5) * 18, y + h * .1]);
       bolt = { pts, life: 8 }; flash = 1;
+      amb("thunder", (bx / w) * 1.6 - .8);                                           // 소리를 켰으면 천둥 (거리만큼 늦게)
     }
   }
 
@@ -1883,7 +1900,7 @@
     }
   }
 
-  const blit = c => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(c, 0, 0); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  const blit = c => { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(c, 0, 0); ctx.setTransform(pxr, 0, 0, pxr, 0, 0); };
 
   function draw() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1900,10 +1917,10 @@
     stepDrawMeteors();
     if (moon.alt > -3 && mph.fraction > .02) {
       const m = skyXY(moon);
-      drawMoon(m.x, m.y, h * .07 * (fest && fest.key === "chuseok" ? 1.45 : 1), (night > .3 ? 1 : .55) * (1 - overcast * .8));
+      drawMoon(m.x, m.y, U * .07 * (fest && fest.key === "chuseok" ? 1.45 : 1), (night > .3 ? 1 : .55) * (1 - overcast * .8));
     }
     if (sun.alt > -4) {                             // 지평선 아래로 가는 것은 땅층이 가려줌
-      const p = skyXY(sun), r = h * .085;               // 색은 대기를 지나온 햇빛 색 (paintSky)
+      const p = skyXY(sun), r = U * .085;               // 색은 대기를 지나온 햇빛 색 (paintSky)
       ctx.globalAlpha = 1 - overcast * .85;
       const rg = ctx.createRadialGradient(p.x, p.y, r * .5, p.x, p.y, r * 4.5);
       rg.addColorStop(0, rgba(sunTint, .55)); rg.addColorStop(1, rgba(sunTint, 0));
@@ -2013,7 +2030,7 @@
   // 설정 창(app.js)에서 쓰는 기능
   window.PlannerScene = {
     isOn: () => on,
-    setOn: v => { on = !!v; try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) {} apply(); notify(); },
+    setOn: v => { on = !!v; try { localStorage.setItem(KEY, on ? "on" : "off"); } catch (e) {} if (!on) setMode("band"); apply(); notify(); },
     place: () => ({ ...place }),
     weather: weatherText,
     setPlace,
@@ -2031,6 +2048,104 @@
     })
   };
 
+  /* ---------- 배경 소리 (ambient.js) 에 지금 장면 상태를 넘김 ---------- */
+  function amb(k, ...a) { const A = window.PlannerAmbient; if (A && A.isOn()) A[k](...a); }
+  function ambState() {
+    return { night, sunAlt: sun.alt, hour: localHour, doy, lat: place.lat, lon: place.lon, temp, wind: W && W.wind != null ? W.wind : null,
+             rain: fx.rain, snow: fx.snow, storm: fx.storm, fog: fx.fog, rh: W ? W.rh : null, snowCover, ice: iceCover(), fest: fest && fest.key };
+  }
+  // 풍경을 안 보고 있을 때(다른 탭, 풍경 끔)도 소리는 1분마다 날씨·시각을 따라감
+  function ambRefresh() { loadWeather(false).then(() => { compute(); amb("update", ambState()); }); }
+  setInterval(() => { if ((document.hidden || !on) && window.PlannerAmbient && window.PlannerAmbient.isOn()) ambRefresh(); }, 60e3);
+
+  /* ---------- 크게 보기: 띠 → 누르면 크게 → 한 번 더 누르면 전체 화면 (라이브 배경화면) ----------
+   * 전체 화면에선 시계·날짜(음력)·날씨를 크게 띄우고, 가만히 두면 3초 뒤 버튼과 마우스 커서를 숨김.
+   * 화면이 꺼지지 않게 Wake Lock 을 걸어 둠. Esc · 작게 버튼으로 돌아감.
+   */
+  const frameEl = band.querySelector(".frame"), clockEl = band.querySelector(".season-clock");
+  const soundBtn = band.querySelector(".sc-sound"), volEl = band.querySelector(".sc-vol");
+  let mode = "band", idleT = 0, clockT = 0, lock = null, realFs = false;
+  async function wake(v) {
+    try {
+      if (v && !lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); }
+      else if (!v && lock) { const l = lock; lock = null; await l.release(); }
+    } catch (e) {}
+  }
+  function poke() {
+    band.classList.remove("idle"); clearTimeout(idleT);
+    if (mode === "full") idleT = setTimeout(() => band.classList.add("idle"), 3000);
+  }
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m;
+    band.classList.toggle("tall", m === "tall"); band.classList.toggle("full", m === "full");
+    document.documentElement.classList.toggle("scene-full", m === "full");
+    clearInterval(clockT);
+    if (m === "full") {
+      const req = frameEl.requestFullscreen || frameEl.webkitRequestFullscreen;      // iPhone 은 없음 → 화면을 덮는 것으로 대신
+      if (req) try { const r = req.call(frameEl, { navigationUI: "hide" }); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+      wake(true); tickClock(); clockT = setInterval(tickClock, 1000); poke();
+    } else {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+      wake(false); band.classList.remove("idle");
+    }
+    if (on) resize();
+    if (m === "tall") band.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function tickClock() {
+    const d = new Date(), H = d.getHours(), M = String(d.getMinutes()).padStart(2, "0");
+    const tm = clockEl.querySelector(".ck-time"), ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const txt = `${H % 12 || 12}:${M}`;
+    if (tm.dataset.v !== txt) {
+      tm.dataset.v = txt;
+      const sm = document.createElement("small"); sm.textContent = H < 12 ? "오전" : "오후";
+      tm.replaceChildren(sm, txt);
+    }
+    const L = lunarDate(ymd), day = "일월화수목금토"[d.getDay()];
+    clockEl.querySelector(".ck-date").textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 ${day}요일` + (L ? ` · 음력 ${L.leap ? "윤" : ""}${L.m}월 ${L.d}일` : "");
+    const wt = weatherText();
+    clockEl.querySelector(".ck-wx").textContent = place.name + (wt ? " · " + wt : "");
+  }
+  cvs.addEventListener("click", () => {
+    if (mode === "band") setMode("tall");
+    else if (mode === "tall") setMode("full");
+    else if (band.classList.contains("idle")) poke();
+    else { clearTimeout(idleT); band.classList.add("idle"); }
+  });
+  cvs.title = "눌러서 크게 보기";
+  band.querySelector(".sc-full").addEventListener("click", () => setMode("full"));
+  band.querySelector(".sc-close").addEventListener("click", () => setMode("band"));
+  frameEl.addEventListener("pointermove", e => { if (mode === "full" && e.pointerType === "mouse") poke(); });
+  addEventListener("keydown", e => {
+    if (e.key !== "Escape" || mode === "band" || document.querySelector("dialog[open]")) return;
+    if (!document.fullscreenElement) setMode("band");                              // 진짜 전체 화면이면 브라우저가 먼저 빠져나오고 아래에서 처리
+  });
+  const fsChange = () => {
+    const el = document.fullscreenElement || document.webkitFullscreenElement;
+    if (el === frameEl) realFs = true;
+    else if (realFs) { realFs = false; if (mode === "full") setMode("band"); }
+    if (on) resize();
+  };
+  document.addEventListener("fullscreenchange", fsChange);
+  document.addEventListener("webkitfullscreenchange", fsChange);
+  if (window.ResizeObserver) new ResizeObserver(() => { if (on && !document.hidden) resize(); }).observe(cvs);
+
+  // 소리 버튼·크기
+  function syncSound() {
+    const A = window.PlannerAmbient, v = !!(A && A.isOn());
+    soundBtn.setAttribute("aria-pressed", String(v));
+    band.classList.toggle("sound", v);
+    if (A) volEl.value = A.volume();
+  }
+  soundBtn.addEventListener("click", () => { const A = window.PlannerAmbient; if (A) A.setOn(!A.isOn()); });
+  volEl.addEventListener("input", () => { const A = window.PlannerAmbient; if (A) A.setVolume(+volEl.value); });
+  addEventListener("planner:sound", () => {
+    syncSound();
+    if (window.PlannerAmbient && window.PlannerAmbient.isOn()) { if (on && w) amb("update", ambState()); else ambRefresh(); }
+  });
+  syncSound();
+
   /* ---------- 루프 ---------- */
   function refresh() { if (w) { paintBg(); draw(); } else compute(); }   // 안 보일 때도 글자는 갱신
   function frame(ts) {
@@ -2040,15 +2155,21 @@
     if (Date.now() - painted > 2 * 60e3) paintBg(); // 해·달·하늘색 갱신
     spawn(); step(); draw();
   }
+  // 크게 볼수록(키운 띠, 전체 화면) 장면을 z 배로 확대해서 그림. w·h 는 확대 전 크기, U 는 나무·해 같은 것의 기준 크기
+  const tallK = () => Math.max(1, h / 128);                  // 땅·하늘이 넓어진 만큼 풀·꽃·눈비를 더
+  const fall = () => Math.sqrt(tallK());                      // 높은 화면에선 비·눈이 더 빨리 떨어짐
   function resize() {
     const r = cvs.getBoundingClientRect();
-    const nd = Math.min(2, devicePixelRatio || 1);
-    const nw = Math.max(80, Math.round(r.width)), nh = Math.max(40, Math.round(r.height));
-    if (nw === w && nh === h && nd === dpr) return;
-    w = nw; h = nh; dpr = nd;
-    cvs.width = Math.round(w * dpr); cvs.height = Math.round(h * dpr);
+    const W0 = Math.max(80, Math.round(r.width)), H0 = Math.max(40, Math.round(r.height));
+    let nd = Math.min(2, devicePixelRatio || 1);
+    if (W0 * H0 * nd * nd > 5e6) nd = Math.max(1, Math.sqrt(5e6 / (W0 * H0)));   // 큰 화면은 픽셀 수를 줄여 가볍게
+    if (W0 === cssW && H0 === cssH && nd === dpr) return;
+    cssW = W0; cssH = H0; dpr = nd;
+    const z = Math.min(3, Math.max(1, Math.min(H0, W0 * .16) / 128));
+    w = Math.round(W0 / z); h = Math.round(H0 / z); U = Math.min(h, 128); pxr = dpr * W0 / w;
+    cvs.width = Math.round(W0 * dpr); cvs.height = Math.round(H0 * dpr);
     if (!grain) grain = makeGrain();
-    parts = []; clouds = [];
+    parts = []; clouds = []; altoC = []; cirrusC = [];
     paintBg();
     for (let i = 0; i < 120; i++) { t++; spawn(); step(); }   // 처음부터 날씨가 화면에 퍼져 있도록
     draw();
@@ -2057,6 +2178,7 @@
     band.hidden = !on;
     cancelAnimationFrame(raf); clearInterval(wxTimer);
     if (!on || document.hidden) return;
+    if (mode === "full") wake(true);                 // 탭을 다시 보면 화면 꺼짐 방지를 다시 걸어 둠
     resize();
     raf = requestAnimationFrame(frame);
     loadWeather(false).then(loadPheno).then(refresh);   // 20분 안에 받은 날씨가 있으면 그것을 씀. 나무 자료는 하루 한 번

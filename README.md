@@ -38,6 +38,7 @@ papers/                     ← 논문 PDF를 여기에
 planner/index.html          ← 개인용 연구 플래너 화면·스타일 (build.py 와 무관, 직접 수정)
 planner/js/*.js             ← 플래너 동작. 기능별 파일 (목록과 순서는 planner/js/core.js 머리말)
 planner/season.js           ← 상단 계절 풍경, 계절 포인트 색
+planner/ambient.js          ← 풍경과 같은 날씨·시각·계절로 만드는 배경 소리 (Web Audio 합성, 음원 파일 없음)
 planner/manifest.webmanifest, planner/sw.js, planner/icons/  ← 앱으로 설치 (PWA)
 tools/weekly-email.gs       ← 주간 메일 + 매일 Drive 백업 + Google 캘린더 연동 (Apps Script, 본인 계정에 설치)
 .github/workflows/          ← push 시 자동 빌드 + 배포
@@ -85,6 +86,8 @@ Google 캘린더의 `Research Planner` 캘린더에 맞춰 넣어서 휴대폰 �
 풍경 위 위치 표시에 마우스를 올리면 지금 계산값이 보입니다(과거 기상 자료: archive-api.open-meteo.com). 로컬 미리보기에서는 `&aod=0.5&rh=90&plane=1&t250=-55&rh250=95`, `&fest=christmas&sleigh=1`, `&ice=0.5`, `&rainbow=1&halo=1&mist=1&meteor=1&cl=30&cm=40&ch=60`처럼 바꿔 볼 수 있습니다.
 항목에 파일을 첨부하면 본인 Google Drive의 `Research Planner` 폴더에 올라가고, 플래너에는 링크만 저장됩니다
 (권한은 `drive.file`이라 플래너가 올린 파일에만 접근. Google Cloud 콘솔에서 **Google Drive API** 사용 설정 필요).
+풍경을 누르면 세로로 크게, 한 번 더 누르면 전체 화면이 됩니다. 전체 화면은 라이브 배경화면처럼 시계·날짜(음력)·날씨를 크게 띄우고, 가만히 두면 버튼과 커서를 숨기며 화면이 꺼지지 않게 합니다(Esc·작게 버튼으로 돌아감). 크게 볼수록 장면을 확대해 그려서 나무·해가 늘어나지 않고, 땅이 넓어진 만큼 나무 줄을 더 심습니다.
+**배경 소리**(풍경의 🔈 버튼이나 설정)를 켜면 지금 날씨·시각·계절에 맞춘 소리를 그 자리에서 합성합니다: 풍속에 따른 바람과 돌풍, 강수 세기에 따른 빗소리·빗방울, 번개 뒤 거리만큼 늦게 오는 천둥, 눈이 쌓이면 먹먹해지는 소리, 얼면 멈추는 강물, 새벽에 가장 많은 새소리와 까치, 기온으로 빠르기가 정해지는 풀벌레(돌베어 법칙), 초여름 밤 개구리, 한여름 매미, 바람 부는 날 풍경, 설날 불꽃·크리스마스 썰매 방울. 다른 탭을 보고 있어도 1분마다 날씨·시각을 따라갑니다.
 로컬에서는 `?demo&date=2026-04-05&hour=10&wx=61`처럼 날짜·현지 시각·날씨 코드를 바꿔 풍경을 미리 볼 수 있습니다.
 **가져오기**로 JSON 계획을 한 번에 넣을 수 있습니다(형식은 `planner/js/goals.js`의 `parsePlan` 주석).
 개인 계획 파일은 `_private/`에 두세요. git에서 제외되어 공개 저장소에 올라가지 않습니다.
@@ -96,7 +99,7 @@ Google 캘린더의 `Research Planner` 캘린더에 맞춰 넣어서 휴대폰 �
   이 저장소는 공개이므로 규칙에 들어가는 개인 이메일은 여기에 적지 않습니다.
 - 보안: 페이지에 CSP(불러올 수 있는 출처 제한)가 걸려 있어서, 새 외부 서비스를 쓰려면 `planner/index.html` 맨 위
   `Content-Security-Policy`에 주소를 추가해야 합니다. 로그아웃하면 브라우저에 저장된 플래너 데이터도 지웁니다.
-- `planner/index.html`의 `js/*.js?v=…`, `season.js?v=…`, `theme-init.js?v=…`은 캐시 때문에 화면과 코드가
+- `planner/index.html`의 `js/*.js?v=…`, `season.js?v=…`, `ambient.js?v=…`, `theme-init.js?v=…`은 캐시 때문에 화면과 코드가
   서로 다른 버전으로 섞이지 않게 붙인 버전 번호입니다. 플래너 코드를 고칠 때마다 숫자를 하나씩 올리세요.
 - 로컬 미리보기: `python -m http.server 8000` 후 `http://localhost:8000/planner/?demo`
   (로그인 없이 브라우저에만 저장되는 데모 데이터)
