@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=14"></script>
+<script src="theme-init.js?v=15"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -603,12 +603,15 @@
   }
 
   /* ---- lab ---- */
-  .lab-form{display:grid;gap:8px;background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:12px 14px}
+  .lab-form{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;background:var(--card);border:1px solid var(--rule);border-radius:3px;padding:12px 14px}
+  .lab-form > *{min-width:0}
   .lab-form h2{margin-bottom:2px}
   .lf-row{display:flex;flex-wrap:wrap;gap:8px}
+  .lf-row > *{min-width:0;max-width:100%}
   .lf-row .edit{flex:1 1 160px}
-  .lf-row select{flex:1 1 220px}
-  .lab-form textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--wafer);border:1px solid var(--rule);border-radius:2px;padding:6px 9px;resize:vertical}
+  .lf-row select{flex:1 1 220px;text-overflow:ellipsis}
+  .lf-row input[type=date]{flex:0 1 auto}
+  .lab-form textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--wafer);border:1px solid var(--rule);border-radius:2px;padding:6px 9px;resize:vertical;width:100%;max-width:100%}
   .lab-form textarea:focus,.lab-form .edit:focus{outline:none;border-color:var(--deep)}
   .lf-actions{display:flex;align-items:center;gap:10px;justify-content:space-between}
   .lf-actions .hint{margin:0}
@@ -883,6 +886,11 @@
     .top .home{display:none}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  /* 휴대폰: 글자가 16px보다 작은 칸을 누르면 iPhone이 화면을 확대해서 레이아웃이 밀림 → 입력칸 글자를 16px로 */
+  @media (pointer:coarse){
+    input:not([type=checkbox]):not([type=radio]),select,textarea{font-size:16px!important}
+    input[type=date]{min-width:0;max-width:100%}
+  }
 </style>
 </head>
 <body>
@@ -917,7 +925,7 @@
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script type="module" src="app.js?v=14"></script>
-<script src="season.js?v=14"></script>
+<script type="module" src="app.js?v=15"></script>
+<script src="season.js?v=15"></script>
 </body>
 </html>
