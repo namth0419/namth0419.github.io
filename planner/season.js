@@ -62,7 +62,7 @@
   const ctx = cvs.getContext("2d");
   const termChip = band.querySelector(".season-label");
   const placeBtn = band.querySelector(".season-place");
-  const KEY = "planner-season", PLACE_KEY = "planner-place", WX_KEY = "planner-weather";
+  const KEY = "planner-season", PLACE_KEY = "planner-place", WX_KEY = "planner-weather2";
   const TAU = Math.PI * 2, RAD = Math.PI / 180;
   const DEFAULT_PLACE = { name: "대전", lat: 36.3504, lon: 127.3845 };
 
@@ -285,7 +285,7 @@
   const hex = c => "#" + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
   const mix = (a, b, k) => { const A = rgb(a), B = rgb(b); return hex(A.map((v, i) => v + (B[i] - v) * k)); };
   const rgba = (hx, a) => { const [r, g, b] = rgb(hx); return `rgba(${r},${g},${b},${a})`; };
-  const NIGHT = ["#0e1430", "#2a335e"], DUSK = ["#4d5a93", "#f6aa78"], NIGHT_TINT = "#121733";
+  const NIGHT = ["#0e1430", "#2a335e"], NIGHT_TINT = "#121733";
 
   /* ---------- 날씨 (WMO 코드) ---------- */
   const WX_TEXT = c => c == null ? "" : c === 0 ? "맑음" : c <= 2 ? "구름 조금" : c === 3 ? "흐림" : c <= 48 ? "안개"
@@ -303,6 +303,936 @@
     if ((c >= 71 && c <= 77) || c === 85 || c === 86) r.snow = [71, 77, 85].includes(c) ? .6 : c === 73 ? 1.2 : 2;
     if (c >= 95) { r.rain = Math.max(r.rain, 2.5); r.storm = 1; }
     return r;
+  }
+
+  /* ---------- 하늘 색: 대기 산란 계산 ----------
+   * 보는 방향마다 대기를 따라가며 햇빛이 공기 분자(레일리)와 에어로졸·물방울(미)에 흩어지는 양을 적분하고
+   * 오존 흡수를 더함 (단일 산란, Nishita 방식). 파장은 빨강 680 · 초록 550 · 파랑 440 nm.
+   * - 해가 낮으면 빛이 지나는 길이 길어져 파랑이 먼저 흩어져 사라지고 → 붉은 노을
+   * - 해가 진 뒤 위쪽 대기만 햇빛을 받음 → 지구 그림자와 '블루 아워'(오존이 주황을 흡수)
+   * 에어로졸 양: 대기질 예보의 에어로졸 광학 두께(AOD) → 없으면 가시거리 → 없으면 습도로 추정.
+   * 습도가 높으면 입자가 물을 머금어 커지므로(흡습 성장) 파장 의존성이 약해짐(옹스트롬 지수↓) → 하얗고 뿌연 하늘, 흐린 노을.
+   */
+  const RE = 6360e3, RA = 6420e3, HR = 8e3, HM = 1.2e3;
+  const BR = [5.802e-6, 13.558e-6, 33.1e-6];               // 레일리 산란계수 (해수면, /m)
+  const BO = [.65e-6, 1.881e-6, .085e-6];                  // 오존 흡수계수 (농도 최대인 25 km, /m)
+  const LAMBDA = [680, 550, 440];
+  const dens = hgt => [Math.exp(-hgt / HR), Math.exp(-hgt / HM), Math.max(0, 1 - Math.abs(hgt - 25e3) / 15e3)];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  // 방위(남쪽 0°, 서쪽 +)·고도 → 단위 벡터 (x 동, y 북, z 위)
+  const dirOf = (az, alt) => { const A = az * RAD, h2 = alt * RAD; return [-Math.sin(A) * Math.cos(h2), -Math.cos(A) * Math.cos(h2), Math.sin(h2)]; };
+
+  function aerosolOf(W) {
+    const rh = W && W.rh != null ? Math.min(.97, W.rh / 100) : .6;
+    let aod = W && W.aod != null ? W.aod : null, src = "AOD";
+    if (aod == null && W && W.vis) { aod = (3.912 / W.vis - 1.16e-5) * HM; src = "가시거리"; }      // Koschmieder: 가시거리 → 소산계수
+    if (aod == null) { aod = .12 * Math.pow((1 - rh) / .4, -.5); src = "습도"; }
+    aod = Math.max(.02, Math.min(2, aod));
+    const dust = W && W.dust != null ? Math.min(1, W.dust / 120) : 0;                           // 황사는 입자가 커서 파장 무관
+    const alpha = Math.max(.15, 1.45 - .9 * rh - .9 * dust);                                      // 옹스트롬 지수
+    const b550 = aod / HM;
+    return { ext: LAMBDA.map(l => b550 * Math.pow(l / 550, -alpha)), ssa: .93 - .05 * dust, g: Math.min(.85, .68 + .14 * rh + .05 * dust), aod, alpha, src };
+  }
+
+  // 지구 중심 기준 점 p 에서 방향 d 로 대기 끝까지 (또는 땅에 막히면 null) 광학 깊이
+  function lightDepth(p, d, steps) {
+    const r2 = dot(p, p), b = dot(p, d);
+    if (b < 0 && b * b - (r2 - RE * RE) > 0) return null;                                     // 지구에 가려짐
+    const tMax = -b + Math.sqrt(Math.max(0, b * b - (r2 - RA * RA))), ds = tMax / steps, od = [0, 0, 0];
+    for (let i = 0; i < steps; i++) {
+      const t2 = (i + .5) * ds, q = [p[0] + d[0] * t2, p[1] + d[1] * t2, p[2] + d[2] * t2];
+      const dd = dens(Math.sqrt(dot(q, q)) - RE);
+      od[0] += dd[0] * ds; od[1] += dd[1] * ds; od[2] += dd[2] * ds;
+    }
+    return od;
+  }
+  const extinct = (od, A, ch) => BR[ch] * od[0] + A.ext[ch] * od[1] + BO[ch] * od[2];
+
+  // 방향 d 로 본 하늘의 밝기 (RGB, 상대값)
+  function skyRadiance(d, s, A) {
+    const o = [0, 0, RE + 50], b = dot(o, d);
+    const tMax = -b + Math.sqrt(b * b - (dot(o, o) - RA * RA)), N = 14, ds = tMax / N;
+    const mu = dot(d, s), g = A.g;
+    const pR = 3 / (16 * Math.PI) * (1 + mu * mu);
+    const pM = 3 / (8 * Math.PI) * (1 - g * g) * (1 + mu * mu) / ((2 + g * g) * Math.pow(1 + g * g - 2 * g * mu, 1.5));
+    const od = [0, 0, 0], sR = [0, 0, 0], sM = [0, 0, 0];
+    for (let i = 0; i < N; i++) {
+      const t2 = (i + .5) * ds, p = [o[0] + d[0] * t2, o[1] + d[1] * t2, o[2] + d[2] * t2];
+      const dd = dens(Math.sqrt(dot(p, p)) - RE);
+      od[0] += dd[0] * ds; od[1] += dd[1] * ds; od[2] += dd[2] * ds;
+      const ld = lightDepth(p, s, 6);
+      if (!ld) continue;
+      for (let ch = 0; ch < 3; ch++) {
+        const att = Math.exp(-(extinct(od, A, ch) + extinct(ld, A, ch)));
+        sR[ch] += dd[0] * att * ds; sM[ch] += dd[1] * att * ds;
+      }
+    }
+    return [0, 1, 2].map(ch => sR[ch] * BR[ch] * pR + sM[ch] * A.ext[ch] * A.ssa * pM);
+  }
+  // 높이 hgt(m) 에서 본 햇빛의 투과율 (해 원반·구름·비행운 색)
+  function sunTransmit(s, A, hgt) {
+    const od = lightDepth([0, 0, RE + hgt], s, 16);
+    return od ? [0, 1, 2].map(ch => Math.exp(-extinct(od, A, ch))) : [0, 0, 0];
+  }
+  const lum = c => .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
+  const srgb = v => 255 * (v <= .0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - .055);
+  const toHex = c => hex(c.map(srgb));
+  // 빛의 색만 (밝기 1로 맞춤)
+  const tint = c => { const m = Math.max(c[0], c[1], c[2]) || 1; return toHex(c.map(v => v / m)); };
+
+  let sunTint = "#fff6d8", cloudTint = "#ffffff", cloudLit = 1, trailTint = "#ffffff", AER = aerosolOf(null);
+  // 하늘 격자를 계산해서 작은 캔버스에 그린 뒤 부드럽게 늘려 붙임
+  const skyGrid = document.createElement("canvas");
+  function paintSky(g, grey) {
+    const A = AER = aerosolOf(W), s = dirOf(sun.az, sun.alt);
+    const cols = 30, rows = 12, img = new Float32Array(cols * rows * 3);
+    const lums = [];
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const x = (i + .5) / cols * w, y = (j + .5) / rows * horizonY();
+      let az = (x / w - .5) * 240;
+      if (place.lat < 0) az = az > 0 ? az - 180 : az + 180;
+      const alt = Math.max(.6, (horizonY() - y) / (horizonY() - h * .07) * 62);
+      const L = skyRadiance(dirOf(az, alt), s, A), k = (j * cols + i) * 3;
+      img[k] = L[0]; img[k + 1] = L[1]; img[k + 2] = L[2];
+      lums.push(lum(L));
+    }
+    // 노출: 하늘 밝기의 중간값에 맞춤(해 주변 눈부신 곳은 하얗게 날아감).
+    // 해가 지평선 아래로 내려갈수록 전체를 어둡게 (사람 눈이 적응하는 정도만큼)
+    lums.sort((a, b) => a - b);
+    const dark = Math.pow(Math.min(1, Math.max(.06, (sun.alt + 12) / 14)), 1.3);
+    const expo = .6 / (lums[lums.length >> 1] || 1);
+    skyGrid.width = cols; skyGrid.height = rows;
+    const gg = skyGrid.getContext("2d"), id = gg.createImageData(cols, rows);
+    const season = S.sky, nightC = NIGHT, moonSky = moon.alt > 0 ? mph.fraction * Math.min(1, moon.alt / 15) * .35 : 0;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const k = (j * cols + i) * 3, q = (j * cols + i) * 4;
+      let c = [0, 1, 2].map(ch => (1 - Math.exp(-img[k + ch] * expo)) * dark);
+      // 그림 같은 느낌: 채도 조금 올리고, 낮에는 계절 하늘색을 살짝 섞음
+      const m = lum(c); c = c.map(v => Math.max(0, m + (v - m) * (1.3 + .15 * dusk)));
+      let hx = toHex(c);
+      const f = j / (rows - 1);
+      hx = mix(hx, mix(season[0], season[1], f), .2 * (1 - dusk) * (1 - night));          // 계절 하늘색 (동물의 숲 느낌)
+      hx = mix(hx, "#ffffff", .07 * (1 - night));                                       // 살짝 파스텔
+      hx = mix(hx, mix(nightC[0], nightC[1], f), Math.pow(night, 1.4));
+      hx = mix(hx, mix("#2c3b6e", "#4a5d92", f), moonSky * night);                      // 달 밝은 밤은 하늘도 조금 밝음
+      hx = mix(hx, grey, overcast * (.7 + .3 * f));
+      const [r, gr, b] = rgb(hx);
+      id.data[q] = r; id.data[q + 1] = gr; id.data[q + 2] = b; id.data[q + 3] = 255;
+    }
+    gg.putImageData(id, 0, 0);
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+    g.drawImage(skyGrid, 0, 0, cols, rows, 0, 0, w, horizonY() + 1);
+    const hz = gg.getImageData(cols / 2 | 0, rows - 1, 1, 1).data, tp = gg.getImageData(cols / 2 | 0, 0, 1, 1).data;
+    g.fillStyle = hex([hz[0], hz[1], hz[2]]); g.fillRect(0, horizonY(), w, h - horizonY());
+    // 햇빛 색: 해 원반(땅 근처), 구름(3 km), 비행운(10 km)
+    const T0 = sunTransmit(s, A, 50), T1 = sunTransmit(s, A, 1.5e3), T3 = sunTransmit(s, A, 3e3), T10 = sunTransmit(s, A, 10e3);
+    lowLit = Math.min(1, lum(T1) * 1.6); lowTint = lum(T1) > 0 ? tint(T1) : "#ffffff"; highLit = Math.min(1, lum(T10) * 1.6);
+    sunTint = lum(T0) > 0 ? tint(T0) : "#ff9a6a";
+    cloudLit = Math.min(1, lum(T3) * 1.6);
+    cloudTint = lum(T3) > 0 ? tint(T3) : "#ffffff";
+    trailTint = lum(T10) > 0 ? tint(T10) : "#ffffff";
+    return [hex([tp[0], tp[1], tp[2]]), hex([hz[0], hz[1], hz[2]])];
+  }
+
+  /* ---------- 비행기와 비행운 ----------
+   * 순항 고도(약 250 hPa, 10 km)의 기온·습도로 판단 (Schmidt–Appleman 기준을 단순화):
+   *   -38°C 보다 따뜻하면 비행운이 생기지 않음,
+   *   얼음 기준 상대습도(RHi)가 100% 이상이면 길게 퍼지며 오래 남고, 70~100% 면 조금 남고, 그보다 건조하면 금방 사라짐.
+   * 기상 자료의 습도는 물 기준이라 얼음 기준으로 바꿈 (Magnus 식, 물·얼음 포화수증기압 비).
+   */
+  let planes = [];
+  function contrailMode() {
+    if (!W || W.t250 == null) return { mode: "short", life: 70 };
+    const T = W.t250;
+    if (T > -38) return { mode: "none", life: 0 };
+    const ew = 6.112 * Math.exp(17.62 * T / (243.12 + T)), ei = 6.112 * Math.exp(22.46 * T / (272.62 + T));
+    const rhi = (W.rh250 != null ? W.rh250 : 40) * ew / ei;
+    return rhi >= 100 ? { mode: "persist", life: 30 * 150, rhi } : rhi >= 70 ? { mode: "medium", life: 30 * 18, rhi } : { mode: "short", life: 30 * 2.5, rhi };
+  }
+  function spawnPlane(force) {
+    if (planes.length >= 2 || (!force && (overcast > .85 || fx.fog || fx.rain > 1 || fx.storm))) return;
+    const rate = force ? 1 : 1 / (30 * 150);                                                     // 평균 2분 반에 한 대
+    if (rnd() > rate) return;
+    const dir = rnd() < .5 ? 1 : -1, y = h * (.1 + rnd() * .2);
+    planes.push({ x: dir > 0 ? -20 : w + 20, y, dir, vy: (rnd() - .5) * .04, v: w / (30 * (55 + rnd() * 35)), s: h * .04, trail: [], c: contrailMode() });
+  }
+  function stepPlanes() {
+    // 높은 하늘 바람(불어오는 방향 wd)에 실려 흘러감. 화면에서 동쪽은 북반구 왼쪽, 남반구 오른쪽
+    const u = W && W.ws250 != null && W.wd250 != null ? -Math.sin(W.wd250 * RAD) * W.ws250 : 60;     // 동쪽 성분 km/h
+    const drift = (place.lat < 0 ? 1 : -1) * u / 6000;
+    planes = planes.filter(p => {
+      const inSky = p.x > -30 && p.x < w + 30;
+      if (inSky) {
+        p.x += p.v * p.dir; p.y += p.vy;
+        if (p.c.mode !== "none" && t % 2 === 0) p.trail.push({ x: p.x - p.dir * p.s * 1.1, y: p.y + p.s * .1, age: 0 });
+      }
+      for (const q of p.trail) { q.age++; q.x += drift; q.y += .004; }
+      p.trail = p.trail.filter(q => q.age < p.c.life);
+      return inSky || p.trail.length;
+    });
+  }
+  function drawPlanes() {
+    if (!planes.length) return;
+    const dim = 1 - Math.min(.85, night * .9);
+    const col = mix(mix("#ffffff", trailTint, Math.min(1, dusk * 1.4) * .8), "#8a93b8", night * .7);
+    ctx.lineCap = "round";
+    for (const p of planes) {
+      const tr = p.trail, L = p.c.life;
+      for (let i = 1; i < tr.length; i++) {
+        const a = tr[i - 1], b = tr[i];
+        if (b.age < 5) continue;                                                                // 엔진 바로 뒤는 아직 투명
+        const k = b.age / L;
+        const width = p.c.mode === "persist" ? 1 + Math.min(6, b.age / 60) : p.c.mode === "medium" ? 1 + b.age / 200 : 1;
+        ctx.strokeStyle = col;
+        ctx.globalAlpha = Math.max(0, (1 - k) * (p.c.mode === "persist" ? .75 : .65) * dim * (1 - overcast * .6));
+        ctx.lineWidth = width;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+      if (p.x < -30 || p.x > w + 30) continue;
+      // 작은 비행기: 낮에는 흰 몸체, 밤에는 깜빡이는 불빛
+      ctx.globalAlpha = 1;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.scale(p.dir, 1);
+      const s = p.s;
+      ctx.fillStyle = night > .5 ? "#2a3150" : mix("#f4f6fa", "#9aa3b5", overcast * .5);
+      ellipse(ctx, 0, 0, s * 1.3, s * .32);
+      ctx.beginPath(); ctx.moveTo(-s * .15, 0); ctx.lineTo(-s * .55, s * .9); ctx.lineTo(-s * .25, s * .9); ctx.lineTo(s * .35, 0); ctx.fill();      // 날개
+      ctx.beginPath(); ctx.moveTo(-s * 1.05, 0); ctx.lineTo(-s * 1.35, -s * .65); ctx.lineTo(-s * 1.1, -s * .65); ctx.lineTo(-s * .8, 0); ctx.fill(); // 꼬리
+      if (night > .3) {
+        const blink = t % 30 < 3;
+        ctx.fillStyle = "#ff5a5a"; circle(ctx, -s * .5, s * .9, .9);
+        if (blink) { ctx.fillStyle = "#ffffff"; circle(ctx, -s * 1.3, -s * .6, 1.2); }
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---------- 기념일 장식 ----------
+   * 양력: 새해(12/31~1/1 밤 불꽃놀이), 어린이날(풍선), 할로윈(10/25~31 호박등·박쥐),
+   *       크리스마스(12/1~26 전구·별·리스, 24~25일엔 산타 썰매)
+   * 음력: 설날(연날리기·청사초롱), 부처님오신날(연등), 추석(큰 보름달·옥토끼·감)
+   *   음력 날짜는 위 천문 계산으로 구함 (한국 시각 기준): 중기(우수·소만·추분)가 든 달이 1·4·8월이고,
+   *   그 달의 첫날은 그 중기 직전 삭(합삭)이 있는 날.  설날 = 1월 1일, 부처님오신날 = 4월 8일, 추석 = 8월 15일
+   */
+  const KST = 9 * 36e5;
+  const kstDay = ms => new Date(ms + KST).toISOString().slice(0, 10);
+  const addDay = (ymd, n) => new Date(Date.parse(ymd + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+  const wrap180 = x => ((x + 540) % 360) - 180;
+  function bisect(f, a, b) {                          // f(a)·f(b) ≤ 0 인 구간에서 0 이 되는 시각
+    for (let i = 0; i < 40; i++) { const m = (a + b) / 2; if (f(a) * f(m) <= 0) b = m; else a = m; }
+    return (a + b) / 2;
+  }
+  // 그 해 근처의 합삭(태양과 달의 황경이 같아지는 순간) 목록
+  const newMoonCache = new Map();
+  function newMoons(year) {
+    if (newMoonCache.has(year)) return newMoonCache.get(year);
+    const el = ms => moonPhase(new Date(ms)).phase * 360, out = [];
+    let a = Date.UTC(year - 1, 10, 1), ea = el(a);
+    for (let b = a + 864e5; b < Date.UTC(year + 1, 1, 1); b += 864e5) {
+      const eb = el(b);
+      if (eb < ea - 180) out.push(bisect(ms => wrap180(el(ms)), a, b));   // 황경 차가 360 → 0 으로 넘어감
+      a = b; ea = eb;
+    }
+    newMoonCache.set(year, out);
+    return out;
+  }
+  // 그 해에 태양 황경이 lon 이 되는 순간 (춘분 3/20 기준으로 대략 찾고 좁힘)
+  function solarTermMs(year, lon) {
+    const guess = Date.UTC(year, 2, 20) + ((lon % 360) / 360) * 365.2422 * 864e5 - (lon >= 270 ? 365.2422 * 864e5 : 0);
+    return bisect(ms => wrap180(sunLongitude(new Date(ms)) - lon), guess - 12 * 864e5, guess + 12 * 864e5);
+  }
+  // 중기 lon 이 든 음력 달의 d 일 (양력 "YYYY-MM-DD")
+  function lunarDay(year, lon, d) {
+    const z = kstDay(solarTermMs(year, lon)), nm = newMoons(year).map(kstDay);
+    let first = null;
+    for (let i = 0; i < nm.length - 1; i++) if (nm[i] <= z && z < nm[i + 1]) first = nm[i];
+    return first && addDay(first, d - 1);
+  }
+  const lunarCache = new Map();
+  function lunarFestivals(year) {
+    if (!lunarCache.has(year)) lunarCache.set(year, { seollal: lunarDay(year, 330, 1), buddha: lunarDay(year, 60, 8), chuseok: lunarDay(year, 180, 15) });
+    return lunarCache.get(year);
+  }
+  const FEST_LABEL = { newyear: "새해 복 많이 받으세요", seollal: "설날", children: "어린이날", buddha: "부처님오신날",
+                       chuseok: "추석 · 한가위", halloween: "해피 할로윈", christmas: "메리 크리스마스" };
+  // 오늘(설정한 위치의 날짜) 장식할 기념일과, 이름을 보여줄 날인지
+  function festivalOn(ymd) {
+    if (PREVIEW && q.has("fest")) return { key: q.get("fest"), label: FEST_LABEL[q.get("fest")] || "", main: true };
+    const md = ymd.slice(5), y = +ymd.slice(0, 4), L = lunarFestivals(y);
+    const near = (day, before, after) => day && ymd >= addDay(day, -before) && ymd <= addDay(day, after);
+    const f = (key, main) => ({ key, label: main ? FEST_LABEL[key] : "", main });
+    if (md === "12-31" || md === "01-01") return f("newyear", md === "01-01");
+    if (near(L.seollal, 1, 1)) return f("seollal", ymd === L.seollal);
+    if (near(L.chuseok, 1, 1)) return f("chuseok", ymd === L.chuseok);
+    if (near(L.buddha, 6, 0)) return f("buddha", ymd === L.buddha);
+    if (md === "05-05") return f("children", true);
+    if (md >= "10-25" && md <= "10-31") return f("halloween", md === "10-31");
+    if (md >= "12-01" && md <= "12-26") return f("christmas", md === "12-24" || md === "12-25");
+    return null;
+  }
+  let fest = null, fireworks = [], sleigh = null;
+
+  /* 장식 그리기 */
+  const LIGHTS = ["#ff5f5f", "#ffd23f", "#5fc8ff", "#7fe08a", "#ff9ad5"];
+  function bulb(x, y, i, r) {
+    const on = (Math.sin(t / 18 + i * 1.7) + 1) / 2, c = LIGHTS[i % LIGHTS.length];
+    if (night > .2) { ctx.fillStyle = rgba(c, .25 * on * night); circle(ctx, x, y, r * 3.2); }
+    ctx.fillStyle = mix(c, "#ffffff", .15 + .3 * on); circle(ctx, x, y, r);
+  }
+  function star(x, y, r, c) {
+    ctx.fillStyle = c; ctx.beginPath();
+    for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fill();
+  }
+  function decorateCedar(o, sway) {
+    if (!fest || fest.key !== "christmas") return;
+    const { x, y, s } = o;
+    for (let i = 0; i < 3; i++) {                     // 층마다 전구 한 줄
+      const cx = x + sway * (i + 1) / 3, by = y - s * (.12 + i * .24), wd = s * (.4 - i * .09), ht = s * (.36 - i * .03);
+      for (let k = 0; k < 5; k++) { const f = (k + .5) / 5, px = cx - wd * .8 + wd * 1.6 * f; bulb(px, by - ht * (.15 + .25 * Math.sin(f * Math.PI)), k + i * 2 + (x | 0), Math.max(.9, s * .022)); }
+    }
+    const top = y - s * .9, r = Math.max(2.5, s * .07);
+    if (night > .2) { ctx.fillStyle = `rgba(255,224,102,${.3 * night})`; circle(ctx, x + sway, top, r * 2.6); }
+    star(x + sway, top, r, "#ffd94a");
+  }
+  function decorateRound(o, sway) {
+    if (!fest || fest.key !== "christmas" || S.leaf < .05) return;
+    const { x, y, s } = o, k = .62 + .38 * Math.max(S.leaf, S.bloom * .9), cx = x + sway, cy = y - s * .72;
+    for (let i = 0; i < 6; i++) { const a = Math.PI * (.15 + .7 * i / 5); bulb(cx - Math.cos(a) * s * .34 * k, cy + Math.sin(a) * s * .12 * k - s * .05, i + (x | 0), Math.max(.8, s * .02)); }
+  }
+  function pumpkin(x, y, r, face) {
+    ctx.fillStyle = "#e8761f";
+    ellipse(ctx, x - r * .45, y - r * .55, r * .55, r * .55); ellipse(ctx, x + r * .45, y - r * .55, r * .55, r * .55);
+    ctx.fillStyle = "#f28c28"; ellipse(ctx, x, y - r * .6, r * .6, r * .62);
+    ctx.fillStyle = "#4d7a2e"; ctx.fillRect(x - r * .08, y - r * 1.35, r * .16, r * .3);
+    if (!face) return;
+    const glow = night > .25 ? 1 : .55;
+    if (night > .25) { const g2 = ctx.createRadialGradient(x, y - r * .6, 0, x, y - r * .6, r * 3); g2.addColorStop(0, "rgba(255,190,80,.35)"); g2.addColorStop(1, "rgba(255,190,80,0)"); ctx.fillStyle = g2; circle(ctx, x, y - r * .6, r * 3); }
+    ctx.fillStyle = `rgba(255,${night > .25 ? 214 : 120},${night > .25 ? 90 : 40},${glow})`;
+    for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(x + d * r * .38, y - r * .95); ctx.lineTo(x + d * r * .18, y - r * .65); ctx.lineTo(x + d * r * .55, y - r * .65); ctx.fill(); }
+    ctx.beginPath(); ctx.moveTo(x - r * .45, y - r * .45); ctx.quadraticCurveTo(x, y - r * .05, x + r * .45, y - r * .45); ctx.quadraticCurveTo(x, y - r * .25, x - r * .45, y - r * .45); ctx.fill();
+  }
+  function decorateHouse(o) {
+    if (!fest) return;
+    const { x, y, s } = o, bw = s * .95, bh = s * .5, rw = bw * .62;
+    if (fest.key === "christmas") {
+      for (let i = 0; i <= 10; i++) {                 // 처마를 따라 전구
+        const f = i / 10, ex = x - rw - s * .08 + (rw * 2 + s * .16) * f;
+        bulb(ex, y - bh + s * .05 - Math.sin(f * Math.PI) * s * .06 + s * .02, i, Math.max(.9, s * .025));
+      }
+      const dx = x + bw * .2, dy = y - bh * .5;       // 문에 리스
+      ctx.strokeStyle = "#3f8a4a"; ctx.lineWidth = Math.max(1.4, s * .035);
+      ctx.beginPath(); ctx.arc(dx, dy, s * .055, 0, TAU); ctx.stroke();
+      ctx.fillStyle = "#e0453a"; circle(ctx, dx, dy + s * .055, s * .02 + .5);
+    }
+    if (fest.key === "halloween") {
+      const r = Math.max(3, s * .11);
+      pumpkin(x - bw * .62, y + 1, r, true); pumpkin(x + bw * .58, y + 1, r * .8, true); pumpkin(x - bw * .4, y + 2, r * .6, false);
+    }
+    if (fest.key === "seollal" && night > .25) {      // 처마 끝 청사초롱
+      for (const d of [-1, 1]) {
+        const lx = x + d * (rw + s * .02), ly = y - bh + s * .14;
+        ctx.strokeStyle = TC.houseO; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(lx, ly - s * .1); ctx.lineTo(lx, ly - s * .04); ctx.stroke();
+        ctx.fillStyle = "rgba(255,120,90,.25)"; circle(ctx, lx, ly, s * .14);
+        ctx.fillStyle = "#3d5fb8"; ctx.fillRect(lx - s * .035, ly - s * .045, s * .07, s * .03);
+        ctx.fillStyle = "#e5483b"; ctx.fillRect(lx - s * .035, ly - s * .015, s * .07, s * .05);
+      }
+    }
+  }
+  // 하늘·앞쪽에 그리는 것
+  function drawFestSky() {
+    if (!fest) return;
+    const k = fest.key;
+    if (k === "newyear" && night > .4) {             // 불꽃놀이
+      if ((rnd() < .035 || !fireworks.length) && fireworks.length < 6)
+        fireworks.push({ x: w * (.15 + rnd() * .7), y: h * (.12 + rnd() * .2), age: 0, c: LIGHTS[rnd() * LIGHTS.length | 0], n: 18 + (rnd() * 10 | 0), v: 1 + rnd() * .6 });
+      ctx.save(); ctx.globalCompositeOperation = "lighter";
+      fireworks = fireworks.filter(f => {
+        f.age++;
+        const life = 55, a = 1 - f.age / life;
+        for (let i = 0; i < f.n; i++) {
+          const ang = i / f.n * TAU, d = f.v * (.65 + .35 * ((i * 7) % 5) / 4) * f.age * .55 * (1 - f.age / (life * 2.2));
+          const px = f.x + Math.cos(ang) * d * h * .03, py = f.y + Math.sin(ang) * d * h * .03 + f.age * f.age * .002 * h * .03;
+          ctx.fillStyle = rgba(f.c, Math.max(0, a) * .35); circle(ctx, px, py, 2.6);          // 번짐
+          ctx.fillStyle = rgba(mix(f.c, "#ffffff", .4), Math.max(0, a)); circle(ctx, px, py, 1.3);
+        }
+        return f.age < life;
+      });
+      ctx.restore();
+    }
+    if (k === "seollal" && night < .5) {             // 방패연 두 개
+      for (const [fx2, fy2, c, i] of [[.24, .18, "#e5483b", 0], [.72, .12, "#3d5fb8", 1]]) {
+        const x = w * fx2 + Math.sin(t / 45 + i * 2) * 6, y = h * fy2 + Math.sin(t / 33 + i) * 3, s = h * .07, tilt = Math.sin(t / 50 + i) * .12;
+        ctx.strokeStyle = "rgba(90,90,90,.5)"; ctx.lineWidth = .6;
+        ctx.beginPath(); ctx.moveTo(x, y + s * .5); ctx.quadraticCurveTo(x + (fx2 < .5 ? 30 : -30), y + h * .3, x + (fx2 < .5 ? 60 : -60), h * .62); ctx.stroke();
+        ctx.save(); ctx.translate(x, y); ctx.rotate(tilt);
+        ctx.fillStyle = "#fbf6ea"; ctx.fillRect(-s * .4, -s * .5, s * .8, s);
+        ctx.fillStyle = c; ctx.fillRect(-s * .4, -s * .5, s * .8, s * .18);
+        ctx.fillStyle = mix(c, "#ffffff", .2); circle(ctx, 0, s * .05, s * .17);
+        ctx.restore();
+      }
+    }
+    if (k === "children" && night < .6) {            // 풍선
+      ["#ff6b6b", "#ffd93d", "#6bcBff", "#8be08a", "#c79bff"].forEach((c, i) => {
+        const y = h - ((t * .35 + i * 31) % (h + 40)), x = w * (.12 + i * .19) + Math.sin(t / 28 + i) * 8, r = h * .045;
+        ctx.strokeStyle = "rgba(80,80,80,.45)"; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(x, y + r * 1.2); ctx.quadraticCurveTo(x - 3, y + r * 2.2, x + 1, y + r * 3.2); ctx.stroke();
+        ctx.fillStyle = c; ellipse(ctx, x, y, r * .85, r);
+        ctx.fillStyle = "rgba(255,255,255,.5)"; ellipse(ctx, x - r * .3, y - r * .35, r * .18, r * .25);
+      });
+    }
+    if (k === "halloween" && (night > .2 || dusk > .3)) {   // 박쥐 (밤하늘에서도 보이게 보랏빛 테두리)
+      for (let i = 0; i < 4; i++) {
+        const x = ((t * (.7 + i * .12) + i * 173) % (w + 60)) - 30, y = h * (.14 + .08 * i % .3) + Math.sin(t / 20 + i * 3) * h * .04;
+        const s = h * .036, flap = Math.sin(t / 3 + i) * .6;
+        const bat = () => {
+          ctx.beginPath(); ctx.ellipse(x, y, s * .25, s * .35, 0, 0, TAU);
+          for (const d of [-1, 1]) {
+            ctx.moveTo(x, y);
+            ctx.quadraticCurveTo(x + d * s * .7, y - s * (.6 + flap), x + d * s * 1.3, y - s * flap * .4);
+            ctx.quadraticCurveTo(x + d * s * .8, y + s * .1, x, y + s * .15);
+          }
+        };
+        ctx.strokeStyle = `rgba(190,150,255,${.35 + .3 * night})`; ctx.lineWidth = 1.6; bat(); ctx.stroke();
+        ctx.fillStyle = night > .4 ? "#0c0814" : "#2d2238"; bat(); ctx.fill();
+      }
+    }
+    if (k === "christmas" && (fest.main || PREVIEW)) { // 24~25일: 산타 썰매가 가끔 지나감
+      if (!sleigh && (rnd() < 1 / (30 * 35) || (PREVIEW && q.has("sleigh")))) sleigh = { x: -40, y: h * (.1 + rnd() * .12), v: w / (30 * 16) };
+      if (sleigh) {
+        sleigh.x += sleigh.v;
+        const { x, y } = sleigh, s = h * .05, bob = Math.sin(t / 6) * 1.5;
+        ctx.fillStyle = "rgba(255,240,170,.8)";
+        for (let i = 1; i < 8; i++) circle(ctx, x - s * (1.2 + i * .9), y + Math.sin(t / 8 + i) * 2, Math.max(.4, 1.2 - i * .13));   // 반짝이 꼬리
+        ctx.fillStyle = night > .4 ? "#2a2238" : "#6b4a2f";                                                            // 순록 두 마리
+        for (const j of [0, 1]) { const rx = x + s * (1.6 + j * 1.3), ry = y - s * .3 + bob * (j ? -1 : 1);
+          ellipse(ctx, rx, ry, s * .4, s * .18); circle(ctx, rx + s * .4, ry - s * .2, s * .13);
+          ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(rx + s * .42, ry - s * .3); ctx.lineTo(rx + s * .5, ry - s * .5); ctx.stroke(); }
+        ctx.fillStyle = "#ff5a4a"; circle(ctx, x + s * 3.05, y - s * .5 + bob, s * .07 + .6);                         // 루돌프 코
+        ctx.strokeStyle = "rgba(200,170,120,.8)"; ctx.lineWidth = .6; ctx.beginPath(); ctx.moveTo(x + s * .5, y - s * .1); ctx.lineTo(x + s * 1.3, y - s * .3); ctx.stroke();
+        ctx.fillStyle = "#d63a32"; ctx.beginPath(); ctx.roundRect(x - s * .6, y - s * .25, s * 1.1, s * .45, s * .15); ctx.fill();          // 썰매
+        ctx.fillStyle = "#e9c46a"; ctx.fillRect(x - s * .65, y + s * .22, s * 1.25, s * .06);
+        ctx.fillStyle = "#d63a32"; circle(ctx, x - s * .15, y - s * .4, s * .18); ctx.fillStyle = "#f6e6d0"; circle(ctx, x - s * .02, y - s * .5, s * .1);  // 산타
+        ctx.fillStyle = "#ffffff"; circle(ctx, x - s * .25, y - s * .58, s * .07);
+        if (sleigh.x > w + 60) sleigh = null;
+      }
+    }
+  }
+  // 앞쪽(땅 위) 장식: 부처님오신날 연등 줄
+  function drawFestFront() {
+    if (!fest || fest.key !== "buddha") return;
+    const y0 = h * .16, sag = h * .06, n = 9, cols = ["#ff8fb1", "#ffd166", "#7fd1a8", "#ff6b6b", "#b39bff"];
+    ctx.strokeStyle = "rgba(90,70,60,.55)"; ctx.lineWidth = .8;
+    ctx.beginPath(); for (let x = -5; x <= w + 5; x += 8) ctx.lineTo(x, y0 + Math.sin(x / w * Math.PI) * sag); ctx.stroke();
+    for (let i = 0; i < n; i++) {
+      const x = w * (i + .5) / n, y = y0 + Math.sin(x / w * Math.PI) * sag + h * .045, r = h * .035, c = cols[i % cols.length];
+      if (night > .2) { const g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 3); g2.addColorStop(0, rgba(c, .4 * night)); g2.addColorStop(1, rgba(c, 0)); ctx.fillStyle = g2; circle(ctx, x, y, r * 3); }
+      ctx.beginPath(); ctx.moveTo(x, y - r * 1.25); ctx.lineTo(x, y - h * .045); ctx.stroke();
+      ctx.fillStyle = mix(c, "#ffffff", night > .2 ? .25 : 0);
+      for (let k = 0; k < 5; k++) { const a = Math.PI * (.15 + .7 * k / 4); ellipse(ctx, x - Math.cos(a) * r * .55, y - Math.sin(a) * r * .5 + r * .2, r * .32, r * .55); }
+      ctx.fillStyle = "#f4e3b5"; ctx.fillRect(x - r * .5, y + r * .55, r, r * .25);
+      ctx.strokeStyle = rgba(c, .7); ctx.beginPath(); ctx.moveTo(x, y + r * .8); ctx.lineTo(x, y + r * 1.4); ctx.stroke();
+      ctx.strokeStyle = "rgba(90,70,60,.55)";
+    }
+  }
+  // 추석: 옥토끼 (보름달 위 그림자)
+  function moonRabbit(x, y, r) {
+    if (!fest || fest.key !== "chuseok" || mph.fraction < .85) return;
+    ctx.save(); ctx.fillStyle = "rgba(170,160,135,.45)";
+    ellipse(ctx, x - r * .1, y + r * .15, r * .28, r * .22); circle(ctx, x + r * .2, y - r * .05, r * .14);
+    ellipse(ctx, x + r * .22, y - r * .35, r * .05, r * .2); ellipse(ctx, x + r * .32, y - r * .32, r * .05, r * .18);
+    ctx.fillRect(x - r * .5, y + r * .2, r * .12, r * .3); ctx.restore();
+  }
+
+  /* ---------- 음력 날짜 (플래너 달력에서 씀) ----------
+   * 한국 시각 기준. 합삭이 있는 날이 그 달 1일이고, 중기(태양 황경 30°의 배수)가 든 달이 그 번호의 달
+   * (우수 330° → 1월, 춘분 0° → 2월 … 동지 270° → 11월), 중기가 없는 달은 앞 달의 윤달.
+   */
+  const zqCache = new Map();
+  function zhongqiDays(year) {                       // 그 해(전년 12월 동지 ~ 그 해 11월) 중기 12개
+    if (!zqCache.has(year)) zqCache.set(year, Array.from({ length: 12 }, (_, i) => { const lon = i * 30; return { lon, day: kstDay(solarTermMs(year, lon)) }; }));
+    return zqCache.get(year);
+  }
+  const lunarDateCache = new Map();
+  function lunarDate(ymd) {
+    if (lunarDateCache.has(ymd)) return lunarDateCache.get(ymd);
+    const y = +ymd.slice(0, 4);
+    const nm = [...new Set([y - 1, y, y + 1].flatMap(newMoons).map(kstDay))].sort();
+    const zq = [y - 1, y, y + 1, y + 2].flatMap(zhongqiDays);
+    const monthOf = i => {
+      const z = zq.find(q => nm[i] <= q.day && q.day < nm[i + 1]);
+      if (z) return { m: (Math.round(z.lon / 30) + 1) % 12 + 1, leap: false };
+      return i > 0 ? { m: monthOf(i - 1).m, leap: true } : null;
+    };
+    let i = nm.length - 2;
+    while (i > 0 && nm[i] > ymd) i--;
+    const mo = monthOf(i);
+    const r = mo && { m: mo.m, d: Math.round((Date.parse(ymd) - Date.parse(nm[i])) / 864e5) + 1, leap: mo.leap };
+    lunarDateCache.set(ymd, r);
+    return r;
+  }
+  window.PlannerLunar = lunarDate;
+
+  /* ---------- 별자리와 은하수 ----------
+   * 밝은 별의 실제 좌표(J2000 적경 h, 적위 °, 등급, 색)로 그 시각·위치의 하늘에 놓음.
+   * 풍경 띠는 가로로 길어서 세로가 약 3.5배 눌려 있으므로, 별자리 위치(중심)는 실제대로 두고
+   * 모양은 그 자리에서 원래 비율로 그림. 은하수는 은하 적도(b = 0)를 적도 좌표로 바꿔 띠로 그리고
+   * 은하 중심(궁수자리) 쪽일수록 밝게. 해가 충분히 지고, 달이 밝지 않고, 맑을 때만 보임.
+   */
+  const SC = { b: "#cfe0ff", w: "#f4f6ff", y: "#fff1c9", o: "#ffd2a0", r: "#ffad8a" };
+  const CONST = [
+    ["오리온", { Betelgeuse: [5.919, 7.407, .5, "r"], Bellatrix: [5.419, 6.35, 1.6, "b"], Meissa: [5.585, 9.934, 3.4, "b"], Mintaka: [5.533, -.299, 2.2, "b"],
+      Alnilam: [5.604, -1.202, 1.7, "b"], Alnitak: [5.679, -1.943, 1.8, "b"], Saiph: [5.796, -9.67, 2.1, "b"], Rigel: [5.242, -8.202, .1, "b"] },
+      "Betelgeuse-Meissa Meissa-Bellatrix Betelgeuse-Alnitak Bellatrix-Mintaka Mintaka-Alnilam Alnilam-Alnitak Alnitak-Saiph Mintaka-Rigel"],
+    ["큰개", { Sirius: [6.752, -16.716, -1.46, "w"], Mirzam: [6.378, -17.956, 2, "b"], Wezen: [7.14, -26.393, 1.8, "y"], Adhara: [6.977, -28.972, 1.5, "b"], Aludra: [7.401, -29.303, 2.4, "b"] },
+      "Mirzam-Sirius Sirius-Wezen Wezen-Adhara Wezen-Aludra"],
+    ["작은개", { Procyon: [7.655, 5.225, .34, "y"], Gomeisa: [7.453, 8.289, 2.9, "b"] }, "Procyon-Gomeisa"],
+    ["쌍둥이", { Castor: [7.577, 31.888, 1.6, "w"], Pollux: [7.755, 28.026, 1.1, "o"], Wasat: [7.335, 21.982, 3.5, "w"], Alhena: [6.629, 16.399, 1.9, "w"],
+      Mebsuta: [6.732, 25.131, 3, "y"], Tejat: [6.383, 22.514, 2.9, "r"] }, "Castor-Pollux Pollux-Wasat Wasat-Alhena Castor-Mebsuta Mebsuta-Tejat"],
+    ["황소", { Aldebaran: [4.599, 16.509, .85, "o"], Elnath: [5.438, 28.608, 1.65, "b"], Tianguan: [5.627, 21.143, 3, "b"], HyG: [4.33, 15.628, 3.6, "y"],
+      HyD: [4.382, 17.543, 3.8, "y"], HyE: [4.477, 19.18, 3.5, "y"], Alcyone: [3.791, 24.105, 2.9, "b"], Atlas: [3.819, 24.053, 3.6, "b"],
+      Electra: [3.748, 24.113, 3.7, "b"], Maia: [3.763, 24.368, 3.9, "b"], Merope: [3.772, 23.948, 4.2, "b"], Taygeta: [3.754, 24.467, 4.3, "b"] },
+      "HyG-HyD HyD-HyE HyE-Elnath HyG-Aldebaran Aldebaran-Tianguan"],
+    ["마차부", { Capella: [5.278, 45.998, .08, "y"], Menkalinan: [5.992, 44.947, 1.9, "w"], AurTheta: [5.995, 37.213, 2.6, "w"], Hassaleh: [4.95, 33.166, 2.7, "o"], AurEps: [5.033, 43.823, 3, "y"] },
+      "Capella-Menkalinan Menkalinan-AurTheta Hassaleh-AurEps AurEps-Capella"],
+    ["사자", { Regulus: [10.139, 11.967, 1.35, "b"], LeoEta: [10.122, 16.763, 3.5, "w"], Algieba: [10.333, 19.842, 2, "o"], Adhafera: [10.278, 23.417, 3.4, "w"],
+      RasElased: [9.764, 23.774, 3, "y"], Zosma: [11.235, 20.524, 2.6, "w"], Chertan: [11.237, 15.43, 3.3, "w"], Denebola: [11.818, 14.572, 2.1, "w"] },
+      "Regulus-LeoEta LeoEta-Algieba Algieba-Adhafera Adhafera-RasElased Algieba-Zosma Zosma-Denebola Denebola-Chertan Chertan-Regulus Zosma-Chertan"],
+    ["처녀", { Spica: [13.42, -11.161, .97, "b"], Porrima: [12.694, -1.449, 2.7, "w"], VirDelta: [12.927, 3.397, 3.4, "r"], Vindemiatrix: [13.036, 10.959, 2.8, "y"],
+      Zavijava: [11.845, 1.765, 3.6, "y"], VirZeta: [13.578, -.596, 3.4, "w"] },
+      "Spica-Porrima Porrima-VirDelta VirDelta-Vindemiatrix Porrima-Zavijava Spica-VirZeta VirZeta-VirDelta"],
+    ["까마귀", { Gienah: [12.263, -17.542, 2.6, "b"], Algorab: [12.498, -16.515, 2.9, "b"], Kraz: [12.573, -23.397, 2.6, "y"], CrvEps: [12.169, -22.62, 3, "o"] },
+      "Gienah-Algorab Algorab-Kraz Kraz-CrvEps CrvEps-Gienah"],
+    ["목동", { Arcturus: [14.261, 19.182, -.05, "o"], Izar: [14.75, 27.074, 2.4, "o"], BooDelta: [15.258, 33.315, 3.5, "y"], Nekkar: [15.032, 40.39, 3.5, "y"],
+      Seginus: [14.535, 38.308, 3, "w"], BooRho: [14.53, 30.371, 3.6, "o"], Muphrid: [13.911, 18.398, 2.7, "y"] },
+      "Arcturus-Izar Izar-BooDelta BooDelta-Nekkar Nekkar-Seginus Seginus-BooRho BooRho-Arcturus Arcturus-Muphrid"],
+    ["전갈", { Antares: [16.49, -26.432, 1, "r"], Graffias: [16.091, -19.806, 2.6, "b"], Dschubba: [16.006, -22.622, 2.3, "b"], ScoPi: [15.981, -26.114, 2.9, "b"],
+      ScoSigma: [16.353, -25.593, 2.9, "b"], ScoTau: [16.598, -28.216, 2.8, "b"], ScoEps: [16.836, -34.293, 2.3, "o"], ScoMu: [16.864, -38.048, 3, "b"],
+      ScoZeta: [16.91, -42.362, 3.6, "o"], ScoEta: [17.203, -43.239, 3.3, "w"], Sargas: [17.622, -42.998, 1.9, "y"], ScoIota: [17.793, -40.127, 3, "y"],
+      ScoKappa: [17.708, -39.03, 2.4, "b"], Shaula: [17.56, -37.104, 1.6, "b"], Lesath: [17.513, -37.296, 2.7, "b"] },
+      "Graffias-Dschubba Dschubba-ScoPi Dschubba-ScoSigma ScoSigma-Antares Antares-ScoTau ScoTau-ScoEps ScoEps-ScoMu ScoMu-ScoZeta ScoZeta-ScoEta ScoEta-Sargas Sargas-ScoIota ScoIota-ScoKappa ScoKappa-Shaula Shaula-Lesath"],
+    ["궁수", { Alnasl: [18.097, -30.424, 3, "o"], KausMedia: [18.35, -29.828, 2.7, "o"], KausAustralis: [18.403, -34.385, 1.8, "b"], KausBorealis: [18.466, -25.422, 2.8, "o"],
+      SgrPhi: [18.761, -26.991, 3.2, "b"], Nunki: [18.921, -26.297, 2, "b"], SgrTau: [19.116, -27.671, 3.3, "o"], Ascella: [19.044, -29.88, 2.6, "w"] },
+      "Alnasl-KausMedia KausMedia-KausAustralis KausAustralis-Alnasl KausMedia-KausBorealis KausBorealis-SgrPhi SgrPhi-KausMedia SgrPhi-Nunki Nunki-SgrTau SgrTau-Ascella Ascella-SgrPhi Ascella-KausAustralis"],
+    ["거문고", { Vega: [18.616, 38.784, .03, "b"], LyrZeta: [18.746, 37.605, 4.3, "w"], LyrDelta: [18.908, 36.899, 4.3, "r"], Sulafat: [18.982, 32.69, 3.3, "b"], Sheliak: [18.835, 33.363, 3.5, "b"] },
+      "Vega-LyrZeta LyrZeta-LyrDelta LyrDelta-Sulafat Sulafat-Sheliak Sheliak-LyrZeta"],
+    ["백조", { Deneb: [20.69, 45.28, 1.25, "w"], Sadr: [20.37, 40.257, 2.2, "y"], CygEta: [19.938, 35.083, 3.9, "o"], Albireo: [19.512, 27.96, 3.1, "o"], CygDelta: [19.75, 45.131, 2.9, "b"], Gienah2: [20.77, 33.97, 2.5, "o"] },
+      "Deneb-Sadr Sadr-CygEta CygEta-Albireo CygDelta-Sadr Sadr-Gienah2"],
+    ["독수리", { Altair: [19.846, 8.868, .76, "w"], Tarazed: [19.771, 10.613, 2.7, "o"], Alshain: [19.922, 6.407, 3.7, "y"], AqlDelta: [19.425, 3.115, 3.4, "w"],
+      AqlLambda: [19.104, -4.883, 3.4, "b"], AqlZeta: [19.09, 13.863, 3, "w"], AqlTheta: [20.188, -.821, 3.2, "b"] },
+      "Tarazed-Altair Altair-Alshain Altair-AqlDelta AqlDelta-AqlLambda AqlDelta-AqlZeta Alshain-AqlTheta"],
+    ["페가수스", { Markab: [23.079, 15.205, 2.5, "b"], Scheat: [23.063, 28.083, 2.4, "r"], Algenib: [.22, 15.184, 2.8, "b"], Alpheratz: [.14, 29.091, 2.1, "b"],
+      PegZeta: [22.691, 10.831, 3.4, "b"], PegTheta: [22.17, 6.198, 3.5, "w"], Enif: [21.736, 9.875, 2.4, "o"] },
+      "Markab-Scheat Scheat-Alpheratz Alpheratz-Algenib Algenib-Markab Markab-PegZeta PegZeta-PegTheta PegTheta-Enif"],
+    ["남쪽물고기", { Fomalhaut: [22.961, -29.622, 1.16, "w"] }, ""],
+    ["바다뱀", { Alphard: [9.46, -8.659, 2, "o"] }, ""]
+  ].map(([name, stars, lines]) => ({ name, stars: Object.entries(stars).map(([id, [ra, dec, mag, c]]) => ({ id, ra: ra * 15 * RAD, dec: dec * RAD, mag, c })),
+                                     lines: lines ? lines.split(" ").map(p => p.split("-")) : [] }));
+  let skyStars = [];
+  function computeSkyObjects(date) {
+    const n = nutation((jdTT(date) - J2000) / 36525), lat = place.lat, lon = place.lon;
+    skyStars = CONST.map(c => {
+      const st = c.stars.map(s => ({ ...s, ...horizontal(date, lat, lon, s, n) }));
+      const up = st.filter(s => s.alt > -2);
+      if (!up.length) return null;
+      // 중심: 방위는 원형 평균
+      const ax = Math.atan2(st.reduce((a, s) => a + Math.sin(s.az * RAD), 0), st.reduce((a, s) => a + Math.cos(s.az * RAD), 0)) / RAD;
+      const alt0 = st.reduce((a, s) => a + s.alt, 0) / st.length;
+      return { name: c.name, lines: c.lines, az0: ax, alt0, st };
+    }).filter(Boolean);
+  }
+  /* ---------- 은하수 ----------
+   * 하늘의 각 픽셀(절반 해상도)마다 그 방향의 은하 좌표(l, b)를 구해 밝기를 칠함:
+   *   은하면을 따라 퍼진 빛 (은하 중심 쪽일수록 밝고 두꺼움) + 중심 팽대부 + 방패자리·백조자리 별구름
+   *   × 여러 크기의 노이즈(얼룩진 질감) × 백조자리~궁수자리 암흑대(Great Rift)
+   * 중심 쪽은 노르스름하게, 나머지는 푸르스름하게. 밝은 곳엔 작은 별가루를 뿌림. 지평선 근처는 대기에 흐려짐.
+   */
+  const mwCv = document.createElement("canvas");
+  let mwDust = [], mwBuiltAt = 0;
+  function hash2(i, j) { let n = Math.imul(i, 374761393) + Math.imul(j, 668265263) | 0; n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; }
+  function vnoise(x, y, period) {
+    const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi, P = i => ((i % period) + period) % period;
+    const a = hash2(P(xi), yi), b = hash2(P(xi + 1), yi), c = hash2(P(xi), yi + 1), d = hash2(P(xi + 1), yi + 1);
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  }
+  function fbm(l, b, oct = 4) {                     // 0~1 근처. 경도 방향은 360°마다 이어짐
+    let s = 0, amp = .5, f = 1 / 14;
+    for (let o = 0; o < oct; o++) { s += amp * vnoise(l * f, b * f + 37 * o, Math.round(360 * f)); amp *= .5; f *= 2; }
+    return s / (1 - Math.pow(.5, oct));
+  }
+  const sq = x => x * x;
+  function mwIntensity(l, b) {                      // l, b: 도
+    const L = ((l + 180) % 360 + 360) % 360 - 180;  // 0 = 은하 중심
+    const center = Math.exp(-sq(L / 60));
+    const sig = 4 + 6 * center;                     // 띠 두께(°)
+    let I = (.28 + .72 * center) * Math.exp(-sq((b + .4) / sig));
+    I += .7 * Math.exp(-sq(L / 11) - sq((b + 1.5) / 6.5));                            // 팽대부
+    I += .35 * Math.exp(-sq((L - 27) / 6) - sq((b + 1.5) / 3.5));                     // 방패자리 별구름
+    I += .3 * Math.exp(-sq((L - 76) / 9) - sq((b - 1.5) / 4));                        // 백조자리 별구름
+    I += .25 * Math.exp(-sq((L - 3) / 5) - sq((b + 4) / 3));                          // 궁수자리 별구름
+    const n = fbm(l, b);
+    I *= .25 + 1.5 * n * n;                          // 얼룩
+    const lane = (L > -15 && L < 85 ? 1 : 0) * Math.exp(-sq((b - 1.4 - .03 * Math.max(0, 30 - L)) / (1.3 + .5 * center)));
+    I *= 1 - .8 * lane * (.55 + .45 * fbm(l * 1.7, b * 1.7 + 11, 3));                // 암흑대
+    I *= 1 - .45 * Math.max(0, fbm(l * 1.3 + 90, b * 1.3, 3) - .55) * 2;             // 작은 암흑 성운
+    return [Math.max(0, I), center];
+  }
+  function buildMilkyWay(date) {
+    const sc = 2, W2 = Math.ceil(w / sc), H2 = Math.ceil((horizonY() + 4) / sc);
+    mwCv.width = W2; mwCv.height = H2;
+    const g = mwCv.getContext("2d"), id = g.createImageData(W2, H2), D = id.data;
+    const jd = jdUT(date), T = (jd - J2000) / 36525, n = nutation((jdTT(date) - J2000) / 36525);
+    const lst = RAD * (280.46061837 + 360.98564736629 * (jd - J2000) + .000387933 * T * T + place.lon) + n.dpsi * Math.cos(n.eps);
+    const phi = place.lat * RAD, sP = Math.sin(phi), cP = Math.cos(phi);
+    const aG = 192.85948 * RAD, dG = 27.12825 * RAD, lN = 122.93192 * RAD, sG = Math.sin(dG), cG = Math.cos(dG);
+    const grid = new Float32Array(W2 * H2);
+    for (let py = 0; py < H2; py++) for (let px = 0; px < W2; px++) {
+      const x = (px + .5) * sc, y = (py + .5) * sc;
+      let az = (x / w - .5) * 240;
+      if (place.lat < 0) az = az > 0 ? az - 180 : az + 180;
+      const alt = (horizonY() - y) / (horizonY() - h * .07) * 62;
+      if (alt < -1) continue;
+      const A = az * RAD, hh = Math.min(89.9, alt) * RAD;
+      const dec = Math.asin(sP * Math.sin(hh) - cP * Math.cos(hh) * Math.cos(A));
+      const H = Math.atan2(Math.sin(A), Math.cos(A) * sP + Math.tan(hh) * cP), ra = lst - H;
+      const sd = Math.sin(dec), cd = Math.cos(dec), dr = ra - aG;
+      const b = Math.asin(sd * sG + cd * cG * Math.cos(dr));
+      const l = lN - Math.atan2(cd * Math.sin(dr), sd * cG - cd * sG * Math.cos(dr));
+      const [I, warm] = mwIntensity(norm(l / RAD), b / RAD);
+      const ext = Math.pow(Math.min(1, Math.max(0, alt / 18)), .8);                        // 지평선 쪽은 대기에 흐려짐
+      const v = I * ext, k = (py * W2 + px) * 4;
+      grid[py * W2 + px] = v;
+      D[k] = 205 + 50 * warm; D[k + 1] = 214 + 24 * warm; D[k + 2] = 255 - 40 * warm; D[k + 3] = Math.min(150, v * 120);
+    }
+    g.putImageData(id, 0, 0);
+    // 별가루: 밝은 곳일수록 촘촘히
+    seed = 101; mwDust = [];
+    for (let i = 0; i < W2 * H2 * .35; i++) {
+      const px = srnd() * W2 | 0, py = srnd() * H2 | 0, v = grid[py * W2 + px];
+      if (srnd() < v * .9) mwDust.push({ x: (px + srnd()) * sc, y: (py + srnd()) * sc, a: Math.min(1, .35 + v * .6) });
+    }
+    mwBuiltAt = Date.now();
+  }
+  function drawMilkyWay(vis) {
+    if (vis < .02) return;
+    if (!mwBuiltAt || Date.now() - mwBuiltAt > 2 * 60e3 || mwCv.width !== Math.ceil(w / 2)) buildMilkyWay(now());
+    ctx.save();
+    ctx.globalCompositeOperation = "screen"; ctx.globalAlpha = vis;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(mwCv, 0, 0, mwCv.width * 2, mwCv.height * 2);
+    ctx.fillStyle = "#e9eeff";
+    for (const p of mwDust) { ctx.globalAlpha = vis * p.a * .55; ctx.fillRect(p.x, p.y, .7, .7); }
+    ctx.restore();
+  }
+
+  function drawSkyObjects() {
+    const moonLight = moon.alt > 0 ? mph.fraction : 0;
+    // 은하수
+    drawMilkyWay(Math.max(0, (night - .75) / .25) * (1 - overcast) * (1 - .85 * moonLight));
+    // 별자리
+    const vis = Math.max(0, Math.min(1, (night - .3) / .5)) * (1 - overcast);
+    if (vis < .02) return;
+    const k = h / 80;                                  // 별자리 모양: 1°당 픽셀 (가로·세로 같게)
+    for (const c of skyStars) {
+      const o = skyXY({ az: c.az0, alt: c.alt0 }), cosA = Math.cos(c.alt0 * RAD);
+      const pos = s => ({ x: o.x + wrap180(s.az - c.az0) * cosA * k, y: o.y - (s.alt - c.alt0) * k });
+      const P = Object.fromEntries(c.st.map(s => [s.id, { ...pos(s), s }]));
+      ctx.strokeStyle = `rgba(190,205,255,${.2 * vis * (1 - .5 * moonLight)})`; ctx.lineWidth = .7;
+      ctx.beginPath();
+      for (const [a, b] of c.lines) if (P[a] && P[b]) { ctx.moveTo(P[a].x, P[a].y); ctx.lineTo(P[b].x, P[b].y); }
+      ctx.stroke();
+      for (const id in P) {
+        const { x, y, s } = P[id], r = Math.max(.55, 1.9 - .38 * s.mag);
+        const tw = .85 + .15 * Math.sin(t / 17 + x);
+        if (s.mag < 1.5) { ctx.fillStyle = rgba(SC[s.c], .18 * vis); circle(ctx, x, y, r * 2.6); }
+        ctx.fillStyle = rgba(SC[s.c], Math.min(1, (1.3 - s.mag * .15) * vis * tw)); circle(ctx, x, y, r);
+      }
+    }
+  }
+
+  /* ---------- 하늘의 여러 현상 (모두 동글동글한 카툰 느낌으로) ---------- */
+  // 화면 위 방향 벡터 ↔ 방위·고도 (dirOf 의 반대)
+  const azAltOf = v => ({ az: Math.atan2(-v[0], -v[1]) / RAD, alt: Math.asin(Math.max(-1, Math.min(1, v[2]))) / RAD });
+  // 방향 c 를 중심으로 각반지름 rad(°)인 원 위의 점들 (무지개·햇무리)
+  function ringPoints(c, radDeg, n) {
+    const up = Math.abs(c[2]) > .95 ? [1, 0, 0] : [0, 0, 1];
+    let u = [c[1] * up[2] - c[2] * up[1], c[2] * up[0] - c[0] * up[2], c[0] * up[1] - c[1] * up[0]];
+    const ul = Math.hypot(...u); u = u.map(x => x / ul);
+    const v = [c[1] * u[2] - c[2] * u[1], c[2] * u[0] - c[0] * u[2], c[0] * u[1] - c[1] * u[0]];
+    const cr = Math.cos(radDeg * RAD), sr = Math.sin(radDeg * RAD), out = [];
+    for (let i = 0; i <= n; i++) {
+      const a = i / n * TAU, p = [0, 1, 2].map(k => cr * c[k] + sr * (Math.cos(a) * u[k] + Math.sin(a) * v[k]));
+      out.push(azAltOf(p));
+    }
+    return out;
+  }
+  function strokeRing(pts, minAlt) {                 // 지평선 위 부분만, 화면 끝을 넘는 곳은 끊어서
+    ctx.beginPath();
+    let pen = false, last = null;
+    for (const p of pts) {
+      if (p.alt < minAlt) { pen = false; continue; }
+      const q2 = skyXY(p);
+      if (pen && last && Math.abs(q2.x - last.x) < w / 3) ctx.lineTo(q2.x, q2.y); else ctx.moveTo(q2.x, q2.y);
+      pen = true; last = q2;
+    }
+    ctx.stroke();
+  }
+
+  /* 층별 구름: 낮은 구름(뭉게구름, 기존), 중간 구름(양떼구름: 작은 솜뭉치 무리), 높은 구름(새털구름: 붓으로 쓱 그은 결)
+   * 색은 그 높이까지 대기를 지나온 햇빛 색 → 노을 땐 높은 구름이 먼저·오래 물들고 낮은 구름은 어두운 실루엣 */
+  let altoC = [], cirrusC = [], lowTint = "#ffffff", lowLit = 1, highLit = 1;
+  function buildLayerClouds() {
+    const cm = W && W.cm != null ? W.cm / 100 : fx.cloud * .4, ch = W && W.ch != null ? W.ch / 100 : fx.cloud * .3;
+    seed = 31;
+    const nA = Math.round(cm * 5) + (cm > .12 ? 1 : 0), nCi = Math.round(ch * 6) + (ch > .12 ? 1 : 0);
+    if (altoC.length !== nA) altoC = Array.from({ length: nA }, () => ({ x: srnd() * (w + 160) - 80, y: h * (.07 + srnd() * .16), cols: 4 + (srnd() * 4 | 0), rows: 2 + (srnd() * 2 | 0), s: h * (.016 + srnd() * .008), v: .02 + srnd() * .02, ph: srnd() * 9 }));
+    if (cirrusC.length !== nCi) cirrusC = Array.from({ length: nCi }, () => ({ x: srnd() * (w + 200) - 100, y: h * (.04 + srnd() * .16), len: w * (.08 + srnd() * .14), curl: (srnd() - .5) * h * .05, n: 3 + (srnd() * 3 | 0), v: .05 + srnd() * .05, ph: srnd() * 9 }));
+  }
+  function drawLayerClouds() {
+    const dim = 1 - night * .85;
+    if (cirrusC.length) {                             // 새털구름 (높은 하늘: 해가 진 뒤에도 잠깐 물듦)
+      const col = mix(mix("#ffffff", trailTint, Math.min(1, dusk * 1.3 + (sun.alt < 0 ? .6 : 0)) * highLit), "#3a4366", night * (1 - highLit * .5) * .85);
+      ctx.strokeStyle = col; ctx.lineCap = "round";
+      for (const c of cirrusC) {
+        c.x += c.v * (1 + fx.wind * .5); if (c.x > w + c.len) c.x = -c.len * 1.2;
+        for (let i = 0; i < c.n; i++) {
+          const oy = (i - c.n / 2) * h * .012, ox = i * c.len * .06;
+          ctx.globalAlpha = (.28 + .1 * Math.sin(c.ph + i)) * Math.max(dim, highLit * .8) * (1 - overcast * .5);
+          ctx.lineWidth = 1.2 + (i % 2) * 1.2;
+          ctx.beginPath(); ctx.moveTo(c.x + ox, c.y + oy);
+          ctx.quadraticCurveTo(c.x + ox + c.len * .5, c.y + oy + c.curl, c.x + ox + c.len, c.y + oy - c.curl * .4);
+          ctx.quadraticCurveTo(c.x + ox + c.len * 1.06, c.y + oy - c.curl * .7, c.x + ox + c.len * 1.02, c.y + oy - c.curl);   // 끝이 살짝 말림
+          ctx.stroke();
+        }
+      }
+    }
+    if (altoC.length) {                               // 양떼구름 (중간 높이)
+      const base = mix(mix(mix("#ffffff", "#c3cad6", overcast * .6), cloudTint, Math.min(.8, dusk * .9) * cloudLit), "#3a4366", night * .85);
+      const shadow = mix(base, "#8fa6bf", .45);
+      for (const c of altoC) {
+        c.x += c.v * (1 + fx.wind * .6); if (c.x > w + 60) c.x = -c.cols * c.s * 3 - 20;
+        for (let r = 0; r < c.rows; r++) for (let k = 0; k < c.cols; k++) {
+          const x = c.x + k * c.s * 2.6 + (r % 2) * c.s * 1.3, y = c.y + r * c.s * 1.9 + Math.sin(c.ph + k) * c.s * .3;
+          ctx.globalAlpha = .75 * (1 - overcast * .3);
+          ctx.fillStyle = shadow; ellipse(ctx, x, y + c.s * .25, c.s * 1.05, c.s * .7);
+          ctx.fillStyle = base; ellipse(ctx, x, y, c.s, c.s * .72);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* 그림자: 해 반대쪽으로, 해가 낮을수록 길게 (흐리면 옅게). 해가 남쪽이면 이쪽(아래)으로 드리움 */
+  function drawShadows() {
+    if (sun.alt < 1 || overcast > .85) return;
+    const A = sun.az * RAD, flip = place.lat < 0 ? -1 : 1;
+    const dx = -Math.sin(A) * flip, dy = Math.cos(A) * flip * .32;              // 땅 위 방향(원근으로 세로를 눌러서)
+    const len = Math.min(3.2, 1 / Math.tan(Math.max(4, sun.alt) * RAD));         // 키에 대한 그림자 길이 비
+    const a = .26 * (1 - overcast) * Math.min(1, sun.alt / 6);
+    ctx.save(); ctx.fillStyle = `rgba(28,40,52,${a})`;
+    for (const o of objs) {
+      if (o.k === "flower") continue;
+      const tall = o.k === "house" ? o.s * .75 : o.s * .9, wide = o.k === "house" ? o.s * .45 : o.s * .2;
+      const L = tall * len, ex = dx * L, ey = dy * L;
+      ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(Math.atan2(ey, ex));
+      const d = Math.hypot(ex, ey);
+      ctx.beginPath(); ctx.ellipse(d / 2, 0, d / 2 + wide * .3, wide * (o.k === "house" ? .55 : .9) * (.5 + .5 * Math.abs(dy) / .32 + .2), 0, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  /* 강물 윤슬: 해·달이 낮게 떠 있으면 그 아래 강물에 반짝이는 빛 길 */
+  function drawGlitter() {
+    if (!RIV || RIV.frozen) return;
+    const src = sun.alt > 0 ? { p: sun, c: sunTint, k: 1 - overcast } : moon.alt > 0 && night > .4 ? { p: moon, c: "#f6f1db", k: mph.fraction * (1 - overcast) * .8 } : null;
+    if (!src || src.p.alt > 40 || src.k < .05) return;
+    const sx = skyXY(src.p).x;
+    if (sx < -40 || sx > w + 40) return;
+    const spread = (6 + src.p.alt * .6) * (h / 100);
+    ctx.save(); ctx.fillStyle = src.c;
+    for (let i = 0; i < 26; i++) {
+      const f = RIV.open ? RIV.open[0] + (RIV.open[1] - RIV.open[0]) * ((i * .37) % 1) : (i * .37) % 1;
+      const y = arcY(sx, RIV.r1 - (RIV.r1 - RIV.r2) * f), x = sx + Math.sin(i * 12.9) * spread * (.4 + f);
+      ctx.globalAlpha = src.k * (.35 + .65 * Math.max(0, Math.sin(t / 7 + i * 1.7)));
+      ellipse(ctx, x, y, 1.6 + f * 2, .7);
+    }
+    ctx.restore();
+  }
+
+  /* 행성: JPL 근사 궤도요소(1800~2050)로 일심 위치 → 지구에서 본 방향. 귀여운 반짝이로 */
+  const PLANETS = [   // a, e, I, L, 근일점 경도 ϖ, 승교점 Ω (값, 세기당 변화)
+    ["수성", [.38709927, 3.7e-7], [.20563593, 1.906e-5], [7.00497902, -.00594749], [252.2503235, 149472.67411175], [77.45779628, .16047689], [48.33076593, -.12534081], "#e8dccb", .2],
+    ["금성", [.72333566, 3.9e-6], [.00677672, -4.107e-5], [3.39467605, -7.889e-4], [181.9790995, 58517.81538729], [131.60246718, .00268329], [76.67984255, -.27769418], "#fff6d6", -4.2],
+    ["지구", [1.00000261, 5.62e-6], [.01671123, -4.392e-5], [-1.531e-5, -.01294668], [100.46457166, 35999.37244981], [102.93768193, .32327364], [0, 0]],
+    ["화성", [1.52371034, 1.847e-5], [.0933941, 7.882e-5], [1.84969142, -.00813131], [-4.55343205, 19140.30268499], [-23.94362959, .44441088], [49.55953891, -.29257343], "#ffb08a", .5],
+    ["목성", [5.202887, -1.1607e-4], [.04838624, -1.3253e-4], [1.30439695, -.00183714], [34.39644051, 3034.74612775], [14.72847983, .21252668], [100.47390909, .20469106], "#fff0d8", -2.3],
+    ["토성", [9.53667594, -.0012506], [.05386179, -5.0991e-4], [2.48599187, .00193609], [49.95424423, 1222.49362201], [92.59887831, -.41897216], [113.66242448, -.28867794], "#f3e3b8", .6]
+  ];
+  function helio(el, T) {
+    const v = i => el[i][0] + el[i][1] * T;
+    const a = v(1), e = v(2), I = v(3) * RAD, L = v(4), wb = v(5), Om = v(6) * RAD;
+    const M = ((L - wb) % 360) * RAD, om = (wb - v(6)) * RAD;
+    let E = M + e * Math.sin(M);
+    for (let k = 0; k < 6; k++) E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    const xp = a * (Math.cos(E) - e), yp = a * Math.sqrt(1 - e * e) * Math.sin(E);
+    const cw = Math.cos(om), sw = Math.sin(om), cO = Math.cos(Om), sO = Math.sin(Om), cI = Math.cos(I), sI = Math.sin(I);
+    return [(cw * cO - sw * sO * cI) * xp + (-sw * cO - cw * sO * cI) * yp,
+            (cw * sO + sw * cO * cI) * xp + (-sw * sO + cw * cO * cI) * yp,
+            sw * sI * xp + cw * sI * yp];
+  }
+  let planets = [];
+  function computePlanets(date) {
+    const T = (jdTT(date) - J2000) / 36525, eps = 23.43928 * RAD, n = nutation(T);
+    const E = helio(PLANETS[2], T);
+    planets = PLANETS.filter(p => p[0] !== "지구").map(p => {
+      const P = helio(p, T), g = [P[0] - E[0], P[1] - E[1], P[2] - E[2]];
+      const x = g[0], y = g[1] * Math.cos(eps) - g[2] * Math.sin(eps), z = g[1] * Math.sin(eps) + g[2] * Math.cos(eps);
+      const eq = { ra: Math.atan2(y, x), dec: Math.atan2(z, Math.hypot(x, y)) };
+      const pos = horizontal(date, place.lat, place.lon, eq, n);
+      const r = Math.hypot(...P), d = Math.hypot(...g);
+      const mag = p[0] === "화성" ? -1.52 + 5 * Math.log10(r * d) : p[8];
+      return { name: p[0], col: p[7], mag, az: pos.az, alt: pos.alt };
+    });
+  }
+  function drawPlanets() {
+    for (const p of planets) {
+      if (p.alt < 1) continue;
+      const need = p.mag < -3.5 ? -3 : p.mag < -1.5 ? -5 : -7;                  // 밝은 행성일수록 초저녁부터 보임
+      const vis = Math.max(0, Math.min(1, (need - sun.alt) / 3)) * (1 - overcast);
+      if (vis < .05) continue;
+      const { x, y } = skyXY(p), r = Math.max(1.1, 2.2 - .3 * p.mag) * (h / 110);
+      ctx.save(); ctx.globalAlpha = vis;
+      const g2 = ctx.createRadialGradient(x, y, 0, x, y, r * 4); g2.addColorStop(0, rgba(p.col, .45)); g2.addColorStop(1, rgba(p.col, 0));
+      ctx.fillStyle = g2; circle(ctx, x, y, r * 4);
+      if (p.mag < -1.5) {                                                        // 밝은 행성: 네 갈래 반짝
+        const s = r * (2.6 + .4 * Math.sin(t / 10 + x));
+        ctx.fillStyle = rgba(p.col, .8);
+        ctx.beginPath(); ctx.moveTo(x, y - s); ctx.quadraticCurveTo(x, y, x + s, y); ctx.quadraticCurveTo(x, y, x, y + s); ctx.quadraticCurveTo(x, y, x - s, y); ctx.quadraticCurveTo(x, y, x, y - s); ctx.fill();
+      }
+      ctx.fillStyle = p.col; circle(ctx, x, y, r);
+      if (p.name === "토성") { ctx.strokeStyle = rgba(p.col, .9); ctx.lineWidth = .8; ctx.beginPath(); ctx.ellipse(x, y, r * 2.1, r * .7, -.3, 0, TAU); ctx.stroke(); }
+      ctx.restore();
+    }
+  }
+
+  /* 유성: 실제 유성우 날짜와 복사점. 복사점에서 뻗어 나가는 방향으로 떨어짐 (평소에도 가끔 산발 유성) */
+  const SHOWERS = [   // 이름, 극대 월·일, 활동 반폭(일), ZHR, 복사점 적경·적위(°)
+    ["사분의자리", 1, 3, 1.5, 110, 230, 49], ["거문고자리", 4, 22, 3, 18, 271, 34], ["물병자리 에타", 5, 6, 6, 50, 338, -1],
+    ["페르세우스자리", 8, 12, 9, 100, 48, 58], ["오리온자리", 10, 21, 6, 20, 95, 16], ["사자자리", 11, 17, 3, 15, 152, 22], ["쌍둥이자리", 12, 14, 3, 150, 112, 33]
+  ];
+  let meteors = [], radiants = [];
+  function computeMeteors(date, localYmd) {
+    const n = nutation((jdTT(date) - J2000) / 36525), y = +localYmd.slice(0, 4);
+    radiants = SHOWERS.map(([name, m, d, half, zhr, ra, dec]) => {
+      const days = Math.abs((Date.parse(localYmd) - Date.UTC(y, m - 1, d)) / 864e5);
+      const act = Math.exp(-sq(days / half));
+      if (act < .05 && !(PREVIEW && q.has("meteor"))) return null;
+      const p = horizontal(date, place.lat, place.lon, { ra: ra * RAD, dec: dec * RAD }, n);
+      return { name, rate: zhr * (PREVIEW && q.has("meteor") ? 1 : act) * Math.max(0, Math.sin(p.alt * RAD)), az: p.az, alt: p.alt };
+    }).filter(Boolean);
+  }
+  function stepDrawMeteors() {
+    const dark = Math.max(0, (night - .6) / .4) * (1 - overcast);
+    if (dark > .05) {
+      // 시간당 개수: 유성우 + 산발 6개. 화면이 하늘의 일부라 실제보다 조금 자주 보이게
+      const perHour = radiants.reduce((s, r) => s + r.rate, 0) * 1.4 + 6;
+      if (rnd() < perHour / 3600 / 30 * dark * 3 || (PREVIEW && q.has("meteor") && !meteors.length)) {
+        const r = radiants.length && rnd() < 1 - 6 / perHour ? radiants[rnd() * radiants.length | 0] : null;
+        const x = w * (.1 + rnd() * .8), y = h * (.05 + rnd() * .3);
+        let dx = rnd() - .5, dy = .5 + rnd() * .3;
+        if (r) { const R = skyXY(r); dx = x - R.x; dy = y - R.y; }
+        const L = Math.hypot(dx, dy) || 1;
+        meteors.push({ x, y, dx: dx / L, dy: dy / L, life: 0, max: 16 + rnd() * 10, len: h * (.25 + rnd() * .2) });
+      }
+    }
+    meteors = meteors.filter(m => {
+      m.life++;
+      const k = m.life / m.max, hx = m.x + m.dx * m.len * k, hy = m.y + m.dy * m.len * k;
+      const tx = hx - m.dx * m.len * .45, ty = hy - m.dy * m.len * .45;
+      const a = Math.sin(Math.PI * k) * Math.max(dark, .4);
+      const g2 = ctx.createLinearGradient(tx, ty, hx, hy); g2.addColorStop(0, "rgba(255,248,220,0)"); g2.addColorStop(1, `rgba(255,248,220,${a})`);
+      ctx.strokeStyle = g2; ctx.lineWidth = 1.3; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.fillStyle = `rgba(255,252,235,${a})`; circle(ctx, hx, hy, 1.2);
+      return m.life < m.max;
+    });
+  }
+
+  /* 무지개: 비가 오는데 해가 42°보다 낮게 비칠 때, 해 반대편(반태양점)을 중심으로 42° (바깥 51°에 희미한 쌍무지개) */
+  function rainbowOn() {
+    if (PREVIEW && q.has("rainbow")) return true;
+    if (!W || sun.alt <= 0 || sun.alt >= 42) return false;
+    const showery = (W.code >= 51 && W.code <= 65) || (W.code >= 80 && W.code <= 82);
+    return showery && (W.cloud == null || W.cloud < 92);
+  }
+  function drawRainbow() {
+    if (!rainbowOn()) return;
+    const s = dirOf(sun.az, sun.alt), anti = s.map(x => -x);
+    const C = ["#ff8a8a", "#ffb877", "#ffe48a", "#9fe39a", "#8cc8ff", "#b49bff"];
+    ctx.save(); ctx.lineCap = "round";
+    const a = .62 * (1 - Math.max(0, overcast - .6));
+    C.forEach((c, i) => { ctx.strokeStyle = rgba(c, a); ctx.lineWidth = h * .022; strokeRing(ringPoints(anti, 42.3 - i * .45, 90), -2); });
+    C.slice().reverse().forEach((c, i) => { ctx.strokeStyle = rgba(c, a * .3); ctx.lineWidth = h * .014; strokeRing(ringPoints(anti, 50.5 + i * .5, 90), -2); });
+    ctx.restore();
+  }
+
+  /* 햇무리·달무리: 얇은 높은 구름(권층운)이 깔렸을 때 해·달 둘레 22° */
+  function drawHalo() {
+    const ch = W && W.ch != null ? W.ch : 0, cl = W && W.cl != null ? W.cl : 0;
+    const force = PREVIEW && q.has("halo");
+    if (!force && !(ch >= 40 && cl < 40 && !fx.rain)) return;
+    const src = sun.alt > 3 ? { p: sun, k: 1 } : moon.alt > 3 && mph.fraction > .5 && night > .5 ? { p: moon, k: .55 } : null;
+    if (!src) return;
+    const pts = ringPoints(dirOf(src.p.az, src.p.alt), 22, 90);
+    ctx.save(); ctx.lineCap = "round";
+    ctx.strokeStyle = `rgba(255,240,228,${.36 * src.k})`; ctx.lineWidth = h * .035; strokeRing(pts, -1);
+    ctx.strokeStyle = `rgba(255,180,160,${.18 * src.k})`; ctx.lineWidth = h * .01; strokeRing(ringPoints(dirOf(src.p.az, src.p.alt), 21.3, 90), -1);
+    ctx.restore();
+  }
+
+  /* 아침 안개: 맑고 바람 없는 새벽, 습도가 높으면 강가 낮은 곳에 몽글몽글 깔렸다가 해가 오르면 걷힘 */
+  let localHour = 12;
+  function mistAmount() {
+    if (PREVIEW && q.has("mist")) return +q.get("mist") || 1;
+    if (!W || W.rh == null) return 0;
+    const morning = localHour >= 3 && localHour <= 10;
+    const calm = (W.wind == null ? 5 : W.wind) < 9;
+    const humid = Math.max(0, (W.rh - 85) / 12);
+    return morning && calm ? Math.min(1, humid) * Math.max(0, 1 - Math.max(0, sun.alt) / 12) : 0;
+  }
+  function drawMist() {
+    const m = mistAmount();
+    if (m < .03 || !RIV) return;
+    const col = night > .5 ? "#aab3cc" : mix("#f3f6fa", sunTint, dusk * .4);
+    ctx.save();
+    for (let i = 0; i < 14; i++) {
+      const x = ((i * 97 + t * .15 * (1 + (i % 3) * .3)) % (w + 120)) - 60, f = (i % 4) / 4;
+      const y = arcY(x, RIV.r1 - (RIV.r1 - RIV.r2) * f) - h * .02, r = h * (.07 + (i % 3) * .025);
+      ctx.globalAlpha = .38 * m; ctx.fillStyle = col; ellipse(ctx, x, y, r * 2.4, r * .6);
+    }
+    const g2 = ctx.createLinearGradient(0, h * .45, 0, h); g2.addColorStop(0, rgba(col, 0)); g2.addColorStop(.35, rgba(col, .38 * m)); g2.addColorStop(1, rgba(col, .15 * m));
+    ctx.globalAlpha = 1; ctx.fillStyle = g2; ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  /* ---------- 강 얼음 ----------
+   * 지난 이틀의 시간별 기온으로 '얼음 점수'(°C·시간)를 쌓음: 영하인 시간엔 추운 만큼 쌓이고,
+   * 영상인 시간엔 1.5배 빠르게 녹음 (0~150). 점수에 따라 강가부터 얼음이 자라 가운데까지 덮이고, 따뜻해지면 저절로 녹음.
+   */
+  function iceScoreOf(H) {
+    let sc = 0;
+    (H.time || []).forEach((tm, i) => {
+      const T = (H.temperature_2m || [])[i];
+      if (tm * 1e3 > Date.now() || T == null) return;
+      sc = Math.min(150, Math.max(0, sc + (T < 0 ? -T : -1.5 * T)));
+    });
+    return sc;
+  }
+  function iceCover() {
+    if (PREVIEW && q.has("ice")) return Math.max(0, Math.min(1, +q.get("ice")));
+    if (W && W.iceScore != null) return smooth(Math.max(0, Math.min(1, (W.iceScore - 15) / 75)));
+    return temp != null && temp <= -6 ? .5 : 0;           // 기온 기록이 없으면 지금 기온으로만 대강
   }
 
   /* ---------- 상태 ---------- */
@@ -325,7 +1255,7 @@
     const base = new Date(Date.now() + off * 60e3);
     const [y, m, d] = q.has("date") ? q.get("date").split("-").map(Number) : [base.getUTCFullYear(), base.getUTCMonth() + 1, base.getUTCDate()];
     const hr = q.has("hour") ? +q.get("hour") : base.getUTCHours();
-    return new Date(Date.UTC(y, m - 1, d, hr) - off * 60e3);
+    return new Date(Date.UTC(y, m - 1, d) + hr * 36e5 - off * 60e3);          // hour=17.5 처럼 소수도 됨
   }
 
   let seed = 1;
@@ -334,20 +1264,35 @@
 
   /* ---------- 날씨 받아오기 ---------- */
   async function loadWeather(force) {
-    if (PREVIEW && q.has("wx")) { W = { code: +q.get("wx"), temp: q.has("temp") ? +q.get("temp") : 10, cloud: +q.get("wx") >= 3 ? 90 : 20, wind: 10, offset: Math.round(place.lon / 15) * 60 }; wxState = "ok"; return; }
+    if (PREVIEW && q.has("wx")) {
+      const n = k => q.has(k) ? +q.get(k) : null;
+      W = { code: +q.get("wx"), temp: n("temp") ?? 10, cloud: +q.get("wx") >= 3 ? 90 : 20, wind: 10, offset: Math.round(place.lon / 15) * 60,
+            rh: n("rh") ?? 55, vis: n("vis"), cl: n("cl"), cm: n("cm"), ch: n("ch"), aod: n("aod"), dust: n("dust"), t250: n("t250") ?? -48, rh250: n("rh250") ?? 50, ws250: 120, wd250: 270 };
+      wxState = "ok"; return;
+    }
     const key = `${(+place.lat).toFixed(2)},${(+place.lon).toFixed(2)}`;
     if (!force) {
       try { const c = JSON.parse(localStorage.getItem(WX_KEY)); if (c && c.key === key && Date.now() - c.at < 20 * 60e3) { W = c.data; wxState = "ok"; return; } } catch (e) {}
     }
     wxState = "loading"; updateUi();
     try {
+      // 지상 날씨 + 순항 고도(250 hPa) 기온·습도·바람, 그리고 대기질(에어로졸 광학 두께·황사)
       const u = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}`
-              + `&current=temperature_2m,weather_code,cloud_cover,wind_speed_10m&timezone=auto`;
+              + `&current=temperature_2m,weather_code,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,wind_speed_10m,relative_humidity_2m,visibility`
+              + `&hourly=temperature_2m,temperature_250hPa,relative_humidity_250hPa,wind_speed_250hPa,wind_direction_250hPa&past_days=2&forecast_days=1&timeformat=unixtime&timezone=auto`;
+      const aq = fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${place.lat}&longitude=${place.lon}&current=aerosol_optical_depth,dust`)
+        .then(r => r.ok ? r.json() : null).catch(() => null);
       const r = await fetch(u);
       if (!r.ok) throw new Error(r.status);
-      const j = await r.json();
-      W = { code: j.current.weather_code, temp: j.current.temperature_2m, cloud: j.current.cloud_cover,
-            wind: j.current.wind_speed_10m, offset: (j.utc_offset_seconds || 0) / 60 };
+      const j = await r.json(), c = j.current, H = j.hourly || {};
+      let k = 0;                                   // 지금과 가장 가까운 시각
+      (H.time || []).forEach((tm, i) => { if (Math.abs(tm * 1e3 - Date.now()) < Math.abs(H.time[k] * 1e3 - Date.now())) k = i; });
+      const at = name => H[name] && H[name][k] != null ? H[name][k] : null;
+      const a = (await aq || {}).current || {};
+      W = { code: c.weather_code, temp: c.temperature_2m, cloud: c.cloud_cover, wind: c.wind_speed_10m, offset: (j.utc_offset_seconds || 0) / 60,
+            rh: c.relative_humidity_2m, vis: c.visibility, cl: c.cloud_cover_low, cm: c.cloud_cover_mid, ch: c.cloud_cover_high, aod: a.aerosol_optical_depth ?? null, dust: a.dust ?? null,
+            t250: at("temperature_250hPa"), rh250: at("relative_humidity_250hPa"), ws250: at("wind_speed_250hPa"), wd250: at("wind_direction_250hPa"),
+            iceScore: iceScoreOf(H) };
       wxState = "ok";
       try { localStorage.setItem(WX_KEY, JSON.stringify({ key, at: Date.now(), data: W })); } catch (e) {}
     } catch (e) {
@@ -367,6 +1312,7 @@
     sun = sunPos(n, place.lat, place.lon);
     moon = moonPos(n, place.lat, place.lon);
     mph = moonPhase(n);
+    computeSkyObjects(n);
     night = Math.min(1, Math.max(0, (-sun.alt - 2) / 10));                         // 해가 -2° 아래로 가면 어두워짐
     dusk = Math.max(0, 1 - Math.abs(sun.alt - 1.5) / 8) * (1 - night * .6);
     fx = weatherFx(W);
@@ -375,6 +1321,9 @@
     const winter = bump(doy, 20, 40);
     snowCover = fx.snow > 0 ? Math.min(1, .55 + fx.snow * .25) : winter * (temp != null && temp <= 0 ? .55 : temp == null ? .25 : .1);
     frost = temp != null && temp <= 2 && sun.alt < 20;
+    fest = festivalOn(local.toISOString().slice(0, 10));
+    localHour = local.getUTCHours() + local.getUTCMinutes() / 60;
+    computePlanets(n); computeMeteors(n, local.toISOString().slice(0, 10));
     updateUi(termOn(start));
   }
 
@@ -531,30 +1480,21 @@
   function paintBg() {
     compute();
     const grey = mix(mix("#a3abb4", "#5a6370", fx.storm * .7 + Math.min(1, fx.rain / 3) * .3), "#1d2333", night);
-    const morning = sun.az < 0;
-    const skyC = S.sky.map((c, i) => mix(mix(mix(c, DUSK[i], dusk * .8), NIGHT[i], night), grey, overcast * (i ? .65 : 1)));
+
     const shade = (c, k = .62) => mix(mix(c, grey, overcast * .25), NIGHT_TINT, night * k);
     SH = shade;
 
-    // 하늘
+    // 하늘: 대기 산란 계산 (위 paintSky)
     let g = setup(skyL);
-    const gr = g.createLinearGradient(0, 0, 0, h * .6);
-    gr.addColorStop(0, skyC[0]); gr.addColorStop(1, skyC[1]);
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    if (dusk > .05 && overcast < .7) {
-      const sx = Math.max(0, Math.min(w, skyXY(sun).x)) || (morning ? 0 : w);
-      const rg = g.createRadialGradient(sx, horizonY(), 0, sx, horizonY(), w * .55);
-      rg.addColorStop(0, rgba("#ffb980", .5 * dusk * (1 - overcast))); rg.addColorStop(1, rgba("#ffb980", 0));
-      g.fillStyle = rg; g.fillRect(0, 0, w, h);
-    }
+    const skyC = paintSky(g, grey);
 
     // 땅 모양
-    G = { R: Math.max(w * 1.3, 900), cx: w / 2, cy: 0 };
+    G = { R: 1e7, cx: w / 2, cy: 0 };                // 아주 큰 원 = 평평한 들판 (풍경 사진처럼)
     G.cy = h * .52 + G.R;
     g = setup(landL);
     const haze = skyC[1];
     // 지평선 너머 먼 언덕
-    const farY = x => h * .5 - h * .1 * (.5 + .5 * Math.sin(x * .011 + 1.1)) - h * .05 * (.5 + .5 * Math.sin(x * .027 + 2.3));
+    const farY = x => h * .515 - h * .045 * (.5 + .5 * Math.sin(x * .011 + 1.1)) - h * .022 * (.5 + .5 * Math.sin(x * .027 + 2.3));
     g.beginPath(); g.moveTo(-5, h); for (let x = -5; x <= w + 5; x += 4) g.lineTo(x, farY(x)); g.lineTo(w + 5, h); g.closePath();
     // 겨울에는 먼 언덕도 눈으로 하얗게
     g.fillStyle = shade(mix(mix(S.far, haze, .45), "#f3f6f9", Math.max(snowCover, bump(doy, 30, 55) * .6) * .8), .5); g.fill();
@@ -566,7 +1506,7 @@
     g.strokeStyle = mix(top, "#ffffff", .35); g.lineWidth = 1.5;
     g.beginPath(); for (let x = -12; x <= w + 12; x += 4) g.lineTo(x, groundY(x)); g.stroke();
     // 강과 모래톱
-    const frozen = snowCover > .6 && temp != null && temp <= -2;
+    const ice = iceCover(), frozen = ice > .98;
     const span = h - h * .52;
     RIV = { r1: G.R - span * .26, r2: G.R - span * .46 };
     g.fillStyle = shade(mix(S.hill[0], "#efe1bd", .7 * (1 - snowCover * .7))); arcBand(g, G.R - span * .23, G.R - span * .49); g.fill();
@@ -575,7 +1515,24 @@
     g.fillStyle = wg; arcBand(g, RIV.r1, RIV.r2); g.fill();
     g.strokeStyle = rgba("#ffffff", .5 * (1 - night * .6)); g.lineWidth = 1;
     g.beginPath(); for (let x = -12; x <= w + 12; x += 4) g.lineTo(x, arcY(x, RIV.r1) + 1); g.stroke();
+    if (ice > .02) {                               // 강가부터 얼음이 자람
+      const wdt = RIV.r1 - RIV.r2, e = wdt * Math.min(.5, ice * .5);
+      const ic = shade(mix("#e3f1f6", "#ffffff", snowCover * .7), .7), edge = shade("#a9cfdd", .7);
+      g.fillStyle = ic;
+      if (frozen) { arcBand(g, RIV.r1, RIV.r2); g.fill(); }
+      else { arcBand(g, RIV.r1, RIV.r1 - e); g.fill(); arcBand(g, RIV.r2 + e, RIV.r2); g.fill(); }
+      g.strokeStyle = edge; g.lineWidth = .8;
+      for (const r of frozen ? [] : [RIV.r1 - e, RIV.r2 + e]) {     // 울퉁불퉁한 얼음 가장자리
+        g.beginPath(); for (let x = -12; x <= w + 12; x += 3) g.lineTo(x, arcY(x, r) + Math.sin(x * .37 + r) * .8); g.stroke();
+      }
+      seed = 21; g.strokeStyle = rgba(edge, .7); g.lineWidth = .6;                // 얼음 금
+      for (let i = 0; i < w / 50; i++) {
+        const x = srnd() * w, f = frozen ? .15 + srnd() * .7 : srnd() < .5 ? srnd() * ice * .45 : 1 - srnd() * ice * .45, y = arcY(x, RIV.r1 - wdt * f);
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + 3 + srnd() * 4, y + (srnd() - .5) * 2); g.lineTo(x + 6 + srnd() * 5, y + (srnd() - .5) * 2.5); g.stroke();
+      }
+    }
     RIV.frozen = frozen;
+    RIV.open = frozen ? [.5, .5] : [ice * .5, 1 - ice * .5];       // 물이 보이는 폭 (강 폭 비율)
     const inRiver = (x, y) => y > arcY(x, G.R - span * .21) && y < arcY(x, G.R - span * .51);
     // 풀 무늬
     seed = 55;
@@ -599,7 +1556,7 @@
       trunk: shade("#8b5e3c", .55), outline: shade(mix(leafBase, "#1d2b1d", .38)), leaf: shade(leafBase),
       leafD: shade(mix(leafBase, "#1f3326", .22)), leafL: shade(mix(leafHi, "#ffffff", .22)),
       pine: shade(S.pine, .6), pineL: shade(mix(S.pine, "#ffffff", .16), .6), pineO: shade(mix(S.pine, "#0b1a10", .5), .6),
-      fruit: shade(bump(doy, 290, 30) > .4 ? "#e8553a" : "#f2b33d"),
+      fruit: shade(fest && fest.key === "chuseok" ? "#f08a24" : bump(doy, 290, 30) > .4 ? "#e8553a" : "#f2b33d"),   // 추석엔 감
       wall: shade("#f8eedb", .6), wallD: shade("#e6d5b4", .6), roof: shade("#e2745c", .6), roofL: shade("#f0937c", .6),
       chimney: shade("#c9775f", .6), door: shade("#a06d48", .6), glass: shade("#9fc3d8", .6), houseO: shade("#7a5442", .6),
       stem: shade("#5f9b4e"), flowerC: shade("#ffe07a")
@@ -627,6 +1584,7 @@
       if (Math.abs(x - hx) < h * .3) continue;
       objs.push({ k: "flower", x, y: depthY(x, d), s: 2.4 + 3.2 * depthS(d), ph: srnd() * TAU, c: shade(FC[(srnd() * FC.length) | 0]) });
     }
+    if (fest && fest.key === "chuseok") objs.forEach(o => { if (o.k === "round") o.fruit = true; });
     objs.sort((a, b) => a.y - b.y);
     seed = 77;
     sparkles = RIV.frozen ? [] : Array.from({ length: Math.round(w / 40) }, () => ({ x: srnd() * w, f: .2 + srnd() * .6, ph: srnd() * TAU, len: 3 + srnd() * 5 }));
@@ -635,7 +1593,9 @@
     seed = 3;
     stars = Array.from({ length: Math.round(w / 7) }, () => ({ x: srnd() * w, y: srnd() * h * .45, r: .4 + srnd() * .9, ph: srnd() * TAU }));
     seed = 9;
-    const nC = Math.round(1 + fx.cloud * 7 + (fx.rain || fx.snow ? 3 : 0));
+    const lowAmt = W && W.cl != null ? W.cl / 100 : fx.cloud;
+    const nC = Math.round(lowAmt * 7 + (fx.rain || fx.snow ? 3 : 0) + (lowAmt > .05 ? 1 : 0));
+    buildLayerClouds();
     if (clouds.length !== nC) clouds = Array.from({ length: nC }, () =>
       ({ x: srnd() * (w + 200) - 100, y: h * (.1 + srnd() * .22), s: h * (.14 + srnd() * .1) * (1 + overcast * .5), v: .03 + srnd() * .05 }));
     painted = Date.now();
@@ -649,7 +1609,8 @@
       rg.addColorStop(0, `rgba(246,241,219,${.22 * fraction})`); rg.addColorStop(1, "rgba(246,241,219,0)");
       ctx.fillStyle = rg; circle(ctx, x, y, r * 5);
     }
-    ctx.fillStyle = `rgba(200,205,225,${night > .3 ? .16 : .08})`; circle(ctx, x, y, r);   // 어두운 부분
+    const earthshine = fraction < .4 ? .22 * (1 - fraction / .4) * night : 0;            // 지구조
+    ctx.fillStyle = `rgba(200,208,232,${(night > .3 ? .16 : .08) + earthshine})`; circle(ctx, x, y, r);   // 어두운 부분
     // 밝은 쪽이 실제로 태양을 향하는 방향으로 돌려서 그림 (초승달·그믐달의 기울기까지).
     // 화면에서 동쪽은 북반구 왼쪽(남쪽을 봄), 남반구 오른쪽(북쪽을 봄)
     const east = place.lat < 0 ? 1 : -1, th = moon.limb || 0;
@@ -661,10 +1622,12 @@
     ctx.ellipse(0, 0, r * Math.abs(k), r, 0, Math.PI / 2, -Math.PI / 2, k > 0);
     ctx.fill();
     ctx.restore();
+    moonRabbit(x, y, r);
   }
 
   /* ---------- 움직이는 것: 실제 날씨 + 계절 생물 ---------- */
   function spawn() {
+    spawnPlane(PREVIEW && q.has("plane") && !planes.length);
     if (parts.length > 300) return;
     const wind = fx.wind;
     const drop = (rate, make) => { for (let r = rate; r > 0; r -= 1) if (rnd() < r) parts.push(make()); };
@@ -699,6 +1662,7 @@
   }
 
   function step() {
+    stepPlanes();
     const wind = fx.wind;
     parts = parts.filter(p => {
       switch (p.k) {
@@ -788,23 +1752,30 @@
 
     if (night > .25 && overcast < .7) {
       ctx.globalAlpha = Math.min(1, (night - .25) * 1.6) * (1 - overcast);
-      for (const s of stars) { ctx.fillStyle = `rgba(255,255,255,${.45 + .55 * Math.max(0, Math.sin(t / 25 + s.ph))})`; circle(ctx, s.x, s.y, s.r); }
+      for (const s of stars) { ctx.fillStyle = `rgba(255,255,255,${.25 + .35 * Math.max(0, Math.sin(t / 25 + s.ph))})`; circle(ctx, s.x, s.y, s.r * .75); }
       ctx.globalAlpha = 1;
     }
+    drawSkyObjects();
+    drawPlanets();
+    stepDrawMeteors();
     if (moon.alt > -3 && mph.fraction > .02) {
       const m = skyXY(moon);
-      drawMoon(m.x, m.y, h * .07, (night > .3 ? 1 : .55) * (1 - overcast * .8));
+      drawMoon(m.x, m.y, h * .07 * (fest && fest.key === "chuseok" ? 1.45 : 1), (night > .3 ? 1 : .55) * (1 - overcast * .8));
     }
     if (sun.alt > -4) {                             // 지평선 아래로 가는 것은 땅층이 가려줌
-      const p = skyXY(sun), r = h * .085, warm = sun.alt < 8;
+      const p = skyXY(sun), r = h * .085;               // 색은 대기를 지나온 햇빛 색 (paintSky)
       ctx.globalAlpha = 1 - overcast * .85;
       const rg = ctx.createRadialGradient(p.x, p.y, r * .5, p.x, p.y, r * 4.5);
-      rg.addColorStop(0, warm ? "rgba(255,190,130,.55)" : "rgba(255,246,210,.6)"); rg.addColorStop(1, "rgba(255,240,200,0)");
+      rg.addColorStop(0, rgba(sunTint, .55)); rg.addColorStop(1, rgba(sunTint, 0));
       ctx.fillStyle = rg; circle(ctx, p.x, p.y, r * 4.5);
-      ctx.fillStyle = warm ? "#ffcf9a" : "#fff6d8"; circle(ctx, p.x, p.y, r);
+      ctx.fillStyle = mix(sunTint, "#ffffff", sun.alt > 12 ? .45 : .15); circle(ctx, p.x, p.y, r);
       ctx.globalAlpha = 1;
     }
-    const cc = mix(mix(mix(mix("#ffffff", "#aeb5bf", Math.min(1, overcast * 1.1)), "#6b7380", fx.storm * .8), "#ffd9c0", dusk * .5), "#3a4366", night * .85);
+    drawHalo();
+    drawLayerClouds();                              // 높은 구름·중간 구름
+    drawPlanes();                                   // 비행기는 구름 뒤 (순항 고도)
+    drawRainbow();
+    const cc = mix(mix(mix(mix("#ffffff", "#aeb5bf", Math.min(1, overcast * 1.1)), "#6b7380", fx.storm * .8), lowTint, Math.min(.85, dusk * .9) * lowLit), "#3a4366", night * .85);
     const csh = mix(cc, "#8fa6bf", .4);
     for (const c of clouds) {
       c.x += c.v * (1 + fx.wind); if (c.x - c.s * 1.2 > w) c.x = -c.s * 1.2;
@@ -816,6 +1787,7 @@
     if (sparkles.length) {                          // 강물 반짝임
       ctx.strokeStyle = `rgba(255,255,255,${.8 - night * .45})`; ctx.lineWidth = 1; ctx.lineCap = "round";
       for (const p of sparkles) {
+        if (RIV.open && (p.f < RIV.open[0] + .03 || p.f > RIV.open[1] - .03)) continue;   // 언 곳은 반짝이지 않음
         const x = ((p.x + t * .25 * (1 + fx.wind * .5)) % (w + 20)) - 10;
         const y = arcY(x, RIV.r1 - (RIV.r1 - RIV.r2) * p.f);
         ctx.globalAlpha = .25 + .75 * Math.max(0, Math.sin(t / 12 + p.ph));
@@ -823,17 +1795,24 @@
       }
       ctx.globalAlpha = 1;
     }
+    drawGlitter();                                  // 해·달 윤슬
+    drawShadows();
     const wind = 1 + fx.wind * 1.5;                 // 뒤에 있는 것부터 그림
     for (const o of objs) {
-      if (o.k === "house") cottage(ctx, o);
+      if (o.k === "house") { cottage(ctx, o); decorateHouse(o); }
       else if (o.k === "flower") flower(ctx, o, Math.sin(t / 22 + o.ph) * o.s * .18 * wind);
-      else { const sway = Math.sin(t / 40 + o.ph) * o.s * .018 * wind; if (o.k === "cedar") cedar(ctx, o, sway); else roundTree(ctx, o, sway); }
+      else {
+        const sway = Math.sin(t / 40 + o.ph) * o.s * .018 * wind;
+        if (o.k === "cedar") { cedar(ctx, o, sway); decorateCedar(o, sway); } else { roundTree(ctx, o, sway); decorateRound(o, sway); }
+      }
     }
     if (windowAt) {
       const rg = ctx.createRadialGradient(windowAt.x, windowAt.y, 0, windowAt.x, windowAt.y, windowAt.r);
       rg.addColorStop(0, `rgba(255,214,122,${.35 * Math.max(night, dusk * .6, overcast * .4)})`); rg.addColorStop(1, "rgba(255,214,122,0)");
       ctx.fillStyle = rg; circle(ctx, windowAt.x, windowAt.y, windowAt.r);
     }
+    drawFestSky(); drawFestFront();                 // 기념일 장식
+    drawMist();
     if (fx.fog) {
       const fg = ctx.createLinearGradient(0, h * .35, 0, h);
       fg.addColorStop(0, "rgba(235,238,242,0)"); fg.addColorStop(.6, `rgba(235,238,242,${.55 - night * .25})`); fg.addColorStop(1, `rgba(235,238,242,${.7 - night * .3})`);
@@ -868,9 +1847,11 @@
   function updateUi(term) {
     if (term !== undefined) {
       termChip.replaceChildren();
+      const fl = fest && fest.label;
+      if (fl) { const b = document.createElement("b"); b.textContent = fl; termChip.append(b); }
       if (term) {
         const b = document.createElement("b"); b.textContent = "오늘은 " + term[1];
-        termChip.append(b, ` ${term[2]} · ${term[3]}`);
+        termChip.append(fl ? " · " : "", b, ` ${term[2]} · ${term[3]}`);
       }
     }
     const wt = weatherText();

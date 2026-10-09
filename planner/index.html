@@ -7,7 +7,7 @@
 <meta name="robots" content="noindex, nofollow">
 <!-- 보안: 이 페이지가 불러올 수 있는 출처를 제한. 스크립트는 이 사이트와 Firebase(Google)만.
      외부 서비스를 새로 쓰게 되면 여기에 주소를 추가해야 합니다. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://api.open-meteo.com https://geocoding-api.open-meteo.com https://api.crossref.org https://api.datacite.org https://date.nager.at; frame-src https://namth0419.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.googleapis.com https://api.open-meteo.com https://geocoding-api.open-meteo.com https://air-quality-api.open-meteo.com https://api.crossref.org https://api.datacite.org https://date.nager.at; frame-src https://namth0419.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>Research Planner</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=18"></script>
+<script src="theme-init.js?v=23"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -263,6 +263,9 @@
   .cal-day.today .dn{background:var(--ink);color:var(--wafer)}
   .cal-day .dc{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted)}
   .cal-day .dc.all{color:var(--film-4)}
+  .cal-day .lu{font-family:var(--mono);font-size:9.5px;color:var(--muted);opacity:.85;white-space:nowrap}
+  .cal-day .dc + .lu{margin-left:5px}
+  .cal-day .dn + .lu{margin-left:auto}
   .cal-day .dt{
     display:block;font-size:12px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     padding-left:7px;position:relative;
@@ -888,6 +891,7 @@
     .cal-day{min-height:56px;padding:4px 3px}
     .cal-day .top-line{flex-direction:column;align-items:center;gap:1px}
     .cal-day .dc{margin:0}
+    .cal-day .lu,.cal-day .dn + .lu,.cal-day .dc + .lu{margin:0;font-size:8px;letter-spacing:-.02em}
     .cal-day .dt,.cal-day .more,.cal-day .hn{display:none}
   }
   @media (max-width:640px){
@@ -946,15 +950,15 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 플래너 코드: 이 순서대로 실행 (js/core.js 머리말 참고). 고칠 때마다 v= 숫자를 모두 올리기 -->
-<script defer src="js/core.js?v=18"></script>
-<script defer src="js/goals.js?v=18"></script>
-<script defer src="js/items.js?v=18"></script>
-<script defer src="js/papers.js?v=18"></script>
-<script defer src="js/lab.js?v=18"></script>
-<script defer src="js/library.js?v=18"></script>
-<script defer src="js/thoughts.js?v=18"></script>
-<script defer src="js/meetings.js?v=18"></script>
-<script defer src="js/app.js?v=18"></script>
-<script src="season.js?v=18"></script>
+<script defer src="js/core.js?v=23"></script>
+<script defer src="js/goals.js?v=23"></script>
+<script defer src="js/items.js?v=23"></script>
+<script defer src="js/papers.js?v=23"></script>
+<script defer src="js/lab.js?v=23"></script>
+<script defer src="js/library.js?v=23"></script>
+<script defer src="js/thoughts.js?v=23"></script>
+<script defer src="js/meetings.js?v=23"></script>
+<script defer src="js/app.js?v=23"></script>
+<script src="season.js?v=23"></script>
 </body>
 </html>

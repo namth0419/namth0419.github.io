@@ -403,6 +403,12 @@ function holidaySummary() {
     h("button", { class: "link", type: "button", onclick: () => openSettings("place") }, "변경"));
 }
 
+// 음력 1일·10일·20일에만 작게 (season.js 의 천문 계산으로 구한 한국 음력)
+function lunarLabel(key) {
+  const L = window.PlannerLunar && window.PlannerLunar(key);
+  return L && [1, 10, 20].includes(L.d) ? `음 ${L.leap ? "윤" : ""}${L.m}.${L.d}` : "";
+}
+
 function viewCalendar() {
   ensureHolidays();
   const first = new Date(viewY, viewM, 1), last = new Date(viewY, viewM + 1, 0);
@@ -440,7 +446,8 @@ function viewCalendar() {
             onclick: () => { selDay = key; render(); } },
           h("span", { class: "top-line" },
             h("span", { class: "dn" }, d.getDate()),
-            list.length > 0 && h("span", { class: "dc" + (nd === list.length ? " all" : "") }, `${nd}/${list.length}`)),
+            list.length > 0 && h("span", { class: "dc" + (nd === list.length ? " all" : "") }, `${nd}/${list.length}`),
+            lunarLabel(key) && h("span", { class: "lu", title: "음력" }, lunarLabel(key))),
           hol && h("span", { class: "hn" }, hol),
           list.slice(0, 3).map(i => h("span", { class: "dt" + (i.done ? " done" : "") }, i.title)),
           list.length > 3 && h("span", { class: "more" }, `+${list.length - 3}`));
