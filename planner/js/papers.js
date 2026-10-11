@@ -291,13 +291,12 @@ function revisionTable(p) {
   return h("div", { class: "revtab" },
     h("div", { class: "rv-head" },
       h("b", {}, "리비전 대응표"),
-      // 1차부터 지금 보는 차수까지 모두 버튼으로 (코멘트를 아직 안 넣은 새 차수도 오갈 수 있게).
-      // 새 차수는 코멘트를 넣어야 저장되고, 비어 있는 새 차수에서는 '+'로 더 늘리지 않음
+      // 1차부터 지금 보는 차수까지 모두 버튼으로 (코멘트를 아직 안 넣은 차수도 오갈 수 있게).
+      // 새 차수는 코멘트를 넣어야 저장됨
       h("div", { class: "seg" },
         Array.from({ length: Math.max(round, ...rounds, 1) }, (_, i) => i + 1).map(r => h("button", { type: "button", "aria-pressed": String(r === round),
           title: rounds.includes(r) ? "" : "아직 코멘트가 없는 차수", onclick: () => { revRound.set(p.id, r); render(); } }, `${r}차`)),
-        h("button", { type: "button", disabled: !list.length && round > Math.max(0, ...rounds),
-          title: !list.length && round > Math.max(0, ...rounds) ? `${round}차에 코멘트를 먼저 넣어 주세요` : "다음 차수 리비전 시작",
+        h("button", { type: "button", title: "다음 차수 리비전 시작",
           onclick: () => { revRound.set(p.id, Math.max(round, ...rounds) + 1); render(); } }, "+")),
       list.length > 0 && h("span", { class: "when" }, `대응 ${nd}/${list.length}`),
       list.length > 0 && bar(nd, list.length)),
