@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=58"></script>
+<script src="theme-init.js?v=62"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -770,9 +770,26 @@
   .rv-q .lk{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
   .revtab textarea{font:inherit;font-size:14px;color:var(--ink);border:1px solid var(--rule);border-radius:2px;padding:6px 9px;resize:vertical;width:100%;max-width:100%}
   .revtab .rv-text{background:transparent;color:var(--muted);font-style:italic;font-size:13.5px}
-  .revtab .rv-resp,.revtab .rv-paste{background:var(--wafer)}
+  .revtab .rv-resp,.revtab .rv-paste textarea{background:var(--wafer)}
   .revtab .rv-where{width:100%;font-size:13px}
-  .rv-add{display:grid;gap:6px}
+  .rv-save{display:inline-flex;align-items:center;gap:10px;margin-left:auto}
+  .rv-status{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  .rv-status.dirty{color:var(--danger)}
+  .rv-save .btn:disabled{opacity:.45;cursor:default}
+  .rv-tools{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:13px}
+  .rv-tools select{font-size:12.5px;padding:2px 6px}
+  .rv-tools .bar{flex:1 1 100px;margin:0}
+  .rv-drop{margin-left:auto;color:var(--muted)}
+  .rv-group{display:grid;gap:8px;margin:0;padding:10px 0 4px;border-top:1px dashed var(--rule)}
+  .rv-gh{display:flex;align-items:baseline;gap:10px}
+  .rv-gh b{font-family:var(--display);font-size:14px}
+  .rv-no{font-family:var(--mono);font-size:12px;color:var(--deep)}
+  .rv-f{display:grid;gap:3px;min-width:0}
+  .rv-f > span{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+  .rv-gadd{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 14px}
+  .rv-paste{flex:1 1 260px;min-width:0;font-size:13px}
+  .rv-paste summary{cursor:pointer;color:var(--muted);font-size:12.5px;padding:5px 0}
+  .rv-paste[open]{display:grid;gap:6px}
   .detail.form .revtab textarea{white-space:pre-wrap}
 
   /* ---- 휴지통 ---- */
@@ -1066,16 +1083,16 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 플래너 코드: 이 순서대로 실행 (js/core.js 머리말 참고). 고칠 때마다 v= 숫자를 모두 올리기 -->
-<script defer src="js/core.js?v=58"></script>
-<script defer src="js/goals.js?v=58"></script>
-<script defer src="js/items.js?v=58"></script>
-<script defer src="js/papers.js?v=58"></script>
-<script defer src="js/lab.js?v=58"></script>
-<script defer src="js/library.js?v=58"></script>
-<script defer src="js/thoughts.js?v=58"></script>
-<script defer src="js/meetings.js?v=58"></script>
-<script defer src="js/app.js?v=58"></script>
-<script src="ambient.js?v=58"></script>
-<script src="season.js?v=58"></script>
+<script defer src="js/core.js?v=62"></script>
+<script defer src="js/goals.js?v=62"></script>
+<script defer src="js/items.js?v=62"></script>
+<script defer src="js/papers.js?v=62"></script>
+<script defer src="js/lab.js?v=62"></script>
+<script defer src="js/library.js?v=62"></script>
+<script defer src="js/thoughts.js?v=62"></script>
+<script defer src="js/meetings.js?v=62"></script>
+<script defer src="js/app.js?v=62"></script>
+<script src="ambient.js?v=62"></script>
+<script src="season.js?v=62"></script>
 </body>
 </html>

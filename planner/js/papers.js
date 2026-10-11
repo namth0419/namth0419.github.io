@@ -200,18 +200,35 @@ function paperWait(p) {
 }
 
 /* ------------------------------------------------------------------ 리비전 대응표
- * 원고(paper)의 rev: [{ id, round, reviewer, text, response, where, done }]
- *   round: 1차·2차… 리비전,  reviewer: "Editor" | "Reviewer 1" …
- * 리뷰어 코멘트를 붙여넣으면 빈 줄·번호 기준으로 나눠 한 줄씩 대응을 적고,
- * 다 적으면 Response letter 로 복사(Word 에 붙이면 굵게·기울임이 살아 있음)하거나 .txt 로 받음.
+ * 원고(paper)의 rev:     [{ id, round, reviewer, text, response, where, done }]   reviewer: "Editor" | "Reviewer 1" …
+ *              revMeta: { 차수: { reviewers: 리뷰어 수, editor: 에디터 칸 여부 } }
+ * 차수를 고르고 → 리뷰어 수를 정하면 리뷰어별 칸이 생기고 → '+ 질문 추가'로 R1Q1, R1Q2 … (번호는 순서대로 자동, 지우면 다시 매김)
+ * 고친 내용은 대응표의 '저장'(또는 Ctrl+S)을 눌러야 저장됨. 저장 안 한 변경이 있으면 표시하고, 페이지를 떠날 때 경고.
+ * 리뷰 코멘트를 통째로 붙여넣으면 빈 줄·번호(1. / (2) / Comment 3)마다 질문으로 나눠 주는 보조 기능도 리뷰어 칸 안에 있음.
  */
-const REVIEWERS = ["Editor", "Reviewer 1", "Reviewer 2", "Reviewer 3", "Reviewer 4"];
 const revRound = new Map();      // 원고 id → 보고 있는 차수
-const revOf = p => (byId.get(p.id) || p).rev || [];
-const revRounds = p => [...new Set(revOf(p).map(c => c.round || 1))].sort((a, b) => a - b);
-const curRound = p => revRound.get(p.id) || Math.max(1, ...revRounds(p));
-const revOrder = (a, b) => REVIEWERS.indexOf(a.reviewer) - REVIEWERS.indexOf(b.reviewer);
-function setRev(p, fn) { return act(store.update(p.id, { rev: fn(revOf(p)) })); }
+const revWork = new Map();       // 원고 id → { rev, meta, base(마지막으로 저장된 상태), savedAt }  ← 저장 전까지 고치는 사본
+const qLabel = (reviewer, k) => reviewer === "Editor" ? `EQ${k}` : `R${reviewer.replace(/\D+/g, "")}Q${k}`;
+const revSnap = p => { const c = byId.get(p.id) || p; return JSON.stringify({ rev: c.rev || [], meta: c.revMeta || {} }); };
+const revDirty = W => JSON.stringify({ rev: W.rev, meta: W.meta }) !== W.base;
+function revWorkOf(p) {
+  let W = revWork.get(p.id);
+  const snap = revSnap(p);
+  if (!W || (W.base !== snap && !revDirty(W))) {     // 처음이거나, 다른 기기에서 바뀌었고 여기서 고친 게 없으면 새로 읽음
+    const s = JSON.parse(snap);
+    W = { rev: s.rev, meta: s.meta, base: snap, savedAt: W ? W.savedAt : 0 };
+    revWork.set(p.id, W);
+  }
+  return W;
+}
+const revRoundsOf = W => [...new Set([...W.rev.map(c => c.round || 1), ...Object.keys(W.meta).map(Number)])].sort((a, b) => a - b);
+function revMetaOf(W, round) {                      // 그 차수의 리뷰어 수 (적어 둔 질문이 있는 리뷰어는 항상 보이게)
+  const inR = W.rev.filter(c => (c.round || 1) === round), m = W.meta[round] || {};
+  const top = Math.max(0, ...inR.filter(c => c.reviewer !== "Editor").map(c => +c.reviewer.replace(/\D+/g, "") || 1));
+  return { reviewers: Math.max(m.reviewers || (inR.length ? 1 : 2), top), editor: !!m.editor || inR.some(c => c.reviewer === "Editor") };
+}
+const revGroups = M => [...(M.editor ? ["Editor"] : []), ...Array.from({ length: M.reviewers }, (_, i) => `Reviewer ${i + 1}`)];
+addEventListener("beforeunload", e => { if ([...revWork.values()].some(revDirty)) { e.preventDefault(); e.returnValue = ""; } });
 
 // 붙여넣은 코멘트를 하나씩: 빈 줄로 나뉘어 있으면 그대로, 아니면 "1." "(2)" "Comment 3" "Q4" "- " 로 시작하는 줄마다
 function splitComments(text) {
@@ -225,38 +242,27 @@ function splitComments(text) {
       else parts[parts.length - 1] += "\n" + line;
     }
   }
-  // 앞에 붙은 번호는 떼어 냄 (Response letter 에서 Comment 1.2 처럼 다시 매김)
+  // 앞에 붙은 번호는 떼어 냄 (R1Q1 처럼 다시 매김)
   return parts.map(s => s.trim().replace(/^(\(?\d+[.)]|comment\s*\d+\s*[.:)]?|q\s*\d+\s*[.:)]?|[-•*])\s*/i, "").trim()).filter(Boolean);
 }
 
-// 리뷰어별 번호 (Reviewer 1 의 세 번째 코멘트 → "1.3", Editor → "E.2")
-function revNumbers(list) {
-  const n = new Map(), out = new Map();
-  for (const c of list.slice().sort(revOrder)) {
-    const k = (n.get(c.reviewer) || 0) + 1; n.set(c.reviewer, k);
-    out.set(c.id, `${c.reviewer === "Editor" ? "E" : c.reviewer.replace(/\D+/g, "")}.${k}`);
-  }
-  return out;
-}
-
+// Response letter: 에디터 → 리뷰어 1, 2 … 순서, 질문 번호는 대응표와 같음 (R1Q1 …)
 function responseLetter(p, round) {
-  const list = revOf(p).filter(c => (c.round || 1) === round).sort(revOrder);
-  const num = revNumbers(list), J = (p.paper || {}).journal;
+  const W = revWorkOf(p), M = revMetaOf(W, round), J = (p.paper || {}).journal;
   const esc = s => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   const T = [`Response to Reviewers`, `"${p.title}"${J ? ` — ${J}` : ""}${round > 1 ? ` (Revision ${round})` : ""}`, ""];
   const H = [`<h2>Response to Reviewers</h2>`, `<p><i>${esc(p.title)}</i>${J ? ` — ${esc(J)}` : ""}${round > 1 ? ` (Revision ${round})` : ""}</p>`];
-  let who = "";
-  for (const c of list) {
-    if (c.reviewer !== who) {
-      who = c.reviewer;
-      T.push(who === "Editor" ? "Editor" : who, "");
-      H.push(`<h3>${esc(who)}</h3>`);
-    }
-    const k = num.get(c.id);
-    T.push(`Comment ${k}: ${c.text}`, `Response: ${c.response || "[작성 필요]"}`);
-    H.push(`<p><b>Comment ${k}.</b> <i>${esc(c.text)}</i></p>`, `<p><b>Response:</b> ${esc(c.response || "[작성 필요]")}</p>`);
-    if (c.where) { T.push(`Changes in the manuscript: ${c.where}`); H.push(`<p><b>Changes in the manuscript:</b> ${esc(c.where)}</p>`); }
-    T.push("");
+  for (const g of revGroups(M)) {
+    const qs = W.rev.filter(c => (c.round || 1) === round && c.reviewer === g);
+    if (!qs.length) continue;
+    T.push(g, ""); H.push(`<h3>${esc(g)}</h3>`);
+    qs.forEach((c, i) => {
+      const k = qLabel(g, i + 1);
+      T.push(`${k}: ${c.text}`, `Response: ${c.response || "[작성 필요]"}`);
+      H.push(`<p><b>${k}.</b> <i>${esc(c.text)}</i></p>`, `<p><b>Response:</b> ${esc(c.response || "[작성 필요]")}</p>`);
+      if (c.where) { T.push(`Changes in the manuscript: ${c.where}`); H.push(`<p><b>Changes in the manuscript:</b> ${esc(c.where)}</p>`); }
+      T.push("");
+    });
   }
   return { text: T.join("\n").trim() + "\n", html: H.join("\n") };
 }
@@ -270,60 +276,116 @@ async function copyLetter(p, round) {
   } catch (e) { toast("복사하지 못했습니다. '.txt로 받기'를 써 주세요."); }
 }
 
+let revFocus = null;             // 새로 추가한 질문 칸에 커서를 둠
 function revisionTable(p) {
-  const st = (p.paper || {}).stage || "draft", all = revOf(p);
-  if (!all.length && !["review", "revision"].includes(st)) return null;
-  const round = curRound(p), rounds = revRounds(p);
-  const list = all.filter(c => (c.round || 1) === round).sort(revOrder);
-  const num = revNumbers(list), nd = list.filter(c => c.done).length;
-  const pk = "rvp:" + p.id, rk = "rvr:" + p.id;
-  const defReviewer = list.length ? list[list.length - 1].reviewer : "Reviewer 1";
-  const reviewer = drafts.get(rk) || defReviewer;
-  const addPasted = () => {
-    const parts = splitComments(drafts.get(pk) || "");
-    if (!parts.length) return toast("리뷰어 코멘트를 붙여넣어 주세요.");
-    const reviewer = drafts.get(rk) || defReviewer;
-    drafts.delete(pk);
-    setRev(p, cur => [...cur, ...parts.map(text => ({ id: rid(), round, reviewer, text, response: "", where: "", done: false }))])
-      .then(() => toast(`${reviewer} 코멘트 ${parts.length}개를 나눠 넣었습니다.`));
+  const st = (p.paper || {}).stage || "draft", W = revWorkOf(p);
+  if (!W.rev.length && !Object.keys(W.meta).length && !["review", "revision"].includes(st)) return null;
+  const rounds = revRoundsOf(W);
+  const round = revRound.get(p.id) || Math.max(1, ...rounds);
+  const shown = Array.from({ length: Math.max(round, ...rounds, 1) }, (_, i) => i + 1);
+  const M = revMetaOf(W, round), groups = revGroups(M);
+  const inR = W.rev.filter(c => (c.round || 1) === round), nd = inR.filter(c => c.done).length;
+
+  // 저장 상태 표시 (글자를 칠 때마다 다시 그리지 않고 이것만 바꿈)
+  const status = h("span", { class: "rv-status" });
+  const saveBtn = h("button", { class: "btn", type: "button", onclick: () => save() }, "저장");
+  const undoBtn = h("button", { class: "link", type: "button", onclick: () => {
+    if (confirm("마지막으로 저장한 상태로 되돌릴까요? 저장하지 않은 변경은 사라집니다.")) { revWork.delete(p.id); render(); } } }, "되돌리기");
+  const paint = () => {
+    const d = revDirty(W);
+    status.className = "rv-status" + (d ? " dirty" : "");
+    status.textContent = d ? "● 저장 안 된 변경 있음" : W.savedAt ? `저장됨 · ${fmtWhen(W.savedAt).slice(11)}` : "저장된 상태";
+    saveBtn.disabled = !d; undoBtn.style.display = d ? "" : "none";   // .link 은 hidden 속성을 덮어써서 style 로
   };
-  const patch = (c, v) => setRev(p, cur => cur.map(x => x.id === c.id ? { ...x, ...v } : x));
-  return h("div", { class: "revtab" },
+  const save = () => {
+    if (!revDirty(W)) return;
+    const rev = W.rev.map(c => ({ ...c })), meta = JSON.parse(JSON.stringify(W.meta)), prev = [W.base, W.savedAt];
+    W.base = JSON.stringify({ rev, meta }); W.savedAt = Date.now();      // 먼저 '저장됨'으로 (저장소가 바로 다시 그려도 맞게), 실패하면 되돌림
+    render();
+    act(store.update(p.id, { rev, revMeta: meta }).then(() => toast("리비전 대응표를 저장했습니다."),
+      e => { [W.base, W.savedAt] = prev; render(); throw e; }));
+  };
+  const change = fn => { fn(); render(); };          // 칸을 늘리거나 지우는 변경 → 다시 그림 (아직 저장 전)
+  const setReviewers = n => {
+    const lost = W.rev.filter(c => (c.round || 1) === round && c.reviewer !== "Editor" && +c.reviewer.replace(/\D+/g, "") > n);
+    if (lost.length && !confirm(`리뷰어를 ${n}명으로 줄이면 Reviewer ${n + 1}부터의 질문 ${lost.length}개도 지웁니다. 계속할까요?`)) return render();
+    change(() => { W.rev = W.rev.filter(c => !lost.includes(c)); W.meta[round] = { ...revMetaOf(W, round), reviewers: n }; });
+  };
+  const setEditor = v => {
+    const lost = v ? [] : W.rev.filter(c => (c.round || 1) === round && c.reviewer === "Editor");
+    if (lost.length && !confirm(`에디터 질문 ${lost.length}개도 지웁니다. 계속할까요?`)) return render();
+    change(() => { W.rev = W.rev.filter(c => !lost.includes(c)); W.meta[round] = { ...revMetaOf(W, round), editor: v }; });
+  };
+  const addQ = (g, text = "") => { const id = rid(); W.rev.push({ id, round, reviewer: g, text, response: "", where: "", done: false }); return id; };
+  const newRound = () => change(() => {
+    const r = Math.max(round, ...rounds) + 1;
+    W.meta[r] = { reviewers: M.reviewers, editor: false };       // 리뷰어 수는 앞 차수와 같게 시작
+    revRound.set(p.id, r);
+  });
+  const dropRound = () => {
+    if (!confirm(`${round}차와 그 안의 질문 ${inR.length}개를 지울까요? (저장해야 반영됩니다)`)) return;
+    change(() => { W.rev = W.rev.filter(c => (c.round || 1) !== round); delete W.meta[round]; revRound.set(p.id, Math.max(1, round - 1)); });
+  };
+  const field = (c, key, label, rows, cls) => h("label", { class: "rv-f" }, h("span", {}, label),
+    h(rows ? "textarea" : "input", { class: cls, rows: rows || null, "aria-label": label, dataset: { fk: `rv:${c.id}:${key}` },
+      placeholder: key === "where" ? "예: p.5 L120–134, Fig. 3, SI Note 2" : "", value: c[key] || "",
+      oninput: e => { c[key] = e.target.value; paint(); } }));
+
+  const group = g => {
+    const qs = W.rev.filter(c => (c.round || 1) === round && c.reviewer === g), pk = `rvp:${p.id}:${round}:${g}`;
+    return h("section", { class: "rv-group" },
+      h("div", { class: "rv-gh" }, h("b", {}, g),
+        h("span", { class: "when" }, qs.length ? `질문 ${qs.length} · 대응 완료 ${qs.filter(c => c.done).length}` : "질문 없음")),
+      qs.length > 0 && h("ol", { class: "rv-list" }, qs.map((c, i) => h("li", { class: "rv-item" + (c.done ? " done" : "") },
+        h("div", { class: "rv-q" },
+          h("b", { class: "rv-no" }, qLabel(g, i + 1)),
+          h("label", { class: "chk" }, h("input", { type: "checkbox", checked: !!c.done, onchange: e => change(() => { c.done = e.target.checked; }) }), "대응 완료"),
+          h("button", { class: "x", type: "button", "aria-label": `${qLabel(g, i + 1)} 지우기`, onclick: () => {
+            if ((c.text || c.response) && !confirm(`${qLabel(g, i + 1)}을(를) 지울까요? 뒤 번호는 하나씩 당겨집니다.`)) return;
+            change(() => { W.rev = W.rev.filter(x => x !== c); });
+          } }, "삭제")),
+        field(c, "text", "리뷰어 질문", 2, "rv-text"),
+        field(c, "response", "대응 (Response)", 3, "rv-resp"),
+        field(c, "where", "수정 위치", 0, "edit rv-where")))),
+      h("div", { class: "rv-gadd" },
+        h("button", { class: "btn ghost", type: "button", onclick: () => change(() => { revFocus = addQ(g); }) },
+          `+ 질문 추가 (${qLabel(g, qs.length + 1)})`),
+        h("details", { class: "rv-paste" },
+          h("summary", {}, "리뷰 코멘트 통째로 붙여넣기"),
+          h("p", { class: "hint" }, `${g}의 코멘트 전체를 붙여넣으면 빈 줄이나 번호(1. / (2) / Comment 3)마다 나눠서 ${qLabel(g, qs.length + 1)}부터 질문으로 넣습니다.`),
+          h("textarea", { rows: 4, "aria-label": `${g} 코멘트 붙여넣기`, dataset: { fk: pk }, value: drafts.get(pk) || "", oninput: e => drafts.set(pk, e.target.value) }),
+          h("button", { class: "btn ghost", type: "button", onclick: () => {
+            const parts = splitComments(drafts.get(pk) || "");
+            if (!parts.length) return toast("코멘트를 붙여넣어 주세요.");
+            drafts.delete(pk);
+            change(() => parts.forEach(t => addQ(g, t)));
+            toast(`${g} 질문 ${parts.length}개를 넣었습니다. 확인한 뒤 저장하세요.`);
+          } }, "질문으로 나눠 넣기"))));
+  };
+
+  if (revFocus) {                                     // 방금 추가한 질문 칸으로 커서
+    const id = revFocus; revFocus = null;
+    postRender.push(() => { const el = document.querySelector(`[data-fk="rv:${id}:text"]`); if (el) el.focus(); });
+  }
+  postRender.push(paint);
+  return h("div", { class: "revtab", onkeydown: e => { if ((e.ctrlKey || e.metaKey) && (e.key || "").toLowerCase() === "s") { e.preventDefault(); save(); } } },
     h("div", { class: "rv-head" },
       h("b", {}, "리비전 대응표"),
-      // 1차부터 지금 보는 차수까지 모두 버튼으로 (코멘트를 아직 안 넣은 차수도 오갈 수 있게).
-      // 새 차수는 코멘트를 넣어야 저장됨
       h("div", { class: "seg" },
-        Array.from({ length: Math.max(round, ...rounds, 1) }, (_, i) => i + 1).map(r => h("button", { type: "button", "aria-pressed": String(r === round),
-          title: rounds.includes(r) ? "" : "아직 코멘트가 없는 차수", onclick: () => { revRound.set(p.id, r); render(); } }, `${r}차`)),
-        h("button", { type: "button", title: "다음 차수 리비전 시작",
-          onclick: () => { revRound.set(p.id, Math.max(round, ...rounds) + 1); render(); } }, "+")),
-      list.length > 0 && h("span", { class: "when" }, `대응 ${nd}/${list.length}`),
-      list.length > 0 && bar(nd, list.length)),
-    list.length > 0 && h("ol", { class: "rv-list" }, list.map(c => h("li", { class: "rv-item" + (c.done ? " done" : "") },
-      h("div", { class: "rv-q" },
-        h("span", { class: "kind" }, num.get(c.id)),
-        h("select", { "aria-label": "리뷰어", onchange: e => patch(c, { reviewer: e.target.value }) },
-          REVIEWERS.map(r => h("option", { value: r, selected: c.reviewer === r }, r))),
-        h("label", { class: "chk" }, h("input", { type: "checkbox", checked: !!c.done, onchange: e => patch(c, { done: e.target.checked }) }), "완료"),
-        h("button", { class: "x", type: "button", "aria-label": "코멘트 삭제", onclick: () => {
-          if (confirm("이 코멘트와 대응을 지울까요?")) setRev(p, cur => cur.filter(x => x.id !== c.id));
-        } }, "삭제")),
-      textInput(`rvt:${c.id}`, c.text, v => patch(c, { text: v }), { class: "rv-text", rows: 2, "aria-label": "리뷰어 코멘트" }),
-      textInput(`rvs:${c.id}`, c.response, v => patch(c, { response: v }), { class: "rv-resp", rows: 3, placeholder: "대응 (Response) · Ctrl+Enter로 저장", "aria-label": "대응" }),
-      textInput(`rvw:${c.id}`, c.where, v => patch(c, { where: v }), { class: "edit rv-where", placeholder: "수정 위치 (예: p.5 L120–134, Fig. 3, SI Note 2)", "aria-label": "수정 위치" })))),
-    h("div", { class: "rv-add" },
-      h("div", { class: "rv-q" },
-        h("span", { class: "lk" }, `${round}차 코멘트 붙여넣기`),
-        h("select", { "aria-label": "어느 리뷰어의 코멘트인지", onchange: e => { drafts.set(rk, e.target.value); } },
-          REVIEWERS.map(r => h("option", { value: r, selected: reviewer === r }, r)))),
-      h("textarea", { rows: 4, class: "rv-paste", placeholder: "리뷰어 코멘트 전체를 붙여넣으면 빈 줄이나 번호(1. / (2) / Comment 3)마다 나눠서 넣습니다.",
-        "aria-label": "리뷰어 코멘트 붙여넣기", dataset: { fk: pk }, value: drafts.get(pk) || "",
-        oninput: e => drafts.set(pk, e.target.value),
-        onkeydown: e => { if (!typing(e) && e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addPasted(); } } }),
-      h("div", { class: "rp-actions" },
-        h("button", { class: "btn ghost", type: "button", onclick: addPasted }, "나눠서 넣기"),
-        list.length > 0 && h("button", { class: "btn", type: "button", onclick: () => copyLetter(p, round) }, "Response letter 복사"),
-        list.length > 0 && h("button", { class: "btn ghost", type: "button",
-          onclick: () => download(`response-${round}-${ymd(new Date())}.txt`, responseLetter(p, round).text, "text/plain") }, ".txt로 받기"))));
+        shown.map(r => h("button", { type: "button", "aria-pressed": String(r === round), onclick: () => { revRound.set(p.id, r); render(); } }, `${r}차`)),
+        h("button", { type: "button", title: "다음 차수 리비전 시작", onclick: newRound }, "+")),
+      h("span", { class: "rv-save" }, status, undoBtn, saveBtn)),
+    h("div", { class: "rv-tools" },
+      h("label", {}, "리뷰어 수 ", h("select", { "aria-label": "리뷰어 수", onchange: e => setReviewers(+e.target.value) },
+        [1, 2, 3, 4, 5, 6].map(n => h("option", { value: String(n), selected: n === M.reviewers }, `${n}명`)))),
+      h("label", { class: "chk" }, h("input", { type: "checkbox", checked: M.editor, onchange: e => setEditor(e.target.checked) }), "에디터 코멘트도 있음"),
+      inR.length > 0 && h("span", { class: "when" }, `대응 완료 ${nd}/${inR.length}`),
+      inR.length > 0 && bar(nd, inR.length),
+      round > 1 && h("button", { class: "link rv-drop", type: "button", onclick: dropRound }, `${round}차 지우기`)),
+    groups.map(group),
+    h("div", { class: "rp-actions" },
+      inR.length > 0 && h("button", { class: "btn ghost", type: "button", onclick: () => copyLetter(p, round) }, "Response letter 복사"),
+      inR.length > 0 && h("button", { class: "btn ghost", type: "button",
+        onclick: () => download(`response-${round}-${ymd(new Date())}.txt`, responseLetter(p, round).text, "text/plain") }, ".txt로 받기"),
+      h("span", { class: "hint" }, "고친 내용은 '저장'(Ctrl+S)을 눌러야 저장됩니다.")));
 }
