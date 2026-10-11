@@ -2338,7 +2338,11 @@
   scrubEl.querySelector(".ss-now").addEventListener("click", () => { stopPlay(); setScrub(null); });
   playBtn.addEventListener("click", () => playing ? stopPlay() : startPlay());
   scrubEl.addEventListener("click", e => e.stopPropagation());
-  setInterval(() => { if (mode !== "band" && scrub == null) syncScrub(); }, 30e3);
+  setInterval(() => {
+    if (mode === "band" || scrub != null) return;
+    if (nowReal().getTime() >= dayStart + 1440 * 60e3) buildDay();      // 켜 둔 채 자정을 넘기면 새 날로
+    syncScrub();
+  }, 30e3);
 
   /* ---------- 루프 ---------- */
   function refresh() { if (w) { paintBg(); draw(); } else compute(); }   // 안 보일 때도 글자는 갱신

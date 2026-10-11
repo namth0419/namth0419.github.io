@@ -173,7 +173,7 @@ let state = "loading";           // loading | signedOut | denied | error | ready
 let errorMsg = "";
 let store = null, unsub = null, auth = null;
 let items = [], byId = new Map(), trash = [];   // trash: 휴지통 (deletedAt 이 있는 항목)
-const today = new Date();
+let today = new Date();          // 자정이 지나면 아래에서 새 날짜로 바꿈
 let viewY = today.getFullYear(), viewM = today.getMonth();
 const openIds = new Set();       // 펼쳐진 항목
 const drafts = new Map();        // 입력 중인 글 (다시 그려도 유지)
@@ -187,6 +187,19 @@ let selDay = ymd(today);         // 달력에서 고른 날
 let ganttFolded = new Set();      // 간트에서 접은 마일스톤 (이 브라우저에만 기억)
 try { ganttFolded = new Set(JSON.parse(localStorage.getItem("planner-gantt-folded")) || []); } catch (e) {}
 const saveFolded = () => { try { localStorage.setItem("planner-gantt-folded", JSON.stringify([...ganttFolded])); } catch (e) {} };
+// 켜 둔 채 자정을 넘기면(배경화면처럼 밤새 켜 두는 경우 등) '오늘'을 새 날짜로: 오늘 요약·달력·간트·날짜 슬라이더가 맞게
+function rollDay() {
+  const n = new Date(), was = ymd(today);
+  if (ymd(n) === was) return;
+  const old = today;
+  today = n;
+  if (selDay === was) selDay = ymd(n);                                   // 오늘을 보고 있었으면 새 오늘로
+  if (viewY === old.getFullYear() && viewM === old.getMonth()) { viewY = n.getFullYear(); viewM = n.getMonth(); }
+  if (revWeek === ymd(mondayOf(old))) revWeek = ymd(mondayOf(n));
+  if (state === "ready") { render(); ensureRepeats(); }
+}
+setInterval(rollDay, 60e3);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) rollDay(); });
 addEventListener("hashchange", () => {
   const k = location.hash.slice(1);
   if (TABS.some(([t]) => t === k) && k !== tab) { tab = k; render(); }

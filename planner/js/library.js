@@ -48,6 +48,7 @@ async function addRef(text) {
   const base = { kind: "ref", period: "", parent: "", done: false, doneAt: null, comments: [], created: now };
   if (!doi) {                                       // DOI 가 없으면 제목만으로 만들고 나머지는 직접 입력
     if (!text.trim()) return;
+    drafts.delete("lib:add");
     act(store.add({ ...base, title: text.trim(), ref: { doi: "", authors: [], journal: "", year: "", volume: "", issue: "", pages: "", url: "", abstract: "", type: "journal-article", status: "toread", star: false } }));
     return;
   }
@@ -221,7 +222,7 @@ function refRow(it) {
     h("input", { type: "checkbox", class: "rsel", checked: libSel.has(it.id), "aria-label": "내보내기 선택",
       onchange: e => { e.target.checked ? libSel.add(it.id) : libSel.delete(it.id); render(); } }),
     h("button", { type: "button", class: "star" + (R.star ? " on" : ""), "aria-label": R.star ? "중요 표시 해제" : "중요 표시", "aria-pressed": String(!!R.star),
-      onclick: () => act(store.update(it.id, { ref: { ...R, star: !R.star } })) }, R.star ? "★" : "☆"),
+      onclick: () => { const cur = (byId.get(it.id) || it).ref || {}; act(store.update(it.id, { ref: { ...cur, star: !cur.star } })); } }, R.star ? "★" : "☆"),
     h("div", { class: "rr-main" },
       h("button", { class: "pr-title", type: "button", "aria-expanded": String(open), onclick: () => toggleOpen(it.id) }, it.title),
       h("div", { class: "pm" },

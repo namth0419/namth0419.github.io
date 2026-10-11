@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=55"></script>
+<script src="theme-init.js?v=57"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -566,6 +566,7 @@
   .lib-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 8px}
   .seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--rule);border-radius:999px;padding:2px;gap:2px}
   .seg button{all:unset;cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .seg button:disabled{opacity:.35;cursor:default}
   .seg button[aria-pressed="true"]{background:var(--deep);color:var(--wafer)}
   .seg button:focus-visible{outline:2px solid var(--deep)}
   .lib-bar .lib-q{flex:1 1 200px;min-width:0}
@@ -1065,16 +1066,16 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 플래너 코드: 이 순서대로 실행 (js/core.js 머리말 참고). 고칠 때마다 v= 숫자를 모두 올리기 -->
-<script defer src="js/core.js?v=55"></script>
-<script defer src="js/goals.js?v=55"></script>
-<script defer src="js/items.js?v=55"></script>
-<script defer src="js/papers.js?v=55"></script>
-<script defer src="js/lab.js?v=55"></script>
-<script defer src="js/library.js?v=55"></script>
-<script defer src="js/thoughts.js?v=55"></script>
-<script defer src="js/meetings.js?v=55"></script>
-<script defer src="js/app.js?v=55"></script>
-<script src="ambient.js?v=55"></script>
-<script src="season.js?v=55"></script>
+<script defer src="js/core.js?v=57"></script>
+<script defer src="js/goals.js?v=57"></script>
+<script defer src="js/items.js?v=57"></script>
+<script defer src="js/papers.js?v=57"></script>
+<script defer src="js/lab.js?v=57"></script>
+<script defer src="js/library.js?v=57"></script>
+<script defer src="js/thoughts.js?v=57"></script>
+<script defer src="js/meetings.js?v=57"></script>
+<script defer src="js/app.js?v=57"></script>
+<script src="ambient.js?v=57"></script>
+<script src="season.js?v=57"></script>
 </body>
 </html>

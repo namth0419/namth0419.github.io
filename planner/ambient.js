@@ -40,7 +40,7 @@
   const THUNDER = ["thunder-1", "thunder-2", "thunder-3"];
 
   let ac = null, out, muffle, verb, S = null, timer = 0, armed = false, bellsFrom = 0, bellsUntil = 0, NOISE = null;
-  const next = {}, bufs = {}, live = {};
+  const next = {}, bufs = {}, live = {}, failed = {};
   const level = () => pref.vol * pref.vol * 4;            // 귀에 들리는 크기는 대략 제곱으로
 
   /* ---------- 도구 ---------- */
@@ -62,6 +62,7 @@
   /* ---------- 깔리는 녹음: 처음 필요할 때 받아서 계속 반복 재생, 크기만 바꿈 ---------- */
   function bed(key) {
     if (live[key]) return live[key];
+    if (failed[key] && Date.now() - failed[key] < 60e3) return null;     // 받기 실패 → 1분 뒤에 다시
     const B = BEDS[key], L = live[key] = { g: gain(0), f: B.filter ? filt("lowpass", 6000, .5) : null, src: [] };
     if (L.f) chain(L.f, L.g);
     L.g.connect(muffle);
@@ -74,12 +75,13 @@
         s.start(0, ((i / vs.length + rnd() * .3) % 1) * buf.duration);
         L.src.push(s);
       });
-    }).catch(() => { delete live[key]; });
+    }).catch(() => { delete live[key]; failed[key] = Date.now(); });
     return L;
   }
   function setBed(key, db, tc) {                       // db: 이 녹음을 얼마나 크게 (−∞ 이면 끔)
     if (!isFinite(db)) { if (live[key]) ease(live[key].g.gain, 0, tc); return; }
-    ease(bed(key).g.gain, dB(db - BEDS[key].rms), tc);
+    const L = bed(key);
+    if (L) ease(L.g.gain, dB(db - BEDS[key].rms), tc);
   }
 
   /* ---------- 지금 상태 → 각 소리의 크기 (dB) ---------- */

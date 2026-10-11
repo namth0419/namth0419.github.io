@@ -560,8 +560,8 @@ function ensureRepeats() {
     const target = tp.repeat === "weekly" ? wk : tp.repeat === "monthly" ? mk : tp.repeat === "daily" ? td
                  : tp.repeat === "weekdays" && t.getDay() % 6 ? td : null;
     if (!target || target <= tp.period || (tp.repeatSkip || []).includes(target)) continue;
-    const key = tp.id + ":" + target;
-    if (repeatMade.has(key) || items.some(i => i.repeatOf === tp.id && i.period === target)) continue;
+    const key = tp.id + ":" + target, id = `rp-${tp.id}-${target}`;   // id 를 정해 둬서 휴대폰·컴퓨터에서 동시에 만들어도 하나로
+    if (repeatMade.has(key) || items.some(i => i.repeatOf === tp.id && i.period === target) || trash.some(i => i.id === id)) continue;
     repeatMade.add(key);
     // 연결(상위 목표)은 같은 달·같은 주일 때만 이어받음
     const par = tp.parent && byId.get(tp.parent);
@@ -569,7 +569,7 @@ function ensureRepeats() {
     if (par && tp.kind === "month") parent = tp.parent;
     if (par && tp.kind === "week") { const th = addDays(parseYmd(target), 3); if (par.period === ymKey(th.getFullYear(), th.getMonth())) parent = tp.parent; }
     if (par && tp.kind === "day" && par.period === ymd(mondayOf(t))) parent = tp.parent;
-    list.push({ id: rid(), data: { kind: tp.kind, title: tp.title, period: target, parent, repeatOf: tp.id,
+    list.push({ id, data: { kind: tp.kind, title: tp.title, period: target, parent, repeatOf: tp.id,
       done: false, doneAt: null, comments: [], checks: (tp.checks || []).map(c => ({ id: rid(), text: c.text, done: false, at: null })),
       created: Date.now() } });
   }

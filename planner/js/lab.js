@@ -15,7 +15,7 @@ function sampleFields(s) {
   const set = patch => act(store.update(s.id, { sample: { ...((byId.get(s.id) || s).sample || {}), ...patch } }));
   return h("div", { class: "fields col" },
     h("label", {}, "날짜", h("input", { type: "date", value: s.period || "",
-      onchange: e => { const v = e.target.value; if (!v || v < "1900") return; act(store.update(s.id, { period: v, sample: { ...S, date: v } })); } })),
+      onchange: e => { const v = e.target.value; if (!v || v < "1900") return; act(store.update(s.id, { period: v, sample: { ...((byId.get(s.id) || s).sample || {}), date: v } })); } })),
     h("label", { class: "wide" }, "공정·조건", textInput("sp:" + s.id, S.process, v => set({ process: v }), { class: "edit", rows: 2, "aria-label": "공정·조건" })),
     h("label", { class: "wide" }, "결과", textInput("sr:" + s.id, S.result, v => set({ result: v }), { class: "edit", rows: 2, "aria-label": "결과" })));
 }
@@ -24,6 +24,7 @@ function viewLab() {
   const f = k => drafts.get("lab:" + k) || "";
   const date = drafts.get("lab:date") || ymd(new Date());
   const add = () => {
+    const date = drafts.get("lab:date") || ymd(new Date());          // 그린 뒤 바꾼 날짜도 반영
     const code = f("code").trim(), process = f("process").trim(), result = f("result").trim();
     if (!code && !process && !result) return toast("시료 번호나 내용을 적어 주세요.");
     ["code", "process", "result"].forEach(k => drafts.delete("lab:" + k));

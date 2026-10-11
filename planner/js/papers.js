@@ -66,7 +66,7 @@ function addFromCv(list) {
     const done = f.stage === "accepted" || f.stage === "published";
     return { id: rid(), data: { kind: "paper", title: x.title, period: "", parent: "",
       paper: { stage: f.stage, journal: f.journal, role: f.role, submitted: "", authors: f.authors, cvKey: f.cvKey },
-      stageLog: [{ stage: f.stage, at: now }], done, doneAt: null, due: "",
+      stageLog: [{ stage: f.stage, at: now }], done, doneAt: done ? now : null, due: "",
       comments: x.doi ? [{ id: rid(), text: `DOI: https://doi.org/${x.doi}`, at: now }] : [], created: now + k } };
   });
   if (rows.length) act(store.addMany(rows).then(() => toast(`원고 ${rows.length}편을 CV에서 가져왔습니다.`)));
@@ -79,6 +79,7 @@ function fillFromCv(p, x) {
     patch.paper.stage = f.stage;
     patch.stageLog = [...(cur.stageLog || []), { stage: f.stage, at: Date.now() }];
     patch.done = f.stage === "accepted" || f.stage === "published";
+    patch.doneAt = patch.done ? (cur.doneAt || Date.now()) : null;
   }
   act(store.update(p.id, patch).then(() => toast("CV 정보로 채웠습니다.")));
 }
@@ -112,7 +113,7 @@ function cvFillField(p) {
   const mine = cvPubs.find(x => ((p.paper || {}).cvKey && (x.doi || normTitle(x.title)) === p.paper.cvKey) || normTitle(x.title) === normTitle(p.title));
   return h("div", { class: "fields" },
     h("label", { class: "wide" }, "CV 정보로 채우기",
-      h("select", { onchange: e => { const x = cvPubs[+e.target.value]; if (x) fillFromCv(p, x); } },
+      h("select", { onchange: e => { const x = e.target.value !== "" && cvPubs[+e.target.value]; if (x) fillFromCv(p, x); } },
         h("option", { value: "" }, mine ? "— 연결된 CV 항목에서 다시 채우기" : "— CV 논문 고르기"),
         cvPubs.map((x, k) => h("option", { value: String(k) }, (x === mine ? "✓ " : "") + x.title)))));
 }
@@ -290,10 +291,14 @@ function revisionTable(p) {
   return h("div", { class: "revtab" },
     h("div", { class: "rv-head" },
       h("b", {}, "리비전 대응표"),
+      // 1차부터 지금 보는 차수까지 모두 버튼으로 (코멘트를 아직 안 넣은 새 차수도 오갈 수 있게).
+      // 새 차수는 코멘트를 넣어야 저장되고, 비어 있는 새 차수에서는 '+'로 더 늘리지 않음
       h("div", { class: "seg" },
-        rounds.concat(rounds.includes(round) ? [] : [round]).map(r => h("button", { type: "button", "aria-pressed": String(r === round),
-          onclick: () => { revRound.set(p.id, r); render(); } }, `${r}차`)),
-        h("button", { type: "button", title: "다음 차수 리비전 시작", onclick: () => { revRound.set(p.id, Math.max(round, ...rounds) + 1); render(); } }, "+")),
+        Array.from({ length: Math.max(round, ...rounds, 1) }, (_, i) => i + 1).map(r => h("button", { type: "button", "aria-pressed": String(r === round),
+          title: rounds.includes(r) ? "" : "아직 코멘트가 없는 차수", onclick: () => { revRound.set(p.id, r); render(); } }, `${r}차`)),
+        h("button", { type: "button", disabled: !list.length && round > Math.max(0, ...rounds),
+          title: !list.length && round > Math.max(0, ...rounds) ? `${round}차에 코멘트를 먼저 넣어 주세요` : "다음 차수 리비전 시작",
+          onclick: () => { revRound.set(p.id, Math.max(round, ...rounds) + 1); render(); } }, "+")),
       list.length > 0 && h("span", { class: "when" }, `대응 ${nd}/${list.length}`),
       list.length > 0 && bar(nd, list.length)),
     list.length > 0 && h("ol", { class: "rv-list" }, list.map(c => h("li", { class: "rv-item" + (c.done ? " done" : "") },
