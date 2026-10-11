@@ -23,7 +23,7 @@
 <meta name="theme-color" content="#141517" media="(prefers-color-scheme: dark)">
 
 <!-- 테마를 그리기 전에 결정 (홈페이지와 같은 localStorage 키 공유) -->
-<script src="theme-init.js?v=54"></script>
+<script src="theme-init.js?v=55"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
@@ -63,6 +63,8 @@
     --danger:#E5716A;
   }
   *{box-sizing:border-box}
+  /* iPhone Safari 가 좁은 화면에서 글자를 멋대로 키우지 않게 */
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   body{
     margin:0;background:var(--wafer);color:var(--ink);
     font-family:var(--ui);font-size:15px;line-height:1.55;
@@ -656,6 +658,14 @@
     .search{flex:1 1 100%;max-width:none;margin-left:0}
     .dl-ics{margin-left:0}
   }
+  /* 휴대폰: 마감 칩은 한 줄로 두고 옆으로 밀어서 봄 */
+  @media (max-width:640px){
+    .deadlines{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -16px 16px;padding:2px 16px;gap:6px}
+    .deadlines::-webkit-scrollbar{display:none}
+    .dl-k,.dl,.dl-ics{flex:none}
+    .dl{max-width:min(240px,72vw)}
+    .dl-ics{margin-left:6px;white-space:nowrap}
+  }
 
   /* ---- settings ---- */
   .theme-toggle.gear svg{display:block;width:16px;height:16px}
@@ -1055,16 +1065,16 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 플래너 코드: 이 순서대로 실행 (js/core.js 머리말 참고). 고칠 때마다 v= 숫자를 모두 올리기 -->
-<script defer src="js/core.js?v=54"></script>
-<script defer src="js/goals.js?v=54"></script>
-<script defer src="js/items.js?v=54"></script>
-<script defer src="js/papers.js?v=54"></script>
-<script defer src="js/lab.js?v=54"></script>
-<script defer src="js/library.js?v=54"></script>
-<script defer src="js/thoughts.js?v=54"></script>
-<script defer src="js/meetings.js?v=54"></script>
-<script defer src="js/app.js?v=54"></script>
-<script src="ambient.js?v=54"></script>
-<script src="season.js?v=54"></script>
+<script defer src="js/core.js?v=55"></script>
+<script defer src="js/goals.js?v=55"></script>
+<script defer src="js/items.js?v=55"></script>
+<script defer src="js/papers.js?v=55"></script>
+<script defer src="js/lab.js?v=55"></script>
+<script defer src="js/library.js?v=55"></script>
+<script defer src="js/thoughts.js?v=55"></script>
+<script defer src="js/meetings.js?v=55"></script>
+<script defer src="js/app.js?v=55"></script>
+<script src="ambient.js?v=55"></script>
+<script src="season.js?v=55"></script>
 </body>
 </html>
